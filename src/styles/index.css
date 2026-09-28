@@ -1,0 +1,240 @@
+@import 'tailwindcss';
+
+/* ─────────────── Design system Paysapro ───────────────
+   Vert profond, vert naturel, blanc, beige très léger, anthracite.
+   Couleurs sémantiques en variables CSS : thème clair / sombre automatique. */
+
+:root {
+  --bg: #f7f5ef;
+  --surface: #ffffff;
+  --surface-2: #f1ede3;
+  --ink: #1d2421;
+  --muted: #5b6660;
+  --line: #e2dccf;
+  --brand: #1f5c44;
+  --brand-strong: #163f30;
+  --brand-soft: #e4efe7;
+  --on-brand: #ffffff;
+  --leaf: #3f8a5c;
+  --danger: #b3261e;
+  --danger-soft: #fbe9e7;
+  --warning: #8a5a00;
+  --warning-soft: #fdf1d8;
+  --info: #22597a;
+  --info-soft: #e3eff6;
+  --success: #1c6e41;
+  --success-soft: #e0f1e6;
+  --accent: #6b4fa0;
+  --accent-soft: #eee8f7;
+  --shadow: 0 1px 2px rgb(29 36 33 / 0.05), 0 4px 16px rgb(29 36 33 / 0.06);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0e1311;
+    --surface: #161d1a;
+    --surface-2: #1d2622;
+    --ink: #e7ece9;
+    --muted: #9ba8a1;
+    --line: #2b3631;
+    --brand: #2b7a55;
+    --brand-strong: #3f9a6d;
+    --brand-soft: #1b3228;
+    --on-brand: #ffffff;
+    --leaf: #6cc08e;
+    --danger: #ff8a80;
+    --danger-soft: #3a1c1a;
+    --warning: #f3c469;
+    --warning-soft: #362a12;
+    --info: #8cc4e6;
+    --info-soft: #152a36;
+    --success: #7bd3a0;
+    --success-soft: #16301f;
+    --accent: #c3aef0;
+    --accent-soft: #2a2238;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0e1311;
+  --surface: #161d1a;
+  --surface-2: #1d2622;
+  --ink: #e7ece9;
+  --muted: #9ba8a1;
+  --line: #2b3631;
+  --brand: #2b7a55;
+  --brand-strong: #3f9a6d;
+  --brand-soft: #1b3228;
+  --on-brand: #ffffff;
+  --leaf: #6cc08e;
+  --danger: #ff8a80;
+  --danger-soft: #3a1c1a;
+  --warning: #f3c469;
+  --warning-soft: #362a12;
+  --info: #8cc4e6;
+  --info-soft: #152a36;
+  --success: #7bd3a0;
+  --success-soft: #16301f;
+  --accent: #c3aef0;
+  --accent-soft: #2a2238;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+}
+
+/* Le document (devis) reste toujours « papier » clair, quel que soit le thème. */
+.paper {
+  --surface: #ffffff;
+  --surface-2: #f5f2ea;
+  --ink: #1d2421;
+  --muted: #5b6660;
+  --line: #e2dccf;
+  --brand: #1f5c44;
+  --brand-soft: #e4efe7;
+  color-scheme: light;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-leaf: var(--leaf);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --shadow-card: var(--shadow);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-text='large'] {
+  font-size: 18px;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Focus visible pour la navigation clavier */
+:focus-visible {
+  outline: 3px solid var(--leaf);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* iOS : pas de zoom automatique sur les champs (≥ 16 px) */
+input,
+select,
+textarea {
+  font-size: max(16px, 1rem);
+}
+}
+
+dialog::backdrop {
+  background: rgb(10 16 13 / 0.55);
+}
+
+/* Panneau bas (mobile) */
+@media (max-width: 639px) {
+  dialog.drawer[open] {
+    animation: drawer-up 0.22s ease-out;
+    max-height: 85vh;
+  }
+}
+@keyframes drawer-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+}
+
+/* Parcours de démonstration (landing) */
+@keyframes flow-step {
+  0%,
+  100% {
+    transform: none;
+    box-shadow: var(--shadow);
+  }
+  10%,
+  18% {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 10px 30px rgb(31 92 68 / 0.25);
+  }
+}
+.flow-step {
+  animation: flow-step 7.5s ease-in-out infinite;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-in {
+  /* « backwards » : une fois terminée, l'animation ne laisse aucun transform
+     (sinon les éléments position:fixed de la page seraient mal placés) */
+  animation: fade-up 0.22s ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}

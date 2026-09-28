@@ -1,0 +1,337 @@
+// Modèle de données du module de prospection.
+//
+// Règle absolue : une donnée inconnue vaut `null` (affichée « Non disponible »), jamais une valeur inventée.
+// Chaque enregistrement porte `workspaceId` : l'isolation est déjà en place pour une future version en ligne.
+
+export type ID = string;
+export type ISODate = string;
+
+export type ProspectStatus =
+  | 'new'
+  | 'to_qualify'
+  | 'to_contact'
+  | 'contacted'
+  | 'replied'
+  | 'interested'
+  | 'demo_scheduled'
+  | 'demo_done'
+  | 'trial'
+  | 'client'
+  | 'not_now'
+  | 'not_interested'
+  | 'do_not_contact';
+
+/** Étapes du tunnel commercial : chacune est datée la première fois qu'elle est atteinte. */
+export type Milestone = 'contacted' | 'replied' | 'demo' | 'trial' | 'client';
+
+export type ServiceTag =
+  | 'creation'
+  | 'entretien'
+  | 'amenagement'
+  | 'terrassement'
+  | 'arrosage'
+  | 'clotures'
+  | 'terrasses'
+  | 'elagage'
+  | 'haies'
+  | 'maconnerie'
+  | 'piscine'
+  | 'engazonnement';
+
+export type SourceKind = 'sirene' | 'csv' | 'manual' | 'demo' | 'enrichment';
+
+interface Tracked {
+  id: ID;
+  workspaceId: ID;
+  createdAt: ISODate;
+  updatedAt: ISODate;
+  createdBy: string;
+}
+
+export interface Prospect extends Tracked {
+  // Identité (SIRENE)
+  name: string;
+  tradeName: string | null;
+  siren: string | null;
+  siret: string | null;
+  nafCode: string | null;
+  activity: string | null;
+  legalForm: string | null;
+  /** true pour un entrepreneur individuel (personne physique : RGPD, minimisation) */
+  individual: boolean | null;
+  active: boolean | null;
+  creationDate: string | null;
+  /** Code de tranche d'effectif INSEE (« 02 » = 3 à 5 salariés), null si non renseigné */
+  headcountBand: string | null;
+  /** Effectif saisi manuellement (prioritaire sur la tranche) */
+  headcount: number | null;
+  // Localisation
+  address: string | null;
+  postalCode: string | null;
+  city: string | null;
+  department: string | null;
+  region: string | null;
+  // Coordonnées
+  contactFirstName: string | null;
+  contactLastName: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  // Présence en ligne (saisie manuelle ou import autorisé)
+  googleUrl: string | null;
+  googleRating: number | null;
+  googleReviews: number | null;
+  googleCategory: string | null;
+  googleCheckedAt: ISODate | null;
+  facebook: string | null;
+  instagram: string | null;
+  linkedin: string | null;
+  tiktok: string | null;
+  // Qualification
+  services: ServiceTag[];
+  interventionArea: string | null;
+  // CRM
+  status: ProspectStatus;
+  owner: string | null;
+  lastContactAt: ISODate | null;
+  nextFollowUpAt: ISODate | null;
+  milestones: Partial<Record<Milestone, ISODate>>;
+  doNotContact: boolean;
+  doNotContactReason: string | null;
+  // Score (recalculé à chaque enregistrement)
+  score: number;
+  // Conformité : origine et fraîcheur de la donnée
+  source: SourceKind;
+  sourceUrl: string | null;
+  dateCollected: ISODate;
+  lastVerifiedAt: ISODate | null;
+  /** Entreprise fictive (mode démo) — jamais contactable */
+  demo: boolean;
+}
+
+/** Version compacte d'un prospect, gardée en mémoire pour filtrer 100 000 lignes instantanément. */
+export interface ProspectRow {
+  id: ID;
+  workspaceId: ID;
+  name: string;
+  city: string | null;
+  postalCode: string | null;
+  department: string | null;
+  region: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  googleUrl: string | null;
+  googleRating: number | null;
+  googleReviews: number | null;
+  headcountMin: number | null;
+  nafCode: string | null;
+  services: ServiceTag[];
+  activity: string | null;
+  siren: string | null;
+  siret: string | null;
+  creationDate: string | null;
+  status: ProspectStatus;
+  score: number;
+  owner: string | null;
+  lastContactAt: ISODate | null;
+  nextFollowUpAt: ISODate | null;
+  milestones: Partial<Record<Milestone, ISODate>>;
+  doNotContact: boolean;
+  demo: boolean;
+  createdAt: ISODate;
+  /** Texte normalisé pour la recherche instantanée */
+  search: string;
+}
+
+export interface ProspectNote extends Tracked {
+  prospectId: ID;
+  text: string;
+  author: string;
+}
+
+export type ActivityType =
+  | 'imported'
+  | 'created'
+  | 'updated'
+  | 'enriched'
+  | 'score'
+  | 'status'
+  | 'note'
+  | 'email'
+  | 'call'
+  | 'message'
+  | 'task_created'
+  | 'task_done'
+  | 'do_not_contact';
+
+export interface ProspectActivity {
+  id: ID;
+  workspaceId: ID;
+  prospectId: ID;
+  type: ActivityType;
+  label: string;
+  at: ISODate;
+  by: string;
+}
+
+export type TaskType = 'call' | 'email' | 'follow_up' | 'demo' | 'other';
+export type TaskPriority = 'low' | 'normal' | 'high';
+
+export interface ProspectTask extends Tracked {
+  prospectId: ID;
+  prospectName: string;
+  type: TaskType;
+  dueAt: ISODate;
+  priority: TaskPriority;
+  note: string;
+  done: boolean;
+  doneAt: ISODate | null;
+}
+
+export type Presence = 'any' | 'yes' | 'no';
+
+/** Filtres de la base (aussi utilisés pour les segments dynamiques). */
+export interface ProspectFilter {
+  q?: string;
+  regions?: string[];
+  departments?: string[];
+  city?: string;
+  scoreMin?: number | null;
+  scoreMax?: number | null;
+  statuses?: ProspectStatus[];
+  ratingMin?: number | null;
+  reviewsMin?: number | null;
+  headcountMin?: number | null;
+  hasPhone?: Presence;
+  hasWebsite?: Presence;
+  hasEmail?: Presence;
+  hasGoogle?: Presence;
+  services?: ServiceTag[];
+  nafCodes?: string[];
+  createdAfter?: string | null;
+  createdBefore?: string | null;
+  lastContactBefore?: string | null;
+  lastContactAfter?: string | null;
+  followUpDue?: boolean;
+  neverContacted?: boolean;
+  includeDoNotContact?: boolean;
+  demo?: Presence;
+}
+
+export type SortKey = 'score' | 'reviews' | 'rating' | 'name' | 'department' | 'lastContact' | 'nextFollowUp' | 'created';
+
+export interface ProspectQuery {
+  filter: ProspectFilter;
+  sort?: SortKey;
+  page?: number;
+  pageSize?: number;
+  ids?: ID[];
+}
+
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface Segment extends Tracked {
+  name: string;
+  description: string;
+  filter: ProspectFilter;
+}
+
+export type TemplateCategory =
+  | 'first_contact'
+  | 'follow_up_1'
+  | 'follow_up_2'
+  | 'follow_up_3'
+  | 'demo_invite'
+  | 'after_demo'
+  | 'trial'
+  | 'reactivation'
+  | 'short';
+
+export interface MessageTemplate extends Tracked {
+  name: string;
+  category: TemplateCategory;
+  subject: string;
+  body: string;
+  builtIn: boolean;
+}
+
+export type RecipientState = 'pending' | 'opened' | 'sent' | 'replied' | 'skipped';
+
+export interface CampaignRecipient {
+  prospectId: ID;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  subject: string;
+  body: string;
+  state: RecipientState;
+  sentAt: ISODate | null;
+}
+
+export type CampaignStatus = 'draft' | 'validated' | 'running' | 'done';
+
+export interface Campaign extends Tracked {
+  name: string;
+  segmentId: ID | null;
+  templateId: ID;
+  status: CampaignStatus;
+  testMode: boolean;
+  recipients: CampaignRecipient[];
+  excluded: { prospectId: ID; name: string; reason: ExclusionReason }[];
+  validatedAt: ISODate | null;
+}
+
+export type ExclusionReason = 'do_not_contact' | 'suppression' | 'no_email' | 'demo' | 'client';
+
+export type SuppressionKind = 'siren' | 'siret' | 'email' | 'phone';
+
+export interface SuppressionEntry extends Tracked {
+  kind: SuppressionKind;
+  value: string;
+  reason: string;
+}
+
+export interface ImportReport extends Tracked {
+  source: SourceKind;
+  label: string;
+  total: number;
+  added: number;
+  updated: number;
+  duplicates: number;
+  invalid: number;
+  excluded: number;
+  /** Enrichissement : lignes qui ne correspondent à aucun prospect existant */
+  notFound: number;
+  errors: { line: number; message: string }[];
+  finishedAt: ISODate | null;
+}
+
+export type Role = 'owner' | 'admin' | 'sales' | 'viewer';
+
+export interface Settings {
+  workspaceId: ID;
+  userName: string;
+  role: Role;
+  saasName: string;
+  senderName: string;
+  signature: string;
+  formality: 'vous' | 'tu';
+  adminEmail: string;
+  testMode: boolean;
+  nafCodes: string[];
+  targetDepartments: string[];
+  minScore: number;
+  dailyContactLimit: number;
+  timezone: string;
+  /** Valeur moyenne d'un client (€) pour la « valeur potentielle » ; null = non configurée */
+  averageDealValue: number | null;
+  excludeIndividuals: boolean;
+  emailProvider: 'mailto';
+  onboarded: boolean;
+}
