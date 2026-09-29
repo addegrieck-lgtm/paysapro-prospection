@@ -6,8 +6,9 @@ import { STATUS_LABEL, SERVICE_LABEL, headcountLabel } from '../domain/referenti
 import { departmentName, regionName } from '../domain/geo';
 import { priorityOf } from '../domain/scoring';
 import { assertCan } from '../domain/access';
+import { ENRICHMENT_LABEL } from '../domain/enrichment';
 
-const COLUMNS: [string, (p: Prospect) => unknown][] = [
+export const EXPORT_COLUMNS: [string, (p: Prospect) => unknown][] = [
   ['Entreprise', (p) => p.name],
   ['Nom commercial', (p) => p.tradeName],
   ['SIREN', (p) => p.siren],
@@ -37,6 +38,13 @@ const COLUMNS: [string, (p: Prospect) => unknown][] = [
   ['Effectif', (p) => (p.headcount !== null || p.headcountBand ? headcountLabel(p.headcountBand, p.headcount) : null)],
   ['Date de création', (p) => p.creationDate],
   ['Établissement actif', (p) => (p.active === null ? null : p.active ? 'Oui' : 'Non')],
+  ['Siège', (p) => (p.isHeadOffice === null ? null : p.isHeadOffice ? 'Oui' : 'Non')],
+  ['Catégorie d’entreprise', (p) => p.companyCategory],
+  ['Statut enrichissement', (p) => ENRICHMENT_LABEL[p.enrichmentStatus]],
+  ['Date enrichissement', (p) => p.enrichedAt?.slice(0, 10)],
+  ['Source téléphone', (p) => p.fieldSources.phone?.provider],
+  ['Source e-mail', (p) => p.fieldSources.email?.provider],
+  ['Source adresse', (p) => p.fieldSources.address?.provider],
   ['Score', (p) => p.score],
   ['Priorité', (p) => priorityOf(p.score).label],
   ['Statut', (p) => STATUS_LABEL[p.status]],
@@ -51,8 +59,12 @@ const COLUMNS: [string, (p: Prospect) => unknown][] = [
   ['Donnée de démonstration', (p) => (p.demo ? 'OUI — FICTIVE' : 'Non')],
 ];
 
-export async function exportProspectsCsv(api: ProspectsApi, ids: string[]): Promise<string> {
+/** Colonnes proposées par défaut dans le choix des colonnes. */
+export const DEFAULT_EXPORT_COLUMNS = ['Entreprise', 'SIREN', 'SIRET', 'Adresse', 'Ville', 'Téléphone', 'E-mail', 'Site web', 'Code NAF', 'Effectif', 'Score', 'Statut', 'Source', 'Date enrichissement'];
+
+export async function exportProspectsCsv(api: ProspectsApi, ids: string[], columns?: string[]): Promise<string> {
   assertCan(api.ctx.role, 'prospecting.export');
+  const COLUMNS = columns?.length ? EXPORT_COLUMNS.filter(([h]) => columns.includes(h)) : EXPORT_COLUMNS;
   const rows: unknown[][] = [];
   for (let i = 0; i < ids.length; i += 1000) {
     const batch = await api.getProspects(ids.slice(i, i + 1000));

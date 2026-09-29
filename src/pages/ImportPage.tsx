@@ -1,17 +1,21 @@
 // Import : SIRENE (gratuit), CSV (4 étapes : fichier → analyse → correspondances → import), enrichissement, démo.
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { Building2, CheckCircle2, FileSpreadsheet, FlaskConical, Sparkles, Upload } from 'lucide-react';
+import { Building2, CheckCircle2, Copy, FileSpreadsheet, FlaskConical, Search, Sparkles, Upload } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
-import { Button } from '../components/ui/Button';
+import { Button, ButtonLink } from '../components/ui/Button';
 import { Card, CardTitle } from '../components/ui/Card';
-import { Alert } from '../components/ui/Feedback';
-import { Checkbox, Segmented } from '../components/ui/Form';
+import { Alert, useToast } from '../components/ui/Feedback';
+import { Checkbox, Segmented, SelectField, TextField } from '../components/ui/Form';
+import { QueueProgressCard } from '../components/enrichment';
+import { companyToInput } from '../providers/company/RechercheEntreprisesProvider';
+import type { Company } from '../providers/company/CompanyDataProvider';
+import { HEADCOUNT_BANDS, NAF_CHOICES, NAF_LABELS } from '../domain/referentials';
 import { nf, useAction, formatDateShort } from '../components/common';
 import { useApp, useCan, useQuery } from '../app/context';
-import { csvProvider } from '../providers/data';
-import { SireneProvider } from '../providers/sirene';
-import { DEPARTMENT_CODES, DEPARTMENTS } from '../domain/geo';
+import { csvProvider } from '../providers/company/CsvProvider';
+import { SireneProvider } from '../providers/company/SireneProvider';
+import { DEPARTMENT_CODES, DEPARTMENTS, REGIONS } from '../domain/geo';
 import { FIELDS, FIELD_LABEL, type FieldKey, type Mapping } from '../domain/mapping';
 import { DedupeIndex } from '../domain/dedupe';
 import { demoLines } from '../data/demo';
@@ -19,7 +23,7 @@ import type { ImportLine } from '../data/repository';
 import type { ImportReport } from '../domain/types';
 import type { ProspectInput } from '../domain/prospect';
 
-type Tab = 'sirene' | 'csv' | 'enrich' | 'demo';
+type Tab = 'sirene' | 'search' | 'csv' | 'enrich' | 'demo';
 
 export function ImportPage() {
   const canImport = useCan('prospecting.import');
@@ -27,26 +31,240 @@ export function ImportPage() {
   if (!canImport) return <Alert tone="warning">Votre rôle ne permet pas d'importer des prospects.</Alert>;
   return (
     <>
-      <PageHeader title="Import" subtitle="Constituez votre base de paysagistes, gratuitement." />
-      <div className="mb-5 max-w-2xl">
+      <PageHeader title="Import & Enrichissement" subtitle="Constituez et complétez votre base de paysagistes, gratuitement." />
+      <div className="mb-4 grid gap-4 lg:grid-cols-2">
+        <EnrichmentOverview />
+        <DuplicatesOverview />
+      </div>
+      <h2 className="mb-3 text-lg font-semibold">Importer des entreprises</h2>
+      <div className="mb-5 max-w-3xl overflow-x-auto">
         <Segmented<Tab>
           label="Type d'import"
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'sirene', label: 'SIRENE' },
+            { value: 'sirene', label: 'Officiel' },
+            { value: 'search', label: 'Rechercher' },
             { value: 'csv', label: 'CSV' },
-            { value: 'enrich', label: 'Enrichir' },
+            { value: 'enrich', label: 'Compléter' },
             { value: 'demo', label: 'Démo' },
           ]}
         />
       </div>
       {tab === 'sirene' && <SireneImport />}
+      {tab === 'search' && <CompanySearch />}
       {tab === 'csv' && <CsvImport mode="create" />}
       {tab === 'enrich' && <CsvImport mode="enrich" />}
       {tab === 'demo' && <DemoImport />}
       <ImportHistory />
     </>
+  );
+}
+
+// ─────────────── Enrichissement (vue d'ensemble) ───────────────
+
+function EnrichmentOverview() {
+  const { queue } = useApp();
+  const run = useAction();
+  const canEdit = useCan('prospecting.edit');
+  const { data } = useQuery(async (a) => {
+    const rows = (await a.allRows()).filter((r) => !r.demo);
+    const by = (s: string) => rows.filter((r) => r.enrichmentStatus === s);
+    return { total: rows.length, enriched: by('enriched').length, partial: by('partial').length, failed: by('failed'), none: rows.filter((r) => r.enrichmentStatus === 'none') };
+  }, []);
+  if (!data) return null;
+  return (
+    <Card>
+      <CardTitle icon={<Sparkles className="h-5 w-5" />}>Enrichissement</CardTitle>
+      <p className="text-sm text-muted">
+        Complète automatiquement chaque fiche avec les données publiques officielles (SIREN, SIRET, adresse, NAF, statut, effectif…) — gratuit, sans clé, jamais au détriment
+        de vos saisies manuelles.
+      </p>
+      <ul className="my-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+        <Stat label="prospects réels" value={data.total} />
+        <Stat label="enrichis" value={data.enriched} />
+        <Stat label="partiels" value={data.partial} />
+        <Stat label="non traités" value={data.none.length} />
+      </ul>
+      {canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={!data.none.length} icon={<Sparkles className="h-5 w-5" />} onClick={() => run(() => queue.add(data.none.map((r) => r.id)), 'Enrichissement lancé')}>
+            Enrichir les non traités ({nf.format(data.none.length)})
+          </Button>
+          {data.failed.length > 0 && (
+            <Button variant="secondary" onClick={() => run(() => queue.add(data.failed.map((r) => r.id), true), 'Échecs relancés')}>
+              Relancer les échecs ({nf.format(data.failed.length)})
+            </Button>
+          )}
+        </div>
+      )}
+      <div className="mt-3 empty:hidden">
+        <QueueProgressCard />
+      </div>
+    </Card>
+  );
+}
+
+function DuplicatesOverview() {
+  const { api } = useApp();
+  const run = useAction();
+  const toast = useToast();
+  const { data: open = [] } = useQuery((a) => a.listDuplicates('open'), []);
+  return (
+    <Card>
+      <CardTitle icon={<Copy className="h-5 w-5" />}>Doublons</CardTitle>
+      <p className="text-sm text-muted">
+        Détection par SIRET, SIREN, nom + adresse, nom + téléphone (fusion automatique à l'import), puis téléphone seul et nom + ville (à vérifier par vous).
+      </p>
+      <p className="my-3 text-2xl font-bold tabular-nums">
+        {nf.format(open.length)} <span className="text-base font-normal text-muted">doublon(s) potentiel(s) à vérifier</span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <ButtonLink to="/duplicates" variant={open.length ? 'primary' : 'secondary'}>
+          Vérifier les doublons
+        </ButtonLink>
+        <Button
+          variant="ghost"
+          onClick={async () => {
+            const n = await run(() => api.scanDuplicates());
+            if (n !== undefined) toast(n ? `${nf.format(n)} nouveau(x) doublon(s) potentiel(s)` : 'Aucun nouveau doublon', 'info');
+          }}
+        >
+          Analyser toute la base
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// ─────────────── Recherche d'entreprises (API officielle) ───────────────
+
+function CompanySearch() {
+  const { api, companyProvider, settings } = useApp();
+  const run = useAction();
+  const [q, setQ] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [commune, setCommune] = useState('');
+  const [naf, setNaf] = useState(settings.nafCodes[0] ?? '81.30Z');
+  const [activeOnly, setActiveOnly] = useState(true);
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState<{ companies: Company[]; total: number; pages: number } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState<ImportReport | null>(null);
+
+  const search = async (p = 1) => {
+    setBusy(true);
+    setReport(null);
+    const digits = q.replace(/\s/g, '');
+    const r = await run(() =>
+      companyProvider.search({
+        q: q.trim() || undefined,
+        siren: /^\d{9}$/.test(digits) ? digits : undefined,
+        siret: /^\d{14}$/.test(digits) ? digits : undefined,
+        postalCode: postalCode || undefined,
+        commune: commune || undefined,
+        nafCodes: naf ? [naf] : undefined,
+        activeOnly,
+        page: p,
+      }),
+    );
+    setBusy(false);
+    if (r) {
+      setResult(r);
+      setPage(p);
+      setSelected(new Set());
+    }
+  };
+
+  const establishmentsOf = (c: Company) => {
+    const list = c.matching.length ? c.matching : c.headOffice ? [c.headOffice] : [];
+    return list.filter((e) => e.diffusible && (!activeOnly || e.active));
+  };
+
+  const add = async () => {
+    if (!result) return;
+    const inputs = result.companies.flatMap((c) => establishmentsOf(c).filter((e) => selected.has(e.siret)).map((e) => companyToInput(c, e)));
+    const r = await run(() => api.importLines(inputs.map((input, i) => ({ line: i + 1, input, errors: [] })), { source: 'search', label: `Recherche « ${q || naf} »`, mode: 'create' }));
+    if (r) setReport(r);
+  };
+
+  return (
+    <Card>
+      <CardTitle icon={<Search className="h-5 w-5" />}>Recherche d'entreprises (données publiques)</CardTitle>
+      <form
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void search(1);
+        }}
+      >
+        <TextField label="Nom, SIREN ou SIRET" value={q} onChange={setQ} placeholder="Ex. jardin, 123456789…" className="lg:col-span-2" />
+        <TextField label="Code postal" value={postalCode} onChange={setPostalCode} inputMode="numeric" />
+        <TextField label="Commune" value={commune} onChange={setCommune} />
+        <SelectField label="Code NAF" value={naf} onChange={setNaf} options={[{ value: '', label: 'Tous' }, ...NAF_CHOICES.map((c) => ({ value: c, label: `${c} — ${NAF_LABELS[c]}` }))]} />
+        <div className="self-end">
+          <Checkbox checked={activeOnly} onChange={setActiveOnly}>
+            Actives uniquement
+          </Checkbox>
+        </div>
+        <div className="self-end lg:col-span-2">
+          <Button type="submit" disabled={busy || (!q.trim() && !postalCode && !commune)} icon={<Search className="h-5 w-5" />}>
+            {busy ? 'Recherche…' : 'Rechercher'}
+          </Button>
+        </div>
+      </form>
+      {result && (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm text-muted">
+            {nf.format(result.total)} entreprise(s) · page {page} / {Math.max(1, result.pages)}
+          </p>
+          <ul className="divide-y divide-line rounded-xl border border-line">
+            {result.companies.flatMap((c) =>
+              establishmentsOf(c).map((e) => (
+                <li key={e.siret}>
+                  <label className="flex cursor-pointer items-start gap-3 p-3 hover:bg-surface-2">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(e.siret)}
+                      onChange={() => {
+                        const s = new Set(selected);
+                        if (s.has(e.siret)) s.delete(e.siret);
+                        else s.add(e.siret);
+                        setSelected(s);
+                      }}
+                      className="mt-1 h-4 w-4 accent-[var(--brand)]"
+                    />
+                    <span className="min-w-0 flex-1 text-sm">
+                      <span className="block font-semibold">
+                        {e.tradeName ? `${e.tradeName} (${c.name})` : c.name}
+                        {e.isHeadOffice && <span className="ml-2 text-xs font-normal text-muted">siège</span>}
+                      </span>
+                      <span className="text-muted">
+                        SIRET {e.siret} · {[e.address, e.postalCode, e.city].filter(Boolean).join(' ')} · {e.nafCode ?? 'NAF inconnu'} · {e.active ? 'active' : 'fermée'}
+                        {e.headcountBand && ` · ${HEADCOUNT_BANDS[e.headcountBand]?.[0] ?? ''}`}
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              )),
+            )}
+          </ul>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button disabled={!selected.size} onClick={add}>
+              Ajouter {selected.size ? nf.format(selected.size) : ''} au CRM
+            </Button>
+            <Button variant="ghost" disabled={page <= 1 || busy} onClick={() => search(page - 1)}>
+              Page précédente
+            </Button>
+            <Button variant="ghost" disabled={page >= result.pages || busy} onClick={() => search(page + 1)}>
+              Page suivante
+            </Button>
+          </div>
+          {report && <ReportView r={report} />}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -81,6 +299,7 @@ function ReportView({ r }: { r: ImportReport }) {
         <Stat label="lignes invalides" value={r.invalid} />
         <Stat label="exclus (liste de suppression)" value={r.excluded} />
         {r.notFound > 0 && <Stat label="sans correspondance" value={r.notFound} />}
+        {(r.candidates ?? 0) > 0 && <Stat label="doublons potentiels à vérifier" value={r.candidates ?? 0} />}
       </ul>
       {r.errors.length > 0 && (
         <details className="rounded-xl border border-line p-3 text-sm">
@@ -119,6 +338,13 @@ function SireneImport() {
   const { data: last = {} } = useQuery(() => provider.lastImports(), []);
   const [selected, setSelected] = useState<string[]>(settings.targetDepartments);
   const [excludeIndividuals, setExcludeIndividuals] = useState(settings.excludeIndividuals);
+  const [activeOnly, setActiveOnly] = useState(true);
+  const [headOfficeOnly, setHeadOfficeOnly] = useState(false);
+  const [minBand, setMinBand] = useState('');
+  const [createdAfter, setCreatedAfter] = useState('');
+  const [createdBefore, setCreatedBefore] = useState('');
+  const [postalCodes, setPostalCodes] = useState('');
+  const [commune, setCommune] = useState('');
   const [status, setStatus] = useState<{ label: string; done: number; total: number } | null>(null);
   const [report, setReport] = useState<ImportReport | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -126,17 +352,32 @@ function SireneImport() {
   const start = async (departments: string[]) => {
     setReport(null);
     abort.current = new AbortController();
-    const label = departments.length === DEPARTMENT_CODES.length ? 'SIRENE — toute la France' : `SIRENE — ${departments.length > 6 ? `${departments.length} départements` : departments.join(', ')}`;
+    const cps = postalCodes
+      .split(/[\s,;]+/)
+      .map((c) => c.trim())
+      .filter((c) => /^\d{5}$/.test(c));
+    const label = cps.length
+      ? `SIRENE — CP ${cps.join(', ')}`
+      : departments.length === DEPARTMENT_CODES.length
+        ? 'SIRENE — toute la France'
+        : `SIRENE — ${departments.length > 6 ? `${departments.length} départements` : departments.join(', ')}`;
     const total = { source: 'sirene' as const, label, total: 0, added: 0, updated: 0, duplicates: 0, invalid: 0, excluded: 0, notFound: 0, errors: [] as ImportReport['errors'], finishedAt: null };
     await run(async () => {
       await provider.run({
         departments,
+        postalCodes: cps,
+        commune: commune.trim() || undefined,
+        activeOnly,
+        headOfficeOnly,
+        minHeadcountBand: minBand || null,
+        createdAfter: createdAfter || null,
+        createdBefore: createdBefore || null,
         nafCodes: settings.nafCodes.length ? settings.nafCodes : ['81.30Z'],
         excludeIndividuals,
         signal: abort.current!.signal,
         onProgress: (p) =>
           setStatus({
-            label: `Département ${p.department} — ${DEPARTMENTS[p.department]?.[0] ?? ''} (page ${p.page}/${p.pages}) · ${nf.format(p.found)} établissements trouvés`,
+            label: `${DEPARTMENTS[p.department] ? `Département ${p.department} — ${DEPARTMENTS[p.department]![0]}` : `Code postal ${p.department}`} (page ${p.page}/${p.pages}) · ${nf.format(p.found)} établissements retenus`,
             done: p.deptIndex + p.page / Math.max(1, p.pages),
             total: p.deptTotal,
           }),
@@ -160,15 +401,41 @@ function SireneImport() {
       <CardTitle icon={<Building2 className="h-5 w-5" />}>Importer les paysagistes français (SIRENE)</CardTitle>
       <div className="space-y-4 text-sm">
         <p className="text-muted">
-          Source officielle et gratuite : l'API publique « Recherche d'entreprises » de l'État (données INSEE). Seuls les établissements <strong>actifs</strong>, du code NAF{' '}
-          <strong>{settings.nafCodes.join(', ') || '81.30Z'}</strong>, à diffusion publique, sont importés. Aucune clé ni abonnement.
+          Source officielle et gratuite : l'API publique « Recherche d'entreprises » de l'État (données INSEE). Code NAF <strong>{settings.nafCodes.join(', ') || '81.30Z'}</strong>{' '}
+          (modifiable dans Paramètres), établissements à diffusion publique. Aucune clé ni abonnement. Les fiches importées sont déjà « enrichies » administrativement.
         </p>
         <Alert tone="info" title="Ce que SIRENE ne contient pas">
-          Ni téléphone, ni e-mail, ni site, ni avis Google. Ces fiches démarrent donc avec un score faible : complétez-les avec la recherche Google de chaque fiche ou un fichier d'enrichissement.
+          Ni téléphone, ni e-mail, ni site, ni avis. Ces fiches démarrent donc avec un score modéré : complétez-les avec « Rechercher sur le web » sur chaque fiche ou un fichier CSV (onglet
+          Compléter).
         </Alert>
-        <Checkbox checked={excludeIndividuals} onChange={setExcludeIndividuals}>
-          Exclure les entrepreneurs individuels (personnes physiques)
-        </Checkbox>
+        <fieldset className="grid gap-3 rounded-xl border border-line p-3 sm:grid-cols-2 lg:grid-cols-3">
+          <legend className="px-1 font-medium">Filtres</legend>
+          <SelectField
+            label="Région (sélectionne ses départements)"
+            value=""
+            onChange={(r) => r && setSelected(Array.from(new Set([...selected, ...DEPARTMENT_CODES.filter((d) => DEPARTMENTS[d]![1] === r)])))}
+            options={[{ value: '', label: 'Ajouter une région…' }, ...Object.entries(REGIONS).map(([c, n]) => ({ value: c, label: n }))]}
+          />
+          <TextField label="Codes postaux (au lieu des départements)" value={postalCodes} onChange={setPostalCodes} placeholder="76000, 76100" hint="Séparés par des virgules." />
+          <TextField label="Commune (filtre)" value={commune} onChange={setCommune} placeholder="Ex. Rouen" />
+          <SelectField
+            label="Tranche d'effectif minimale"
+            value={minBand}
+            onChange={setMinBand}
+            options={[{ value: '', label: 'Toutes (y compris non renseignée)' }, ...Object.entries(HEADCOUNT_BANDS).slice(1, 8).map(([c, [l]]) => ({ value: c, label: `${l} et plus` }))]}
+          />
+          <TextField label="Créée après le" type="date" value={createdAfter} onChange={setCreatedAfter} />
+          <TextField label="Créée avant le" type="date" value={createdBefore} onChange={setCreatedBefore} />
+          <Checkbox checked={activeOnly} onChange={setActiveOnly}>
+            Entreprises actives uniquement
+          </Checkbox>
+          <Checkbox checked={headOfficeOnly} onChange={setHeadOfficeOnly}>
+            Sièges uniquement
+          </Checkbox>
+          <Checkbox checked={excludeIndividuals} onChange={setExcludeIndividuals}>
+            Exclure les entrepreneurs individuels (personnes physiques)
+          </Checkbox>
+        </fieldset>
 
         {status ? (
           <div className="space-y-3">
@@ -180,8 +447,8 @@ function SireneImport() {
         ) : (
           <>
             <div className="flex flex-wrap gap-2">
-              <Button icon={<Upload className="h-5 w-5" />} disabled={!selected.length} onClick={() => start(selected)}>
-                Importer {selected.length ? `${selected.length} département(s)` : ''}
+              <Button icon={<Upload className="h-5 w-5" />} disabled={!selected.length && !postalCodes.trim()} onClick={() => start(selected)}>
+                Lancer l'import {postalCodes.trim() ? '(codes postaux)' : selected.length ? `(${selected.length} département(s))` : ''}
               </Button>
               <Button variant="secondary" onClick={() => start(DEPARTMENT_CODES)}>
                 Importer toute la France ({DEPARTMENT_CODES.length} départements)

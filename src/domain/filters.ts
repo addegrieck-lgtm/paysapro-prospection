@@ -41,6 +41,13 @@ export function matchesFilter(r: ProspectRow, f: ProspectFilter, now = new Date(
   if (!presence(f.hasEmail, has(r.email))) return false;
   if (!presence(f.hasGoogle, has(r.googleUrl) || r.googleReviews !== null)) return false;
   if (!presence(f.demo, r.demo)) return false;
+  if (!presence(f.hasSocial, r.hasSocial)) return false;
+  if (!presence(f.active, r.active === true)) return false;
+  if (f.enrichment?.length) {
+    // « Non enrichi » regroupe aussi les fiches en attente dans la file
+    const s = r.enrichmentStatus === 'pending' || r.enrichmentStatus === 'processing' ? 'none' : r.enrichmentStatus;
+    if (!f.enrichment.includes(s) && !f.enrichment.includes(r.enrichmentStatus)) return false;
+  }
   if (f.services?.length && !f.services.some((s) => r.services.includes(s))) return false;
   if (f.nafCodes?.length && !f.nafCodes.includes(r.nafCode ?? '')) return false;
   if (f.createdAfter && (!r.creationDate || r.creationDate < f.createdAfter)) return false;
@@ -116,9 +123,13 @@ export function describeFilter(f: ProspectFilter): string {
     [f.hasWebsite, 'site'],
     [f.hasEmail, 'e-mail'],
     [f.hasGoogle, 'Google'],
+    [f.hasSocial, 'réseaux sociaux'],
   ];
   pres.forEach(([p, l]) => p && p !== 'any' && parts.push(`${p === 'yes' ? 'Avec' : 'Sans'} ${l}`));
   if (f.services?.length) parts.push(`${f.services.length} prestation(s)`);
+  if (f.active === 'yes') parts.push('Actives');
+  if (f.active === 'no') parts.push('Non actives');
+  if (f.enrichment?.length) parts.push(`Enrichissement : ${f.enrichment.length} statut(s)`);
   if (f.followUpDue) parts.push('Relance due');
   if (f.neverContacted) parts.push('Jamais contacté');
   if (f.createdAfter) parts.push(`Créée après ${f.createdAfter}`);

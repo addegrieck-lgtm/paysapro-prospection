@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { openProspectingDB } from '../src/data/db';
 import { ProspectsApi, DailyLimitError, type RepoContext } from '../src/data/repository';
-import { csvProvider } from '../src/providers/data';
+import { csvProvider } from '../src/providers/company/CsvProvider';
 import { exportProspectsCsv } from '../src/data/export';
 import { parseCsv } from '../src/domain/csv';
 import { demoLines } from '../src/data/demo';
@@ -41,8 +41,8 @@ describe('Import CSV et déduplication', () => {
     expect(page.total).toBe(3);
     const top = page.items[0]!;
     expect(top.name).toBe('Jardin & Création');
-    expect(top.score).toBe(15 + 5 + 15 + 15 + 20 + 10);
-    expect((await api.timeline(top.id)).map((a) => a.label)).toContain('Score calculé : 80');
+    expect(top.score).toBe(10 + 15 + 10 + 5 + 10 + 5); // téléphone, e-mail, site, Google, > 50 avis, note ≥ 4,5
+    expect((await api.timeline(top.id)).map((a) => a.label)).toContain('Score calculé : 55');
   });
 
   it('un second import du même fichier ne crée aucun doublon', async () => {
@@ -87,9 +87,9 @@ describe('CRUD, notes, historique', () => {
     expect(p.department).toBe('14');
     expect(p.score).toBe(0);
     const u = await api.updateProspect(p.id, { website: 'https://test.fr', phone: '0231000000' }, 'Site ajouté');
-    expect(u.score).toBe(30);
+    expect(u.score).toBe(20);
     const labels = (await api.timeline(p.id)).map((a) => a.label);
-    expect(labels).toEqual(expect.arrayContaining(['Site ajouté', 'Score recalculé : 0 → 30']));
+    expect(labels).toEqual(expect.arrayContaining(['Site ajouté (2 champ(s))', 'Score recalculé : 0 → 20']));
     const note = await api.addNote(p.id, 'Rappeler après 17 h');
     await api.updateNote(note.id, 'Rappeler après 18 h');
     expect((await api.notesFor(p.id))[0]).toMatchObject({ text: 'Rappeler après 18 h', author: 'Adrien' });

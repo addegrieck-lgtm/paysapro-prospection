@@ -2,6 +2,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { openProspectingDB } from '../data/db';
 import { ProspectsApi, defaultSettings } from '../data/repository';
+import { EnrichmentQueue, type QueueProgress } from '../data/enrichmentQueue';
+import { dbCache } from '../data/cache';
+import { RechercheEntreprisesProvider } from '../providers/company/RechercheEntreprisesProvider';
+import type { CompanyDataProvider } from '../providers/company/CompanyDataProvider';
 import type { Settings } from '../domain/types';
 import { can, type Permission } from '../domain/access';
 import { requestPersistentStorage } from '../pwa';
@@ -11,6 +15,9 @@ export const LOCAL_WORKSPACE = 'local';
 
 interface AppContextValue {
   api: ProspectsApi;
+  /** Source officielle gratuite utilisée pour l'enrichissement */
+  companyProvider: CompanyDataProvider;
+  queue: EnrichmentQueue;
   settings: Settings;
   reloadSettings: () => Promise<void>;
 }
@@ -20,14 +27,14 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children, fallback }: { children: ReactNode; fallback: (error: string | null) => ReactNode }) {
   const [value, setValue] = useState<AppContextValue | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const apiRef = useRef<ProspectsApi | null>(null);
+  const apiRef = useRef<{ api: ProspectsApi; companyProvider: CompanyDataProvider; queue: EnrichmentQueue } | null>(null);
 
   const reloadSettings = useCallback(async () => {
-    const api = apiRef.current;
-    if (!api) return;
-    const settings = await api.getSettings();
-    api.ctx = { ...api.ctx, role: settings.role, user: settings.userName || 'Moi' };
-    setValue({ api, settings, reloadSettings });
+    const refs = apiRef.current;
+    if (!refs) return;
+    const settings = await refs.api.getSettings();
+    refs.api.ctx = { ...refs.api.ctx, role: settings.role, user: settings.userName || 'Moi' };
+    setValue({ ...refs, settings, reloadSettings });
   }, []);
 
   useEffect(() => {
@@ -38,9 +45,15 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
         const stored = await db.get('settings', LOCAL_WORKSPACE);
         const settings = { ...defaultSettings(LOCAL_WORKSPACE), ...stored };
         const api = new ProspectsApi(db, { workspaceId: LOCAL_WORKSPACE, user: settings.userName || 'Moi', role: settings.role });
-        apiRef.current = api;
+        await api.getSettings(); // contexte de score (départements ciblés)
+        const companyProvider = new RechercheEntreprisesProvider({ cache: dbCache(db, 'company_enrichment_cache') });
+        const queue = new EnrichmentQueue(api, companyProvider);
+        apiRef.current = { api, companyProvider, queue };
         await api.listTemplates(); // modèles intégrés au premier lancement
-        if (!cancelled) setValue({ api, settings, reloadSettings });
+        if (!cancelled) setValue({ api, companyProvider, queue, settings, reloadSettings });
+        // Une file d'enrichissement interrompue (onglet fermé) reprend automatiquement
+        const progress = await queue.refresh();
+        if (progress.pending > 0) void queue.start();
         void requestPersistentStorage();
       } catch (e) {
         console.error(e);
@@ -65,6 +78,14 @@ export function useApp(): AppContextValue {
 
 export function useCan(permission: Permission): boolean {
   return can(useApp().settings.role, permission);
+}
+
+/** Progression de la file d'enrichissement (mise à jour en direct). */
+export function useQueueProgress(): QueueProgress {
+  const { queue } = useApp();
+  const [p, setP] = useState<QueueProgress>(queue.getProgress());
+  useEffect(() => queue.subscribe(setP), [queue]);
+  return p;
 }
 
 /** Numéro de version des données : change à chaque écriture (pour rafraîchir les écrans). */

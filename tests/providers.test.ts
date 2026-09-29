@@ -1,9 +1,9 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it, vi } from 'vitest';
-import { SireneProvider, sireneToInputs, type SireneSearchResponse, type SireneUniteLegale } from '../src/providers/sirene';
+import { SireneProvider, sireneToInputs, type SireneSearchResponse, type SireneUniteLegale } from '../src/providers/company/SireneProvider';
 import { ExternalAIProvider, TemplateMessageProvider, buildFacts, generateMessage, DoNotContactError } from '../src/providers/ai';
 import { MailtoEmailProvider } from '../src/providers/email';
-import { googlePlacesProvider } from '../src/providers/data';
+import { googlePlacesProvider } from '../src/providers/company';
 import { openProspectingDB } from '../src/data/db';
 import { ProspectsApi, defaultSettings } from '../src/data/repository';
 import { createProspect } from '../src/domain/prospect';

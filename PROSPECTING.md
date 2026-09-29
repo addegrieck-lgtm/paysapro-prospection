@@ -8,11 +8,16 @@ Coût logiciel : **0 €**. Aucune API payante, aucune base de leads, aucun CRM 
 ## 1. Architecture
 
 ```
-SIRENE (API publique gratuite) ─┐
-Fichiers CSV / enrichissement ──┼─► Import par lots ─► Déduplication ─► Scoring ─► Base prospects (IndexedDB)
-Saisie manuelle ────────────────┘                                                     │
+Import officiel SIRENE ─────────┐
+Recherche d'entreprises ────────┤
+Fichiers CSV / enrichissement ──┼─► Validation ─► Déduplication ─► File d'enrichissement ─► Enrichissement progressif
+Saisie manuelle ────────────────┘      (SIRET > SIREN > nom+adresse > nom+tél.)   (API publique gratuite, 4 req/s, cache 30 j)
+                                                                                      │
                                                                                       ▼
-            Recherche Google manuelle ◄── Fiche CRM (notes, relances, historique, statut)
+                                              Base prospects (IndexedDB, provenance champ par champ) ─► Score
+                                                                                      │
+                                                                                      ▼
+            Recherche web assistée ◄── Fiche CRM (données enrichies, notes, relances, historique, statut)
                                                                                       │
                           Segments dynamiques ─► Campagnes (aperçu → validation) ─► Ma messagerie (mailto) / copier
                                                                                       │
@@ -23,8 +28,8 @@ Saisie manuelle ────────────────┘             
 | Couche | Emplacement | Rôle |
 |---|---|---|
 | Domaine (pur, testé) | `src/domain/` | types, scoring, déduplication, CSV, mapping, filtres, modèles, statistiques, permissions, quotas |
-| Données | `src/data/` | base IndexedDB (`db.ts`), « API » locale (`repository.ts`), export, démo |
-| Fournisseurs | `src/providers/` | `DataProvider` (SIRENE, CSV, Manuel, Google Places désactivé), `MessageProvider` (modèles / IA), `EmailProvider` (mailto) |
+| Données | `src/data/` | base IndexedDB (`db.ts`), « API » locale (`repository.ts`), file d'enrichissement (`enrichmentQueue.ts`), cache, export, démo |
+| Fournisseurs | `src/providers/` | `company/` : `CompanyDataProvider` (interface), `RechercheEntreprisesProvider`, `SireneProvider`, `CsvProvider`, `ManualProvider`, `GooglePlacesProvider` (désactivé) ; `http.ts` (limiteur, reprises) ; `ai.ts` (modèles / IA) ; `email.ts` (mailto) |
 | Interface | `src/pages/`, `src/components/`, `src/app/` | React 19 + Tailwind 4, design system identique à Paysapro AI |
 
 **Stack** : React 19, TypeScript 5.9, Vite 8, Tailwind 4, react-router 8 (HashRouter), `idb`, vite-plugin-pwa, Vitest + fake-indexeddb.
@@ -39,11 +44,15 @@ Le passage à un serveur (Supabase, Cloudflare…) ne demande que de réimpléme
 
 ## 2. Base de données
 
-Base IndexedDB `paysapro-prospection`, version 1. Toutes les tables portent `workspace_id` (champ `workspaceId`) et sont indexées dessus.
+Base IndexedDB `paysapro-prospection`, version 2. Toutes les tables portent `workspace_id` (champ `workspaceId`) et sont indexées dessus.
 
 | Table | Contenu | Index |
 |---|---|---|
-| `prospects` | fiches complètes | workspaceId, siren, siret |
+| `prospects` | fiches complètes (dont `fieldSources`, `enrichmentStatus`, `enrichedAt`, `enrichmentError`, `isHeadOffice`, `companyCategory`, `openEstablishments`, `employer`, `description`, `anonymized`) | workspaceId, siren, siret, nafCode, postalCode, department, status, enrichmentStatus, score |
+| `enrichment_queue` *(v2)* | file d'enrichissement : pending, processing, completed, partial, failed (+ résultat, tentatives, erreur) | workspaceId, status, prospectId |
+| `enrichment_logs` *(v2)* | journal : prospect_id, provider, status, started_at, completed_at, fields_updated, fields_confirmed, error | workspaceId, prospectId |
+| `duplicate_candidates` *(v2)* | doublons potentiels : fiche A, fiche B, règle, statut (open / merged / ignored / kept_both) | workspaceId, status |
+| `company_enrichment_cache` *(v2)* | réponses de l'API par SIREN / SIRET (ENRICHMENT_CACHE_DAYS) | — |
 | `prospect_rows` | version compacte de chaque fiche (filtres / tri / recherche en mémoire) | workspaceId |
 | `prospect_notes` | notes commerciales (texte, auteur, date) | prospectId, workspaceId |
 | `prospect_activities` | historique / timeline | prospectId, workspaceId |
@@ -59,7 +68,12 @@ Base IndexedDB `paysapro-prospection`, version 1. Toutes les tables portent `wor
 Chaque enregistrement métier a `createdAt`, `updatedAt`, `createdBy`, `workspaceId`.
 
 **Migrations** : dans `src/data/db.ts`, bloc `upgrade()`. Chaque version ajoute un bloc `if (oldVersion < N)` qui **crée** des
-tables ou index — jamais de suppression. La version 1 crée tout le schéma.
+tables ou index — jamais de suppression. La version 1 crée le schéma initial. La version 2 ajoute les 4 tables d'enrichissement,
+les index, et met à niveau chaque fiche existante (valeurs par défaut, provenance déduite de sa source, index compact recalculé)
+sans perte (testé : `tests/enrichment.test.ts › Migration`). Les sauvegardes JSON de la version 1 restent restaurables.
+
+**Provenance** (`fieldSources`) : pour chaque champ renseigné → `{ type: official_api | csv | manual | web | import, provider,
+at, confidence: high | medium | low }` (équivalent de `field_source`, `field_updated_at`, `field_confidence`).
 
 ---
 
@@ -92,6 +106,12 @@ tables ou index — jamais de suppression. La version 1 crée tout le schéma.
 | `POST /api/prospects/:id/task` | `addTask`, `updateTask`, `completeTask`, `postponeTask`, `deleteTask` |
 | `POST /api/prospects/:id/generate-message` | `generateMessageFor(id, templateId, useAI)` |
 | `GET/POST/PATCH/DELETE /api/segments` | `listSegments`, `saveSegment`, `deleteSegment` |
+| `POST /api/prospects/:id/enrich` | `enrichProspect(id, provider, { force })` ; `chooseCompany(id, siret, provider)` (choix parmi plusieurs entreprises) |
+| `POST /api/prospects/enrich` (lot) | `EnrichmentQueue.add(ids, force)`, `start()`, `stop()`, `retryFailed()`, `cancel()` ; `enqueueEnrichment`, `queueJobs` |
+| `GET /api/prospects/:id/enrichment-logs` | `enrichmentLogs(id)` |
+| `GET/POST /api/duplicates` | `listDuplicates`, `scanDuplicates`, `mergeDuplicate(id, keepId)`, `resolveDuplicate(id, 'ignored' \| 'kept_both')` |
+| `POST /api/prospects/:id/anonymize` | `anonymizeProspect(id)` |
+| `GET /api/companies/search` | `RechercheEntreprisesProvider.search({ q, siren, siret, postalCode, commune, nafCodes, activeOnly })` |
 
 **Performance** : les versions compactes (`prospect_rows`) sont chargées une fois en mémoire ; filtrer / trier / rechercher
 100 000 lignes prend quelques dizaines de millisecondes, seule la page affichée (50 lignes) est rendue. Recherche avec
@@ -100,81 +120,136 @@ Test : 10 000 prospects importés puis filtrés en moins de 500 ms.
 
 ---
 
-## 5. Import SIRENE (gratuit)
+## 5. Import officiel SIRENE et recherche d'entreprises (gratuit)
 
-`src/providers/sirene.ts` — API publique **Recherche d'entreprises** (`recherche-entreprises.api.gouv.fr`, données INSEE) :
-sans clé, sans compte, appelable depuis le navigateur.
+Source : API publique **Recherche d'entreprises** (`recherche-entreprises.api.gouv.fr`, données SIRENE de l'INSEE + RNE) :
+sans clé, sans compte, appelable depuis le navigateur. Il n'y a **pas** besoin de l'API SIRENE de l'INSEE (qui demande un
+compte) : cette API publique en redistribue les données.
 
-- Filtre : `activite_principale` = codes NAF ciblés (défaut **81.30Z** — Services d'aménagement paysager ; configurable dans
-  Paramètres), `etat_administratif=A`, un département à la fois.
-- Limites de la source respectées : 25 résultats par page, 10 000 maximum par requête (d'où le découpage par département),
-  ~7 requêtes/s autorisées → l'application en fait **4 par seconde** et réessaie après une erreur 429.
+**Import officiel** (Import & enrichissement → *Officiel*, `src/providers/company/SireneProvider.ts`) :
+- Filtres : codes NAF (défaut **81.30Z**, Paramètres), département, région (ajoute ses départements), codes postaux (au lieu des
+  départements), commune, **actives uniquement**, **sièges uniquement**, tranche d'effectif minimale, date de création (après / avant),
+  exclusion des entrepreneurs individuels.
+- Limites respectées : 25 résultats par page, 10 000 par requête (d'où le découpage par département ou code postal),
+  ~7 requêtes/s autorisées → **4 par seconde** (limiteur partagé), reprises automatiques sur 429 / 5xx / délai dépassé.
 - **Cache** : chaque page est gardée 7 jours ; un import interrompu reprend sans re-télécharger.
-- Seuls les **établissements actifs**, du NAF ciblé, situés dans le département et à **diffusion publique** (statut « O ») sont
-  retenus. Les entreprises en diffusion partielle sont ignorées. Les données sur les dirigeants ne sont **pas** conservées.
-- Option : exclure les entrepreneurs individuels (personnes physiques).
-- Réimport : les fiches existantes (même SIRET) sont mises à jour (identité officielle rafraîchie, `lastVerifiedAt` mis à jour),
-  vos enrichissements manuels sont conservés.
-- **SIRENE ne fournit ni téléphone, ni e-mail, ni site, ni avis** : les fiches importées affichent « Non disponible » et
-  démarrent avec un score faible. C'est normal : l'enrichissement se fait ensuite (Google manuel, CSV).
+- Établissements à **diffusion publique** uniquement (diffusion partielle respectée). Les dirigeants ne sont **jamais** conservés.
+- Les fiches importées sont déjà « enrichies » administrativement (statut *Enrichi* ou *Partiellement enrichi*).
+- Réimport : même SIRET → mise à jour de l'identité fournie par la source officielle ; **vos saisies manuelles ne sont jamais écrasées**.
 - Volume : toute la France représente plusieurs dizaines de milliers d'établissements (≈ 10 à 20 min).
 
-Remplacer la source : implémenter l'interface `DataProvider` et fournir une conversion vers `ProspectInput`.
-`VITE_SIRENE_API_URL` permet de changer l'URL si l'API déménage.
+**Recherche d'entreprises** (onglet *Rechercher*) : par nom, SIREN, SIRET, code postal, commune, NAF, actives uniquement ;
+cochez les établissements puis *Ajouter au CRM* (déduplication automatique).
 
 ---
 
-## 6. Import CSV et enrichissement
+## 6. Enrichissement automatique (gratuit)
 
-Import → onglet **CSV**, en 4 étapes : fichier → analyse (lignes, colonnes reconnues, lignes invalides, doublons potentiels)
-→ correspondances (modifiables) → import avec progression et rapport final (ajoutés, mis à jour, doublons, invalides, exclus).
+### Comment ça marche
+1. **Identification** (`RechercheEntreprisesProvider.enrich`) : par **SIRET** (établissement exact, confiance haute), sinon
+   **SIREN** (siège), sinon **nom + code postal / commune** — accepté seulement si une seule entreprise correspond clairement
+   (confiance moyenne, signalé « à vérifier ») ; s'il y en a plusieurs, l'utilisateur choisit dans la liste proposée.
+2. **Récupération** : raison sociale, nom commercial, SIREN, SIRET, NAF, activité, forme juridique, statut actif / fermé,
+   siège, date de création, tranche d'effectif, catégorie d'entreprise, nombre d'établissements, caractère employeur,
+   adresse, code postal, commune, département, région.
+3. **Comparaison et fusion** (`applyEnrichment`, `mergeProspect`) :
+   - champ vide → complété ;
+   - champ fourni précédemment par la même source officielle → mis à jour si la valeur a changé ;
+   - champ identique → **confirmé** (date de vérification rafraîchie) ;
+   - champ saisi **manuellement**, importé par CSV ou trouvé sur le web → **conservé** (jamais remplacé automatiquement) ;
+   - correspondance par nom → on complète seulement les champs vides.
+4. **Provenance** : chaque champ écrit reçoit sa source, sa date et sa confiance (affichées sous chaque valeur de la fiche).
+5. **Statut** : *Non enrichi*, *En cours*, *Enrichi* (données administratives complètes), *Partiellement enrichi*, *Échec*
+   (introuvable, ambigu, source indisponible), avec la date du dernier enrichissement.
+6. **Historique** : entrée « Enrichissement automatique » dans la timeline (« ✓ SIREN confirmé », « ✓ Adresse mise à jour »…)
+   et une ligne dans `enrichment_logs`.
+7. **Doublons** : si le SIREN / SIRET obtenu existe déjà sur une autre fiche, un doublon potentiel est proposé.
+
+### Où
+- Fiche prospect : **Enrichir automatiquement** / **Réenrichir** (+ « Forcer le réenrichissement » qui ignore le cache).
+- Liste des prospects : icône ✨ sur chaque ligne, **Enrichir la sélection**.
+- Import & enrichissement : **Enrichir les non traités**, **Relancer les échecs**.
+
+### File d'attente (`src/data/enrichmentQueue.ts`)
+Import → validation → déduplication → **file** → enrichissement progressif → base → statistiques. La file est enregistrée
+(elle reprend si l'onglet est fermé), traite un prospect à la fois via le limiteur (4 req/s), par lots de 50, sans bloquer
+l'interface ; statuts `pending`, `processing`, `completed`, `partial`, `failed` ; progression affichée (enrichis, partiels,
+sans nouvelle donnée, échecs) ; pause, reprise, annulation, relance des échecs. Erreur temporaire : 3 essais par prospect
+(en plus des reprises HTTP), puis échec. Introuvable : échec définitif (complétez le SIREN).
+
+### Limites, erreurs, cache
+- 429 → attente (en-tête Retry-After ou 1 s, 2 s, 4 s…) → nouvel essai ; 500 / délai dépassé (15 s) → nouvel essai ;
+  404 → introuvable ; nombre d'essais borné (jamais de boucle infinie).
+- Messages utilisateur clairs (« Impossible de récupérer les données actuellement. Le prospect reste enregistré… ») ;
+  le détail technique est journalisé dans la console et dans `enrichment_logs`.
+- Cache `company_enrichment_cache` : une entreprise interrogée depuis moins de `ENRICHMENT_CACHE_DAYS` (30 j) n'est pas
+  réinterrogée ; un prospect enrichi récemment est ignoré sauf « Forcer ».
+
+### Enrichissement commercial (étape 2 — sans service payant)
+Téléphone, e-mail, site, fiche Google, avis, note, Facebook, Instagram, LinkedIn, description, services, zone d'intervention :
+**jamais présents dans les sources officielles**. Ils proviennent :
+- d'un **CSV** (onglet *Compléter* : fichier d'enrichissement retrouvé par SIRET, SIREN, nom + adresse, nom + téléphone) ;
+- d'une **saisie manuelle** (« Compléter manuellement ») après **Rechercher sur le web** : recherches préparées « nom + ville »,
+  « nom + téléphone », « nom + SIRET », Google Maps, PagesJaunes, réseaux sociaux, Annuaire des entreprises — ouvertes par
+  l'utilisateur, **aucun scraping**.
+La fiche affiche clairement ce que l'application connaît (✓) et ce qui manque (⚠ … non trouvé). Rien n'est jamais inventé :
+donnée absente → « Non disponible ».
+
+---
+
+## 7. Import CSV
+
+Import & enrichissement → onglet **CSV**, en 4 étapes : fichier → analyse (lignes, colonnes reconnues, lignes invalides, doublons
+potentiels) → correspondances « Colonne fichier → Champ application » (corrigeables) → import avec progression et rapport final
+(ajoutés, mis à jour, doublons, invalides, exclus, doublons potentiels à vérifier).
 
 - UTF-8 avec ou sans BOM, séparateur `,` `;` ou tabulation détecté automatiquement, guillemets et retours à la ligne gérés.
 - Colonnes reconnues automatiquement (synonymes français/anglais) : nom, nom commercial, SIREN, SIRET, adresse, CP, ville,
   département, téléphone, e-mail, site, Google URL / note / avis, effectif (nombre ou tranche INSEE), NAF, activité,
   prestations, date de création, prénom / nom du contact, Facebook, Instagram, LinkedIn, TikTok, URL source.
 - Une valeur illisible (e-mail mal formé, téléphone incomplet…) est **ignorée et signalée**, jamais corrigée au hasard.
-- **Enrichissement** (onglet *Enrichir*) : le fichier complète des prospects existants retrouvés par SIRET, SIREN, téléphone
-  ou nom + ville ; une valeur fournie remplace l'ancienne, une cellule vide ne supprime rien, aucune fiche n'est créée.
+- Chaque champ importé a pour source « Import CSV (nom du fichier) ».
 
-Exemple de fichier d'enrichissement :
+Exemple de fichier d'enrichissement (onglet *Compléter*) :
 
 ```csv
 siren;email;site;google_url;google_rating;google_reviews;telephone;instagram;facebook;linkedin
 123456789;contact@exemple.fr;www.exemple.fr;https://maps.google.com/?cid=…;4,7;87;0235000000;;;
 ```
 
-### Déduplication (`src/domain/dedupe.ts`)
-Priorité **SIRET > SIREN > téléphone > nom + ville > nom + adresse** (noms normalisés : accents, casse, formes juridiques).
-- SIRET / SIREN : même entreprise → mise à jour.
-- Téléphone / nom : doublon probable → la fiche existante est seulement **complétée**, jamais écrasée.
-- Deux établissements d'une même entreprise (SIRET différents) ne sont pas des doublons ; deux SIREN différents ne sont
-  jamais fusionnés, même avec un nom et une ville identiques.
-- Aucune suppression automatique.
+### Déduplication (`src/domain/dedupe.ts`, page *Doublons*)
+Priorité **SIRET > SIREN > nom + adresse > nom + téléphone** (noms normalisés : accents, casse, formes juridiques) :
+correspondance sûre → la fiche existante est mise à jour / complétée (jamais deux fois la même entreprise).
+- Même nom + même ville sans contradiction (adresse, téléphone) → même entreprise ; avec contradiction → doublon potentiel.
+- Même téléphone seul → **doublon potentiel** (`duplicate_candidates`), jamais fusionné d'office.
+- Page **Doublons** : **Fusionner** (en choisissant la fiche conservée : les informations des deux fiches, notes, relances et
+  historique sont regroupées), **Ignorer**, **Conserver les deux** ; « Analyser toute la base » recherche les doublons existants.
+- Deux établissements d'une même entreprise (SIRET différents) ou deux SIREN différents ne sont jamais fusionnés.
 
 ---
 
-## 7. Scoring (`src/domain/scoring.ts`)
+## 7 bis. Scoring (`src/domain/scoring.ts`)
 
-Score sur 100, recalculé à chaque modification, entièrement local :
+Score sur 100, recalculé à chaque modification, **configurable dans le code** (`SCORING_CONFIG`), critères objectifs uniquement :
 
 | Critère | Points |
 |---|---|
-| Téléphone disponible | +15 |
-| E-mail disponible | +5 |
-| Site internet | +15 |
-| Présence Google renseignée (URL, note ou avis) | +15 |
-| Plus de 20 avis Google / plus de 50 avis | +10 / +20 (un seul palier) |
-| Note Google ≥ 4,5 (avec au moins 5 avis) | +10 |
-| Effectif ≥ 3 (saisi ou tranche INSEE) | +10 |
-| Activité de création / aménagement (prestations renseignées) | +5 |
-| Au moins 2 prestations | +5 |
+| Entreprise active (source officielle) | +15 |
+| Téléphone disponible | +10 |
+| E-mail disponible | +15 |
+| Site web disponible | +10 |
+| Présence Google renseignée | +5 |
+| Plus de 20 avis / plus de 50 avis | +5 / +10 (un seul palier) |
+| Note ≥ 4,5 (au moins 5 avis) | +5 |
+| Effectif connu / effectif ≥ 3 | +5 / +5 |
+| Entreprise récente (≤ 3 ans) | +5 |
+| Zone géographique ciblée (Paramètres → départements ciblés) | +5 |
+| Services correspondants (création / aménagement ou ≥ 2 prestations) | +5 |
+| Informations administratives complètes | +5 |
 
-Pas de double comptage : le site compte une fois quelle que soit sa source ; les avis sont un palier unique ; le code NAF ne
-donne aucun point (tous les prospects l'ont). La fiche affiche « Pourquoi ce score ? » ligne par ligne et les critères à vérifier.
-
-Priorités (catégories internes, pas un jugement sur l'entreprise) : 🔥 80–100 maximale · 🟠 60–79 élevée · 🟡 40–59 normale · ⚪ 0–39 faible.
-Paramètres → Données → *Recalculer les scores* après une évolution des règles.
+La fiche affiche « Pourquoi ce score ? » : les points gagnés (+) et ce qui manque (−, ex. « Réseaux sociaux inconnus »).
+Pas de double comptage ; le code NAF ne donne aucun point. Modifier les départements ciblés recalcule les scores.
+Priorités (catégories internes) : 🔥 80–100 · 🟠 60–79 · 🟡 40–59 · ⚪ 0–39. Filtres rapides : Score 80+, 60+, 40+, Tous.
 
 ---
 
@@ -245,9 +320,10 @@ Le fournisseur d'IA est facturé à l'usage : c'est la seule brique payante poss
 
 ## 11. Google Business — version gratuite
 
-Aucun scraping de Google Maps, aucune API Google payante. Chaque fiche propose **Rechercher sur Google**
-(`nom + ville + paysagiste`, URL construite dynamiquement) et **Chercher sur Maps** ; vous reportez ensuite dans la fiche
-(Modifier / enrichir) l'URL, la note, le nombre d'avis, la catégorie, et cochez « Vérifié sur Google aujourd'hui ».
+Aucun scraping de Google Maps, aucune API Google payante. Chaque fiche propose **Rechercher sur le web** (nom + ville,
+nom + téléphone, nom + SIRET, Google Maps, PagesJaunes, réseaux sociaux, Annuaire des entreprises — URL construites
+dynamiquement, ouvertes par vous) ; vous reportez ensuite dans la fiche (Compléter manuellement) l'URL, la note, le nombre
+d'avis, la catégorie, et cochez « Vérifié sur Google aujourd'hui » : ces champs prennent la source « Manuel ».
 `GooglePlacesProvider` existe mais est **désactivé** (payant, nécessiterait un proxy). Paramètres affiche « Connexion Google : Non connecté ».
 
 ## 12. Conformité (RGPD, France)
@@ -260,7 +336,15 @@ Aucun scraping de Google Maps, aucune API Google payante. Chaque fiche propose *
   jamais réimportée. Liste gérable dans Paramètres (e-mail, téléphone, SIREN, SIRET).
 - **Données de démonstration** : 100 entreprises fictives marquées `[DÉMO]` / « DONNÉE DE DÉMONSTRATION », sans SIREN,
   e-mails en `example.com`, téléphones des plages réservées à la fiction (ARCEP) — jamais contactables.
-- Une donnée n'est jamais présentée comme vérifiée si elle ne l'est pas (« Non disponible » sinon).
+- Une donnée n'est jamais présentée comme vérifiée si elle ne l'est pas (« Non disponible » sinon) ; la provenance et la
+  confiance de chaque champ sont visibles.
+- **Données d'entreprise vs données personnelles** : SIREN, NAF, adresse d'une société sont des données d'entreprise ; le nom,
+  l'adresse et les identifiants d'un **entrepreneur individuel**, ainsi que le prénom / nom / e-mail / téléphone / réseaux d'un
+  contact, sont des **données personnelles** (signalé sur la fiche). Qu'une donnée soit publique ne la rend pas librement
+  réutilisable : informez la personne de l'origine des données au premier contact et respectez son opposition.
+- **Anonymisation** (fiche → Anonymiser) : efface les données personnelles, notes et relances (et pour un entrepreneur
+  individuel : nom, adresse, SIREN / SIRET), conserve les données statistiques non personnelles, exclut définitivement le
+  prospect et ajoute ses coordonnées à la liste de suppression.
 - Rappel : la prospection B2B par e-mail est possible sans consentement préalable si le message concerne l'activité
   professionnelle du destinataire, qu'il est informé et peut s'opposer simplement (lien ou réponse). Pour les entrepreneurs
   individuels, vous traitez des données de personnes physiques : information et droit d'opposition s'appliquent.
@@ -279,15 +363,20 @@ Toutes facultatives (`.env.example`). Toute variable `VITE_*` est visible dans l
 |---|---|---|
 | `VITE_SAAS_NAME` | nom du SaaS dans les messages | `Paysapro AI` |
 | `VITE_AI_ENDPOINT` | URL de votre proxy IA | vide = IA non configurée |
-| `VITE_SIRENE_API_URL` | URL de l'API SIRENE | `https://recherche-entreprises.api.gouv.fr` |
+| `VITE_RECHERCHE_ENTREPRISES_API_URL` (ou `VITE_SIRENE_API_URL`) | URL de l'API publique | `https://recherche-entreprises.api.gouv.fr` |
+| `VITE_ENRICHMENT_CACHE_DAYS` | durée du cache d'enrichissement (jours) | `30` |
+| `VITE_ENRICHMENT_BATCH_SIZE` | prospects lus par lot dans la file | `50` |
+| `VITE_ENRICHMENT_RATE_LIMIT` | requêtes par seconde vers l'API | `4` |
 
 Il n'y a ni `DATABASE_URL` (base locale) ni `AI_API_KEY` (la clé vit dans le proxy, jamais dans ce code).
 
 ## 15. Tests
 
-`npm test` — 57 tests (Vitest) : import CSV, import SIRENE (pagination, cache, filtres, 429), déduplication, scoring,
-filtres, segments, création / modification / suppression, export, permissions, isolation des workspaces, relances,
-modèles, « Ne plus contacter », génération avec et sans IA, sauvegarde / restauration, 10 000 lignes.
+`npm test` — 82 tests (Vitest) : import CSV (valide, incorrect, colonnes manquantes), import SIRENE (pagination, cache, filtres, 429),
+recherche (SIREN, SIRET, nom, code postal), enrichissement (complet, partiel, introuvable, ambigu, API indisponible, API limitée,
+timeout, cache / forcer), file d'attente (succès, échec, relance, reprise, limiteur), déduplication et fusion, provenance et
+protection des saisies manuelles, scoring, filtres, segments, CRUD, export, permissions, isolation des workspaces (y compris
+file, journaux, doublons), relances, modèles, « Ne plus contacter », anonymisation, IA avec / sans clé, sauvegarde, migration v1 → v2, 10 000 lignes.
 
 ## 16. Évolutions préparées
 

@@ -6,7 +6,7 @@ import {
   Ban,
   Check,
   Compass,
-  ExternalLink,
+  EyeOff,
   Globe,
   Lightbulb,
   Mail,
@@ -14,31 +14,57 @@ import {
   Phone,
   RefreshCw,
   Search,
+  Sparkles,
   StickyNote,
   Trash2,
+  TriangleAlert,
 } from 'lucide-react';
 import { Button, ButtonLink, IconButton } from '../components/ui/Button';
 import { Card, CardTitle } from '../components/ui/Card';
-import { Alert, ConfirmDialog, EmptyState } from '../components/ui/Feedback';
+import { Alert, ConfirmDialog, Dialog, EmptyState } from '../components/ui/Feedback';
 import { Avatar, Skeleton } from '../components/ui/Extras';
 import { Checkbox } from '../components/ui/Form';
 import { InfoRow, ScoreBadge, StatusBadge, Value, formatDateShort, formatDateTime, useAction } from '../components/common';
 import { MessageDialog, NoteDialog, StatusDialog, TaskDialog } from '../components/dialogs';
+import { EnrichmentBadge, LastEnrichment, SourceLine, WebSearchDialog } from '../components/enrichment';
 import { useApp, useCan, useQuery } from '../app/context';
 import { computeScore, priorityOf } from '../domain/scoring';
 import { contactReasons, prospectingAngle } from '../domain/insights';
-import { annuaireEntreprisesUrl, googleMapsSearchUrl, googleSearchUrl, telUrl } from '../domain/links';
+import { knowledgeChecklist } from '../domain/enrichment';
+import { annuaireEntreprisesUrl, telUrl } from '../domain/links';
 import { departmentLabel, regionName } from '../domain/geo';
 import { NAF_LABELS, PRIORITY_LABEL, SERVICE_LABEL, TASK_TYPE_LABEL, headcountLabel } from '../domain/referentials';
 import { formatPhone } from '../domain/normalize';
-import type { ProspectTask } from '../domain/types';
+import type { Company } from '../providers/company/CompanyDataProvider';
+import type { Prospect, ProspectTask, SourceKind } from '../domain/types';
 
-const SOURCE_LABEL = { sirene: 'SIRENE (INSEE)', csv: 'Import CSV', manual: 'Saisie manuelle', demo: 'Démonstration', enrichment: 'Enrichissement' } as const;
+const SOURCE_LABEL: Record<SourceKind, string> = {
+  sirene: 'SIRENE (INSEE)',
+  search: 'Recherche d’entreprises (données publiques)',
+  csv: 'Import CSV',
+  manual: 'Saisie manuelle',
+  demo: 'Démonstration',
+  enrichment: 'Fichier d’enrichissement',
+};
+
+/** Ligne d'information avec sa provenance. */
+function Sourced({ p, field, label, children, href }: { p: Prospect; field: keyof Prospect; label: string; children: ReactNode; href?: string | null }) {
+  return (
+    <InfoRow label={label}>
+      <Value href={href} external={!!href}>
+        {children}
+      </Value>
+      <SourceLine source={p.fieldSources[field]} />
+    </InfoRow>
+  );
+}
+
+const yesNo = (v: boolean | null) => (v === null ? null : v ? 'Oui' : 'Non');
 
 export function ProspectPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const { api } = useApp();
+  const { api, companyProvider } = useApp();
   const run = useAction();
   const canEdit = useCan('prospecting.edit');
   const canDelete = useCan('prospecting.delete');
@@ -46,16 +72,20 @@ export function ProspectPage() {
   const { data: timeline = [] } = useQuery((a) => a.timeline(id), [id]);
   const { data: notes = [] } = useQuery((a) => a.notesFor(id), [id]);
   const { data: tasks = [] } = useQuery((a) => a.tasksFor(id), [id]);
-  const [dialog, setDialog] = useState<'message' | 'note' | 'task' | 'status' | 'dnc' | 'delete' | null>(null);
+  const { data: duplicates = [] } = useQuery(async (a) => (await a.listDuplicates('open')).filter((d) => d.prospectIdA === id || d.prospectIdB === id), [id]);
+  const [dialog, setDialog] = useState<'message' | 'note' | 'task' | 'status' | 'dnc' | 'delete' | 'web' | 'anonymize' | null>(null);
   const [editNote, setEditNote] = useState<{ id: string; text: string } | null>(null);
   const [editTask, setEditTask] = useState<ProspectTask | null>(null);
   const [suppress, setSuppress] = useState(true);
+  const [enriching, setEnriching] = useState(false);
+  const [found, setFound] = useState<string[] | null>(null);
+  const [candidates, setCandidates] = useState<Company[] | null>(null);
 
   if (loading && !prospect) return <Skeleton className="h-64" />;
   if (!prospect)
     return (
       <EmptyState icon={<Search className="h-7 w-7" />} title="Prospect introuvable" action={<ButtonLink to="/prospects">Retour aux prospects</ButtonLink>}>
-        Il a peut-être été supprimé.
+        Il a peut-être été supprimé ou fusionné avec un doublon.
       </EmptyState>
     );
 
@@ -66,6 +96,20 @@ export function ProspectPage() {
   const angle = prospectingAngle(p);
   const tel = telUrl(p.phone);
   const blocked = p.doNotContact || p.demo;
+  const checklist = knowledgeChecklist(p);
+  const canEnrich = canEdit && !p.demo && !p.anonymized;
+
+  const enrich = async (force: boolean) => {
+    setEnriching(true);
+    setFound(null);
+    const r = await run(() => api.enrichProspect(p.id, companyProvider, { force }));
+    setEnriching(false);
+    if (!r) return;
+    if (r.skipped) return setFound([`Déjà enrichi le ${formatDateShort(p.enrichedAt)} : données récentes conservées (cache). Utilisez « Forcer » pour réinterroger la source.`]);
+    if (r.error) return setFound([r.error]);
+    if (r.outcome?.status === 'ambiguous') return setCandidates(r.outcome.candidates);
+    setFound(r.application?.details.length ? r.application.details : ['Aucune nouvelle donnée : la fiche était déjà à jour.']);
+  };
 
   return (
     <>
@@ -75,7 +119,7 @@ export function ProspectPage() {
       {p.demo && (
         <div className="mb-4">
           <Alert tone="warning" title="DONNÉE DE DÉMONSTRATION">
-            Entreprise fictive, générée pour tester l'outil. Elle ne peut pas être contactée.
+            Entreprise fictive, générée pour tester l'outil. Elle ne peut pas être contactée ni enrichie.
           </Alert>
         </div>
       )}
@@ -83,6 +127,16 @@ export function ProspectPage() {
         <div className="mb-4">
           <Alert tone="danger" title="Ne plus contacter">
             {p.doNotContactReason ?? 'Exclu de toute prospection.'} Aucun message, relance ou campagne n'est possible. L'information est conservée.
+          </Alert>
+        </div>
+      )}
+      {duplicates.length > 0 && (
+        <div className="mb-4">
+          <Alert tone="warning" title="Doublon potentiel">
+            Cette fiche ressemble à une autre fiche de votre base.{' '}
+            <Link to="/duplicates" className="font-semibold underline">
+              Vérifier : fusionner, ignorer ou conserver les deux
+            </Link>
           </Alert>
         </div>
       )}
@@ -97,23 +151,32 @@ export function ProspectPage() {
             <ScoreBadge score={p.score} large />
             <span className="text-sm text-muted">{priority.label}</span>
             <StatusBadge status={p.status} />
+            <EnrichmentBadge status={p.enrichmentStatus} />
             {p.city && <span className="text-sm text-muted">· {p.city}</span>}
           </div>
+          <p className="mt-1 text-sm">
+            <LastEnrichment at={p.enrichedAt} />
+          </p>
         </div>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
+        {canEnrich && (
+          <Button icon={<Sparkles className="h-5 w-5" />} onClick={() => enrich(false)} disabled={enriching}>
+            {enriching ? 'Enrichissement…' : p.enrichedAt ? 'Réenrichir' : 'Enrichir automatiquement'}
+          </Button>
+        )}
         {tel && !blocked && (
-          <a href={tel} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-brand px-4 font-semibold text-on-brand hover:bg-brand-strong">
+          <a href={tel} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 font-semibold hover:bg-surface-2">
             <Phone className="h-5 w-5" aria-hidden /> Appeler
           </a>
         )}
-        <Button variant={tel && !blocked ? 'secondary' : 'primary'} icon={<Mail className="h-5 w-5" />} disabled={blocked} onClick={() => setDialog('message')}>
+        <Button variant="secondary" icon={<Mail className="h-5 w-5" />} disabled={blocked} onClick={() => setDialog('message')}>
           E-mail / message
         </Button>
-        <a href={googleSearchUrl(p)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 font-semibold hover:bg-surface-2">
-          <Search className="h-5 w-5" aria-hidden /> Google
-        </a>
+        <Button variant="secondary" icon={<Search className="h-5 w-5" />} onClick={() => setDialog('web')}>
+          Rechercher sur le web
+        </Button>
         {p.website && (
           <a href={p.website} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 font-semibold hover:bg-surface-2">
             <Globe className="h-5 w-5" aria-hidden /> Site
@@ -131,105 +194,252 @@ export function ProspectPage() {
               Statut
             </Button>
             <ButtonLink to={`/prospects/${p.id}/edit`} variant="secondary" icon={<Pencil className="h-5 w-5" />}>
-              Modifier / enrichir
+              Compléter manuellement
             </ButtonLink>
           </>
         )}
       </div>
 
+      {found && (
+        <div className="mb-4">
+          <Alert tone={p.enrichmentStatus === 'failed' ? 'warning' : 'success'} title={p.enrichmentStatus === 'failed' ? 'Enrichissement impossible' : 'Résultat de l’enrichissement'}>
+            <ul className="mt-1 space-y-0.5">
+              {found.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+            {canEnrich && p.enrichedAt && (
+              <button type="button" onClick={() => enrich(true)} className="mt-2 font-semibold underline">
+                Forcer le réenrichissement (ignorer le cache)
+              </button>
+            )}
+          </Alert>
+        </div>
+      )}
+      {!found && p.enrichmentStatus === 'failed' && p.enrichmentError && (
+        <div className="mb-4">
+          <Alert tone="warning" title="Dernier enrichissement : échec">
+            {p.enrichmentError}
+          </Alert>
+        </div>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* Colonne gauche : informations */}
         <div className="space-y-4">
           <Card>
-            <CardTitle>Score : {score.score}/100</CardTitle>
-            <p className="mb-2 text-sm font-medium text-ink">Pourquoi ce score ?</p>
-            {score.reasons.length ? (
+            <CardTitle>Ce que l'application connaît</CardTitle>
+            <div className="grid gap-3 sm:grid-cols-2">
               <ul className="space-y-1 text-sm">
-                {score.reasons.map((r) => (
-                  <li key={r.label} className="flex gap-2">
-                    <span className="w-9 shrink-0 font-semibold tabular-nums text-success">+{r.points}</span>
-                    {r.label}
+                {checklist.known.map((k) => (
+                  <li key={k} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 shrink-0 text-success" aria-hidden /> {k}
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-sm text-muted">Aucun critère rempli pour l'instant.</p>
+              <ul className="space-y-1 text-sm">
+                {checklist.missing.map((k) => (
+                  <li key={k} className="flex items-center gap-2 text-muted">
+                    <TriangleAlert className="h-4 w-4 shrink-0 text-warning" aria-hidden /> {k} non trouvé
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {checklist.missing.length > 0 && canEdit && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="soft" icon={<Search className="h-4 w-4" />} onClick={() => setDialog('web')}>
+                  Rechercher sur le web
+                </Button>
+                <ButtonLink size="sm" variant="ghost" to={`/prospects/${p.id}/edit`}>
+                  Compléter manuellement
+                </ButtonLink>
+              </div>
             )}
-            {score.missing.length > 0 && (
-              <p className="mt-3 text-sm text-muted">
-                À vérifier pour affiner : {score.missing.join(', ')}. <a className="font-medium text-brand hover:underline" href={googleSearchUrl(p)} target="_blank" rel="noopener noreferrer">Rechercher sur Google</a>
+          </Card>
+
+          <Card>
+            <CardTitle>Score : {score.score}/100</CardTitle>
+            <p className="mb-2 text-sm font-medium text-ink">Pourquoi ce score ?</p>
+            <ul className="space-y-1 text-sm">
+              {score.reasons.map((r) => (
+                <li key={r.label} className="flex gap-2">
+                  <span className="w-9 shrink-0 font-semibold tabular-nums text-success">+{r.points}</span>
+                  {r.label}
+                </li>
+              ))}
+              {score.missing.map((m) => (
+                <li key={m} className="flex gap-2 text-muted">
+                  <span className="w-9 shrink-0 font-semibold">−</span>
+                  {m}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-muted">Critères objectifs uniquement. Catégorie interne de prospection, pas un jugement sur l'entreprise.</p>
+          </Card>
+
+          <Card>
+            <CardTitle action={<EnrichmentBadge status={p.enrichmentStatus} short />}>🔎 Données enrichies</CardTitle>
+            <h3 className="mb-1 mt-1 text-xs font-semibold uppercase tracking-wide text-muted">Identité</h3>
+            <dl>
+              <Sourced p={p} field="name" label="Raison sociale">
+                {p.name}
+              </Sourced>
+              <Sourced p={p} field="tradeName" label="Nom commercial">
+                {p.tradeName}
+              </Sourced>
+              <Sourced p={p} field="siren" label="SIREN" href={annuaireEntreprisesUrl(p.siren)}>
+                {p.siren}
+              </Sourced>
+              <Sourced p={p} field="siret" label="SIRET">
+                {p.siret}
+              </Sourced>
+              <Sourced p={p} field="active" label="Statut">
+                {p.active === null ? null : p.active ? 'Actif' : 'Fermé'}
+              </Sourced>
+            </dl>
+            <h3 className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Activité</h3>
+            <dl>
+              <Sourced p={p} field="nafCode" label="Code NAF">
+                {p.nafCode ? `${p.nafCode}${NAF_LABELS[p.nafCode] ? ` — ${NAF_LABELS[p.nafCode]}` : ''}` : null}
+              </Sourced>
+              <Sourced p={p} field="activity" label="Activité">
+                {p.activity}
+              </Sourced>
+              <Sourced p={p} field="creationDate" label="Date de création">
+                {p.creationDate ? formatDateShort(p.creationDate) : null}
+              </Sourced>
+              <Sourced p={p} field={p.headcount !== null ? 'headcount' : 'headcountBand'} label="Tranche d'effectif">
+                {p.headcount !== null || p.headcountBand ? headcountLabel(p.headcountBand, p.headcount) : null}
+              </Sourced>
+            </dl>
+            <h3 className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Localisation</h3>
+            <dl>
+              <Sourced p={p} field="address" label="Adresse">
+                {p.address}
+              </Sourced>
+              <Sourced p={p} field="postalCode" label="Code postal">
+                {p.postalCode}
+              </Sourced>
+              <Sourced p={p} field="city" label="Ville">
+                {p.city}
+              </Sourced>
+              <Sourced p={p} field="department" label="Département">
+                {p.department ? departmentLabel(p.department) : null}
+              </Sourced>
+              <Sourced p={p} field="region" label="Région">
+                {regionName(p.region)}
+              </Sourced>
+            </dl>
+            {(p.isHeadOffice !== null || p.legalForm || p.companyCategory || p.openEstablishments !== null || p.employer !== null) && (
+              <>
+                <h3 className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Informations complémentaires</h3>
+                <dl>
+                  {p.legalForm && (
+                    <Sourced p={p} field="legalForm" label="Forme juridique">
+                      {p.legalForm}
+                    </Sourced>
+                  )}
+                  {p.isHeadOffice !== null && (
+                    <Sourced p={p} field="isHeadOffice" label="Siège">
+                      {yesNo(p.isHeadOffice)}
+                    </Sourced>
+                  )}
+                  {p.companyCategory && (
+                    <Sourced p={p} field="companyCategory" label="Catégorie">
+                      {p.companyCategory}
+                    </Sourced>
+                  )}
+                  {p.openEstablishments !== null && (
+                    <Sourced p={p} field="openEstablishments" label="Établissements ouverts">
+                      {p.openEstablishments}
+                    </Sourced>
+                  )}
+                  {p.employer !== null && (
+                    <Sourced p={p} field="employer" label="Employeur">
+                      {yesNo(p.employer)}
+                    </Sourced>
+                  )}
+                </dl>
+              </>
+            )}
+            {p.individual && (
+              <p className="mt-3 rounded-xl bg-info-soft p-3 text-xs text-info">
+                Entrepreneur individuel : le nom et l'adresse désignent une personne physique. Ce sont des données personnelles (RGPD) : informez-le de l'origine des données et
+                respectez son droit d'opposition.
               </p>
             )}
-            <p className="mt-3 text-xs text-muted">Catégorie interne de prospection, pas un jugement sur l'entreprise.</p>
           </Card>
 
           <Card>
-            <CardTitle>Informations entreprise</CardTitle>
-            <dl>
-              <InfoRow label="Raison sociale"><Value>{p.name}</Value></InfoRow>
-              <InfoRow label="Nom commercial"><Value>{p.tradeName}</Value></InfoRow>
-              <InfoRow label="SIREN"><Value href={annuaireEntreprisesUrl(p.siren)} external>{p.siren}</Value></InfoRow>
-              <InfoRow label="SIRET"><Value>{p.siret}</Value></InfoRow>
-              <InfoRow label="Forme juridique"><Value>{p.legalForm}</Value></InfoRow>
-              <InfoRow label="Code NAF"><Value>{p.nafCode ? `${p.nafCode}${NAF_LABELS[p.nafCode] ? ` — ${NAF_LABELS[p.nafCode]}` : ''}` : null}</Value></InfoRow>
-              <InfoRow label="Activité"><Value>{p.activity}</Value></InfoRow>
-              <InfoRow label="Date de création"><Value>{p.creationDate ? formatDateShort(p.creationDate) : null}</Value></InfoRow>
-              <InfoRow label="Effectif"><Value>{p.headcount !== null || p.headcountBand ? headcountLabel(p.headcountBand, p.headcount) : null}</Value></InfoRow>
-              <InfoRow label="Établissement"><Value>{p.active === null ? null : p.active ? 'Actif' : 'Fermé'}</Value></InfoRow>
-            </dl>
-          </Card>
-
-          <Card>
-            <CardTitle>Coordonnées</CardTitle>
-            <dl>
-              <InfoRow label="Adresse"><Value>{p.address}</Value></InfoRow>
-              <InfoRow label="Code postal"><Value>{p.postalCode}</Value></InfoRow>
-              <InfoRow label="Ville"><Value>{p.city}</Value></InfoRow>
-              <InfoRow label="Département"><Value>{p.department ? departmentLabel(p.department) : null}</Value></InfoRow>
-              <InfoRow label="Région"><Value>{regionName(p.region)}</Value></InfoRow>
-              <InfoRow label="Contact"><Value>{[p.contactFirstName, p.contactLastName].filter(Boolean).join(' ') || null}</Value></InfoRow>
-              <InfoRow label="Téléphone"><Value href={blocked ? null : tel}>{p.phone ? formatPhone(p.phone) : null}</Value></InfoRow>
-              <InfoRow label="E-mail"><Value>{p.email}</Value></InfoRow>
-              <InfoRow label="Site web"><Value href={p.website} external>{p.website?.replace(/^https?:\/\//, '')}</Value></InfoRow>
-            </dl>
-          </Card>
-
-          <Card>
-            <CardTitle action={<a href={googleMapsSearchUrl(p)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline">Chercher sur Maps <ExternalLink className="h-3.5 w-3.5" /></a>}>
-              Google et présence en ligne
+            <CardTitle action={<Button size="sm" variant="ghost" icon={<Search className="h-4 w-4" />} onClick={() => setDialog('web')}>Rechercher</Button>}>
+              Enrichissement commercial
             </CardTitle>
+            <p className="mb-2 text-xs text-muted">Jamais présent dans les données officielles : saisi manuellement, importé (CSV) ou reporté après une recherche web.</p>
             <dl>
-              <InfoRow label="Fiche Google"><Value href={p.googleUrl} external>{p.googleUrl ? 'Voir la fiche' : null}</Value></InfoRow>
-              <InfoRow label="Note"><Value>{p.googleRating !== null ? `${String(p.googleRating).replace('.', ',')} / 5` : null}</Value></InfoRow>
-              <InfoRow label="Nombre d'avis"><Value>{p.googleReviews}</Value></InfoRow>
-              <InfoRow label="Catégorie principale"><Value>{p.googleCategory}</Value></InfoRow>
-              <InfoRow label="Dernière vérification"><Value>{p.googleCheckedAt ? formatDateShort(p.googleCheckedAt) : null}</Value></InfoRow>
-              <InfoRow label="Facebook"><Value href={p.facebook} external>{p.facebook ? 'Profil' : null}</Value></InfoRow>
-              <InfoRow label="Instagram"><Value href={p.instagram} external>{p.instagram ? 'Profil' : null}</Value></InfoRow>
-              <InfoRow label="LinkedIn"><Value href={p.linkedin} external>{p.linkedin ? 'Profil' : null}</Value></InfoRow>
-              <InfoRow label="TikTok"><Value href={p.tiktok} external>{p.tiktok ? 'Profil' : null}</Value></InfoRow>
-            </dl>
-            <p className="mt-3 text-xs text-muted">Données saisies manuellement ou importées : aucune n'est récupérée automatiquement sur Google.</p>
-          </Card>
-
-          <Card>
-            <CardTitle>Qualification</CardTitle>
-            <dl>
-              <InfoRow label="Prestations"><Value>{p.services.map((s) => SERVICE_LABEL[s]).join(', ') || null}</Value></InfoRow>
-              <InfoRow label="Zone d'intervention"><Value>{p.interventionArea}</Value></InfoRow>
-              <InfoRow label="Responsable"><Value>{p.owner}</Value></InfoRow>
+              <Sourced p={p} field="phone" label="Téléphone" href={blocked ? null : tel}>
+                {p.phone ? formatPhone(p.phone) : null}
+              </Sourced>
+              <Sourced p={p} field="email" label="E-mail">
+                {p.email}
+              </Sourced>
+              <Sourced p={p} field="website" label="Site web" href={p.website}>
+                {p.website?.replace(/^https?:\/\//, '')}
+              </Sourced>
+              <Sourced p={p} field="googleUrl" label="Google Business" href={p.googleUrl}>
+                {p.googleUrl ? 'Voir la fiche' : null}
+              </Sourced>
+              <Sourced p={p} field="googleReviews" label="Nombre d'avis">
+                {p.googleReviews}
+              </Sourced>
+              <Sourced p={p} field="googleRating" label="Note">
+                {p.googleRating !== null ? `${String(p.googleRating).replace('.', ',')} / 5` : null}
+              </Sourced>
+              <Sourced p={p} field="facebook" label="Facebook" href={p.facebook}>
+                {p.facebook ? 'Profil' : null}
+              </Sourced>
+              <Sourced p={p} field="instagram" label="Instagram" href={p.instagram}>
+                {p.instagram ? 'Profil' : null}
+              </Sourced>
+              <Sourced p={p} field="linkedin" label="LinkedIn" href={p.linkedin}>
+                {p.linkedin ? 'Profil' : null}
+              </Sourced>
+              <Sourced p={p} field="description" label="Description">
+                {p.description}
+              </Sourced>
+              <Sourced p={p} field="services" label="Services">
+                {p.services.map((s) => SERVICE_LABEL[s]).join(', ') || null}
+              </Sourced>
+              <Sourced p={p} field="interventionArea" label="Zone d'intervention">
+                {p.interventionArea}
+              </Sourced>
+              <InfoRow label="Contact">
+                <Value>{[p.contactFirstName, p.contactLastName].filter(Boolean).join(' ') || null}</Value>
+              </InfoRow>
+              <InfoRow label="Responsable">
+                <Value>{p.owner}</Value>
+              </InfoRow>
             </dl>
           </Card>
 
           <Card>
             <CardTitle>Origine de la donnée (RGPD)</CardTitle>
             <dl>
-              <InfoRow label="Source"><Value>{SOURCE_LABEL[p.source]}</Value></InfoRow>
-              <InfoRow label="URL source"><Value href={p.sourceUrl} external>{p.sourceUrl ? 'Consulter' : null}</Value></InfoRow>
-              <InfoRow label="Date de collecte"><Value>{formatDateShort(p.dateCollected)}</Value></InfoRow>
-              <InfoRow label="Dernière vérification"><Value>{p.lastVerifiedAt ? formatDateShort(p.lastVerifiedAt) : null}</Value></InfoRow>
+              <InfoRow label="Source">
+                <Value>{SOURCE_LABEL[p.source]}</Value>
+              </InfoRow>
+              <InfoRow label="URL source">
+                <Value href={p.sourceUrl} external>
+                  {p.sourceUrl ? 'Consulter' : null}
+                </Value>
+              </InfoRow>
+              <InfoRow label="Date de collecte">
+                <Value>{formatDateShort(p.dateCollected)}</Value>
+              </InfoRow>
+              <InfoRow label="Dernière vérification">
+                <Value>{p.lastVerifiedAt ? formatDateShort(p.lastVerifiedAt) : null}</Value>
+              </InfoRow>
             </dl>
-            {canEdit && !p.demo && (
+            {canEdit && !p.demo && !p.anonymized && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {p.doNotContact ? (
                   <Button variant="secondary" onClick={() => run(() => api.setDoNotContact(p.id, false), 'Exclusion retirée')}>
@@ -243,7 +453,12 @@ export function ProspectPage() {
               </div>
             )}
             {canDelete && (
-              <div className="mt-2">
+              <div className="mt-2 flex flex-wrap gap-1">
+                {!p.anonymized && !p.demo && (
+                  <Button variant="ghost" icon={<EyeOff className="h-5 w-5" />} onClick={() => setDialog('anonymize')}>
+                    Anonymiser
+                  </Button>
+                )}
                 <Button variant="ghost" icon={<Trash2 className="h-5 w-5" />} onClick={() => setDialog('delete')} className="text-danger">
                   Supprimer ce prospect
                 </Button>
@@ -263,7 +478,7 @@ export function ProspectPage() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted">Pas encore assez de données. Vérifiez sa présence sur Google et complétez la fiche.</p>
+              <p className="text-sm text-muted">Pas encore assez de données. Enrichissez la fiche puis vérifiez sa présence sur le web.</p>
             )}
             <div className="mt-4 rounded-xl bg-surface-2 p-3">
               <p className="flex items-center gap-2 text-sm font-semibold text-ink">
@@ -285,7 +500,10 @@ export function ProspectPage() {
                       <p className="font-medium">
                         {TASK_TYPE_LABEL[t.type]} · {formatDateTime(t.dueAt)} {t.done && '· terminée'}
                       </p>
-                      <p className="text-muted">Priorité {PRIORITY_LABEL[t.priority].toLowerCase()}{t.note && ` · ${t.note}`}</p>
+                      <p className="text-muted">
+                        Priorité {PRIORITY_LABEL[t.priority].toLowerCase()}
+                        {t.note && ` · ${t.note}`}
+                      </p>
                     </div>
                     {!t.done && canEdit && (
                       <>
@@ -336,17 +554,47 @@ export function ProspectPage() {
 
           <Card>
             <CardTitle>Historique</CardTitle>
-            <Timeline items={timeline.map((a) => ({ id: a.id, date: a.at, label: a.label, by: a.by }))} />
+            <Timeline items={timeline.map((a) => ({ id: a.id, date: a.at, label: a.label, by: a.by, details: a.details }))} />
           </Card>
         </div>
       </div>
 
       {dialog === 'message' && <MessageDialog open onClose={() => setDialog(null)} prospect={p} />}
       {dialog === 'note' && <NoteDialog open onClose={() => setDialog(null)} prospectId={p.id} />}
+      {dialog === 'web' && <WebSearchDialog open onClose={() => setDialog(null)} prospect={p} />}
       {editNote && <NoteDialog open onClose={() => setEditNote(null)} prospectId={p.id} noteId={editNote.id} initial={editNote.text} />}
       {dialog === 'task' && <TaskDialog open onClose={() => setDialog(null)} prospectId={p.id} />}
       {editTask && <TaskDialog open onClose={() => setEditTask(null)} task={editTask} />}
       {dialog === 'status' && <StatusDialog open onClose={() => setDialog(null)} prospect={p} />}
+      {candidates && (
+        <Dialog open onClose={() => setCandidates(null)} title="Plusieurs entreprises possibles">
+          <p className="mb-3 text-sm text-muted">La recherche par nom et localisation renvoie plusieurs entreprises. Choisissez la bonne (vérifiez le SIREN) : la fiche sera enrichie avec ses données officielles.</p>
+          <ul className="space-y-2">
+            {candidates.map((c) => {
+              const est = c.matching[0] ?? c.headOffice;
+              return (
+                <li key={c.siren}>
+                  <button
+                    type="button"
+                    disabled={!est}
+                    onClick={async () => {
+                      setCandidates(null);
+                      const r = await run(() => api.chooseCompany(p.id, est!.siret, companyProvider), 'Entreprise associée');
+                      if (r?.application) setFound(r.application.details);
+                    }}
+                    className="w-full rounded-xl border border-line p-3 text-left hover:border-brand/50 disabled:opacity-50"
+                  >
+                    <span className="block font-semibold">{c.name}</span>
+                    <span className="text-sm text-muted">
+                      SIREN {c.siren} · {[est?.address, est?.postalCode, est?.city].filter(Boolean).join(' ')} · {c.active ? 'active' : 'fermée'}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Dialog>
+      )}
       <ConfirmDialog
         open={dialog === 'dnc'}
         title="Ne plus contacter ce prospect ?"
@@ -360,11 +608,28 @@ export function ProspectPage() {
         }}
       />
       <ConfirmDialog
+        open={dialog === 'anonymize'}
+        title="Anonymiser ce prospect ?"
+        message={
+          <>
+            <p>Les données personnelles (contact, e-mail, téléphone, réseaux{p.individual !== false ? ', nom, adresse et identifiants de l’entrepreneur individuel' : ''}) ainsi que les notes et relances seront effacées.</p>
+            <p>Les données d'entreprise non personnelles (activité, commune, statistiques) sont conservées. Le prospect est définitivement exclu de la prospection.</p>
+          </>
+        }
+        confirmLabel="Anonymiser"
+        danger
+        onClose={() => setDialog(null)}
+        onConfirm={async () => {
+          await run(() => api.anonymizeProspect(p.id), 'Prospect anonymisé');
+          setDialog(null);
+        }}
+      />
+      <ConfirmDialog
         open={dialog === 'delete'}
         title="Supprimer définitivement ?"
         message={
           <>
-            <p>La fiche, ses notes, relances et son historique seront effacés.</p>
+            <p>La fiche, ses notes, relances, historique et journaux d'enrichissement seront effacés.</p>
             <Checkbox checked={suppress} onChange={setSuppress}>
               Ajouter à la liste de suppression (demande RGPD : ne jamais le réimporter)
             </Checkbox>
@@ -382,7 +647,7 @@ export function ProspectPage() {
   );
 }
 
-export function Timeline({ items }: { items: { id: string; date: string; label: ReactNode; by?: string }[] }) {
+export function Timeline({ items }: { items: { id: string; date: string; label: ReactNode; by?: string; details?: string[] }[] }) {
   if (!items.length) return <p className="text-sm text-muted">Aucun événement.</p>;
   return (
     <ol className="relative space-y-3 border-l border-line pl-5">
@@ -394,6 +659,13 @@ export function Timeline({ items }: { items: { id: string; date: string; label: 
             {i.by && ` · ${i.by}`}
           </p>
           <p className="text-ink">{i.label}</p>
+          {i.details && i.details.length > 0 && (
+            <ul className="mt-1 space-y-0.5 text-xs text-muted">
+              {i.details.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          )}
         </li>
       ))}
     </ol>

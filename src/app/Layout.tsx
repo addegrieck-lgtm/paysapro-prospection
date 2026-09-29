@@ -8,7 +8,7 @@ import { today } from '../domain/filters';
 export const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/prospects', label: 'Prospects', icon: Users, end: false },
-  { to: '/import', label: 'Import', icon: Upload, end: false },
+  { to: '/import', label: 'Import & enrichissement', icon: Upload, end: false },
   { to: '/segments', label: 'Segments', icon: Filter, end: false },
   { to: '/campaigns', label: 'Campagnes', icon: Mail, end: false },
   { to: '/tasks', label: 'Relances', icon: CalendarClock, end: false },

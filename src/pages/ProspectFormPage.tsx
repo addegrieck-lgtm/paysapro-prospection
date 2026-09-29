@@ -41,6 +41,7 @@ type Form = Record<
   | 'linkedin'
   | 'tiktok'
   | 'interventionArea'
+  | 'description'
   | 'owner',
   string
 >;
@@ -70,6 +71,7 @@ function toForm(p?: Prospect): Form {
     linkedin: p?.linkedin ?? '',
     tiktok: p?.tiktok ?? '',
     interventionArea: p?.interventionArea ?? '',
+    description: p?.description ?? '',
     owner: p?.owner ?? '',
   };
 }
@@ -148,6 +150,7 @@ export function ProspectFormPage() {
       headcount: headcount !== null ? Math.round(headcount) : null,
       services,
       interventionArea: clean(f.interventionArea),
+      description: clean(f.description),
       owner: clean(f.owner),
       ...(checkedToday ? { googleCheckedAt: new Date().toISOString() } : {}),
     };
@@ -241,6 +244,7 @@ export function ProspectFormPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {field('interventionArea', "Zone d'intervention", { placeholder: 'Ex. Rouen et 30 km' })}
+            {field('description', 'Description (constatée sur son site / sa fiche)', { className: 'sm:col-span-2' })}
             {field('owner', 'Responsable commercial')}
           </div>
         </Card>

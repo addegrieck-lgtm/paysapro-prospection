@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { AlarmClock, Download, Eye, Filter as FilterIcon, Flame, Globe, Mail, Phone, Plus, Save, Search, StickyNote, Users, X } from 'lucide-react';
+import { AlarmClock, Download, Eye, Filter as FilterIcon, Flame, Globe, Mail, Phone, Plus, Save, Search, Sparkles, StickyNote, Users, X } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, ButtonLink } from '../components/ui/Button';
-import { EmptyState, Dialog } from '../components/ui/Feedback';
-import { TextField, TextArea } from '../components/ui/Form';
+import { EmptyState, Dialog, useToast } from '../components/ui/Feedback';
+import { Checkbox, TextField, TextArea } from '../components/ui/Form';
+import { EnrichmentBadge, QueueProgressCard } from '../components/enrichment';
 import { SidePanel, Skeleton } from '../components/ui/Extras';
 import { FilterPanel } from '../components/FilterPanel';
 import { DemoTag, Pagination, ScoreBadge, StatusBadge, formatDateShort, nf, useAction } from '../components/common';
@@ -13,7 +14,7 @@ import { useApp, useCan, useDebounced, useQuery } from '../app/context';
 import { activeFilterCount, describeFilter, SORT_LABEL } from '../domain/filters';
 import { googleSearchUrl, telUrl } from '../domain/links';
 import { formatPhone } from '../domain/normalize';
-import { downloadText, exportProspectsCsv, stampedName } from '../data/export';
+import { DEFAULT_EXPORT_COLUMNS, EXPORT_COLUMNS, downloadText, exportProspectsCsv, stampedName } from '../data/export';
 import type { Prospect, ProspectFilter, ProspectRow, ProspectStatus, SortKey } from '../domain/types';
 
 const PAGE_SIZE = 50;
@@ -21,10 +22,13 @@ const PAGE_SIZE = 50;
 type RowAction = 'message' | 'note' | 'task';
 
 export function ProspectsPage() {
-  const { api } = useApp();
+  const { api, queue } = useApp();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const run = useAction();
+  const toast = useToast();
+  const canEdit = useCan('prospecting.edit');
+  const [exportTarget, setExportTarget] = useState<{ ids: string[]; label: string } | null>(null);
   const canExport = useCan('prospecting.export');
   const canCreate = useCan('prospecting.create');
   const priorityView = params.get('view') === 'priority';
@@ -62,9 +66,12 @@ export function ProspectsPage() {
     if (p) setAction({ kind, prospect: p });
   };
 
-  const exportIds = async (ids: string[], label: string) => {
-    const csv = await run(() => exportProspectsCsv(api, ids));
-    if (csv) downloadText(csv, stampedName(`prospects-${label}`, 'csv'));
+  const exportIds = (ids: string[], label: string) => setExportTarget({ ids, label });
+
+  /** Enrichissement progressif via la file (respect des limites de l'API gratuite). */
+  const enrichRows = async (ids: string[]) => {
+    const n = await run(() => queue.add(ids, true));
+    if (n !== undefined) toast(n ? `${nf.format(n)} prospect(s) ajouté(s) à la file d'enrichissement` : 'Déjà en cours d’enrichissement', n ? 'success' : 'info');
   };
 
   const allOnPage = data?.items.every((r) => selected.has(r.id)) && (data?.items.length ?? 0) > 0;
@@ -125,6 +132,19 @@ export function ProspectsPage() {
         >
           Mes prospects prioritaires
         </Button>
+        <div className="flex gap-1" role="group" aria-label="Qualification">
+          {[80, 60, 40, null].map((min) => (
+            <button
+              key={String(min)}
+              type="button"
+              aria-pressed={(filter.scoreMin ?? null) === min}
+              onClick={() => setFilter({ ...filter, scoreMin: min })}
+              className={`min-h-10 rounded-full border px-3 text-sm font-medium ${(filter.scoreMin ?? null) === min ? 'border-brand bg-brand text-on-brand' : 'border-line bg-surface hover:border-brand/50'}`}
+            >
+              {min === null ? 'Tous' : `Score ${min}+`}
+            </button>
+          ))}
+        </div>
         {count > 0 && (
           <>
             <span className="text-sm text-muted">{describeFilter(filter)}</span>
@@ -143,6 +163,10 @@ export function ProspectsPage() {
         )}
       </div>
 
+      <div className="mb-3 empty:hidden">
+        <QueueProgressCard compact />
+      </div>
+
       {/* Actions groupées */}
       {selected.size > 0 && (
         <div className="sticky top-16 z-10 mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-brand/30 bg-brand-soft p-2 pl-4 lg:top-2">
@@ -153,6 +177,11 @@ export function ProspectsPage() {
             </Button>
           )}
           <div className="ml-auto flex flex-wrap gap-2">
+            {canEdit && (
+              <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={() => enrichRows([...selected])}>
+                Enrichir la sélection
+              </Button>
+            )}
             {canExport && (
               <Button size="sm" variant="secondary" icon={<Download className="h-4 w-4" />} onClick={() => exportIds([...selected], 'selection')}>
                 Exporter la sélection
@@ -199,14 +228,14 @@ export function ProspectsPage() {
                     <th className="px-2 py-2.5">Score</th>
                     <th className="px-2 py-2.5">Entreprise</th>
                     <th className="px-2 py-2.5">Ville · Dép.</th>
+                    <th className="hidden px-2 py-2.5 min-[1400px]:table-cell">NAF</th>
+                    <th className="hidden px-2 py-2.5 2xl:table-cell">SIRET</th>
+                    <th className="hidden px-2 py-2.5 min-[1400px]:table-cell">E-mail</th>
                     <th className="px-2 py-2.5">Téléphone</th>
-                    <th className="hidden px-2 py-2.5 2xl:table-cell">E-mail</th>
-                    <th className="hidden px-2 py-2.5 2xl:table-cell">Site</th>
-                    <th className="px-2 py-2.5">Google</th>
-                    <th className="hidden px-2 py-2.5 2xl:table-cell">Effectif</th>
+                    <th className="px-2 py-2.5">Site</th>
+                    <th className="px-2 py-2.5">Enrichissement</th>
                     <th className="px-2 py-2.5">Statut</th>
-                    <th className="hidden px-2 py-2.5 2xl:table-cell">Dernier contact</th>
-                    <th className="px-2 py-2.5">Relance</th>
+                    <th className="hidden px-2 py-2.5 2xl:table-cell">Relance</th>
                     <th className="px-2 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -236,19 +265,32 @@ export function ProspectsPage() {
                         </Link>{' '}
                         {r.demo && <DemoTag />}
                       </td>
-                      <td className="px-2 py-2">{r.city ?? <NA />}{r.department && <span className="text-muted"> · {r.department}</span>}</td>
+                      <td className="px-2 py-2">
+                        {r.city ?? <NA />}
+                        {r.department && <span className="text-muted"> · {r.department}</span>}
+                      </td>
+                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums min-[1400px]:table-cell">{r.nafCode ?? <NA />}</td>
+                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums 2xl:table-cell">{r.siret ?? <NA />}</td>
+                      <td className="hidden max-w-[11rem] truncate px-2 py-2 min-[1400px]:table-cell" title={r.email ?? undefined}>{r.email ?? <NA />}</td>
                       <td className="whitespace-nowrap px-2 py-2 tabular-nums">{r.phone ? formatPhone(r.phone) : <NA />}</td>
-                      <td className="hidden max-w-[12rem] truncate px-2 py-2 2xl:table-cell">{r.email ?? <NA />}</td>
-                      <td className="hidden px-2 py-2 2xl:table-cell">{r.website ? <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">Oui</a> : <NA />}</td>
-                      <td className="whitespace-nowrap px-2 py-2 tabular-nums">{r.googleReviews !== null ? `${r.googleRating !== null ? `${String(r.googleRating).replace('.', ',')} ★ · ` : ''}${r.googleReviews} avis` : <NA />}</td>
-                      <td className="hidden px-2 py-2 2xl:table-cell">{r.headcountMin !== null ? `≥ ${r.headcountMin}` : <NA />}</td>
+                      <td className="px-2 py-2">
+                        {r.website ? (
+                          <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
+                            Oui
+                          </a>
+                        ) : (
+                          <NA />
+                        )}
+                      </td>
+                      <td className="px-2 py-2">
+                        <EnrichmentBadge status={r.enrichmentStatus} short />
+                      </td>
                       <td className="px-2 py-2">
                         <StatusBadge status={r.status} />
                       </td>
-                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums 2xl:table-cell">{formatDateShort(r.lastContactAt)}</td>
-                      <td className="whitespace-nowrap px-2 py-2 tabular-nums">{formatDateShort(r.nextFollowUpAt)}</td>
+                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums 2xl:table-cell">{formatDateShort(r.nextFollowUpAt)}</td>
                       <td className="px-2 py-1">
-                        <RowActions row={r} onAction={openAction} onView={() => navigate(`/prospects/${r.id}`)} />
+                        <RowActions row={r} onAction={openAction} onEnrich={enrichRows} onView={() => navigate(`/prospects/${r.id}`)} />
                       </td>
                     </tr>
                   ))}
@@ -284,14 +326,18 @@ export function ProspectsPage() {
                         {[r.city, r.department].filter(Boolean).join(' · ') || 'Localisation non disponible'}
                         {r.googleReviews !== null && ` · ${r.googleReviews} avis`}
                       </div>
+                      <div className="mt-0.5 text-xs text-muted">
+                        {[r.phone ? '☎ Téléphone' : null, r.email ? '✉ E-mail' : null, r.website ? '🌐 Site' : null].filter(Boolean).join(' · ') || 'Coordonnées non disponibles'}
+                      </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted">
                         <StatusBadge status={r.status} />
+                        <EnrichmentBadge status={r.enrichmentStatus} short />
                         {r.nextFollowUpAt && <span>Relance {formatDateShort(r.nextFollowUpAt)}</span>}
                       </div>
                     </Link>
                   </div>
                   <div className="mt-2 border-t border-line/70 pt-2">
-                    <RowActions row={r} onAction={openAction} onView={() => navigate(`/prospects/${r.id}`)} spread />
+                    <RowActions row={r} onAction={openAction} onEnrich={enrichRows} onView={() => navigate(`/prospects/${r.id}`)} spread />
                   </div>
                 </li>
               ))}
@@ -320,6 +366,7 @@ export function ProspectsPage() {
       </SidePanel>
 
       <SaveSegmentDialog open={saveSeg} onClose={() => setSaveSeg(false)} filter={effective} />
+      {exportTarget && <ExportDialog ids={exportTarget.ids} label={exportTarget.label} onClose={() => setExportTarget(null)} />}
 
       {action?.kind === 'message' && <MessageDialog open onClose={() => setAction(null)} prospect={action.prospect} />}
       {action?.kind === 'note' && <NoteDialog open onClose={() => setAction(null)} prospectId={action.prospect.id} />}
@@ -332,10 +379,23 @@ function NA() {
   return <span className="text-muted/70" title="Non disponible">—</span>;
 }
 
-function RowActions({ row, onAction, onView, spread }: { row: ProspectRow; onAction: (k: RowAction, id: string) => void; onView: () => void; spread?: boolean }) {
+function RowActions({
+  row,
+  onAction,
+  onEnrich,
+  onView,
+  spread,
+}: {
+  row: ProspectRow;
+  onAction: (k: RowAction, id: string) => void;
+  onEnrich: (ids: string[]) => void;
+  onView: () => void;
+  spread?: boolean;
+}) {
   const tel = telUrl(row.phone);
   const blocked = row.doNotContact || row.demo;
-  const cls = 'inline-flex h-10 w-10 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-brand disabled:opacity-30';
+  const cls = 'inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-brand disabled:opacity-30';
+  const busy = row.enrichmentStatus === 'pending' || row.enrichmentStatus === 'processing';
   return (
     <div className={`flex items-center ${spread ? 'justify-between' : 'justify-end gap-0.5'}`}>
       {tel && !blocked ? (
@@ -350,7 +410,17 @@ function RowActions({ row, onAction, onView, spread }: { row: ProspectRow; onAct
       <button type="button" className={cls} disabled={blocked} onClick={() => onAction('message', row.id)} aria-label={`Préparer un message pour ${row.name}`} title="E-mail / message">
         <Mail className="h-[18px] w-[18px]" />
       </button>
-      <a href={googleSearchUrl({ name: row.name, tradeName: null, city: row.city })} target="_blank" rel="noopener noreferrer" className={cls} aria-label={`Rechercher ${row.name} sur Google`} title="Rechercher sur Google">
+      <button
+        type="button"
+        className={cls}
+        disabled={row.demo || busy}
+        onClick={() => onEnrich([row.id])}
+        aria-label={`${row.enrichedAt ? 'Réenrichir' : 'Enrichir'} ${row.name}`}
+        title={busy ? 'Enrichissement en cours' : row.enrichedAt ? 'Réenrichir' : 'Enrichir'}
+      >
+        <Sparkles className="h-[18px] w-[18px]" />
+      </button>
+      <a href={googleSearchUrl({ name: row.name, tradeName: null, city: row.city })} target="_blank" rel="noopener noreferrer" className={cls} aria-label={`Rechercher ${row.name} sur le web`} title="Rechercher sur le web">
         <Globe className="h-[18px] w-[18px]" />
       </a>
       <button type="button" className={cls} onClick={() => onAction('note', row.id)} aria-label={`Ajouter une note à ${row.name}`} title="Note">
@@ -363,6 +433,75 @@ function RowActions({ row, onAction, onView, spread }: { row: ProspectRow; onAct
         <Eye className="h-[18px] w-[18px]" />
       </button>
     </div>
+  );
+}
+
+const EXPORT_PREF = 'prospection-export-columns';
+
+function loadColumns(): string[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(EXPORT_PREF) ?? 'null') as unknown;
+    if (Array.isArray(saved) && saved.length) return saved.filter((c): c is string => typeof c === 'string');
+  } catch {
+    /* préférence illisible : colonnes par défaut */
+  }
+  return DEFAULT_EXPORT_COLUMNS;
+}
+
+/** Export CSV (compatible Excel) avec choix des colonnes. */
+function ExportDialog({ ids, label, onClose }: { ids: string[]; label: string; onClose: () => void }) {
+  const { api } = useApp();
+  const run = useAction();
+  const [cols, setCols] = useState<string[]>(loadColumns);
+  const all = EXPORT_COLUMNS.map(([h]) => h);
+  const doExport = async () => {
+    try {
+      localStorage.setItem(EXPORT_PREF, JSON.stringify(cols));
+    } catch {
+      /* navigation privée : préférence non mémorisée */
+    }
+    const csv = await run(() => exportProspectsCsv(api, ids, cols));
+    if (csv) {
+      downloadText(csv, stampedName(`prospects-${label}`, 'csv'));
+      onClose();
+    }
+  };
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={`Exporter ${nf.format(ids.length)} prospect(s)`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button icon={<Download className="h-5 w-5" />} disabled={!cols.length} onClick={doExport}>
+            Exporter en CSV (Excel)
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-3 text-sm text-muted">Fichier CSV lisible directement par Excel (séparateur « ; », accents conservés). Choisissez les colonnes :</p>
+      <div className="mb-2 flex gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setCols(all)}>
+          Toutes
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setCols(DEFAULT_EXPORT_COLUMNS)}>
+          Par défaut
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setCols([])}>
+          Aucune
+        </Button>
+      </div>
+      <div className="grid gap-x-4 sm:grid-cols-2">
+        {all.map((c) => (
+          <Checkbox key={c} checked={cols.includes(c)} onChange={(v) => setCols(v ? all.filter((x) => x === c || cols.includes(x)) : cols.filter((x) => x !== c))}>
+            {c}
+          </Checkbox>
+        ))}
+      </div>
+    </Dialog>
   );
 }
 

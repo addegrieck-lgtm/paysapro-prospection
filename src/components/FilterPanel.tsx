@@ -2,7 +2,8 @@
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Chip, Checkbox, NumberField, SelectField, TextField, Segmented } from './ui/Form';
-import type { Presence, ProspectFilter, ProspectStatus, ServiceTag } from '../domain/types';
+import type { EnrichmentStatus, Presence, ProspectFilter, ProspectStatus, ServiceTag } from '../domain/types';
+import { ENRICHMENT_LABEL } from '../domain/enrichment';
 import { DEPARTMENT_CODES, DEPARTMENTS, REGIONS } from '../domain/geo';
 import { SERVICES, STATUSES } from '../domain/referentials';
 
@@ -68,6 +69,8 @@ export function FilterPanel({ value, onChange }: { value: ProspectFilter; onChan
             ['hasEmail', 'E-mail'],
             ['hasWebsite', 'Site internet'],
             ['hasGoogle', 'Présence Google'],
+            ['hasSocial', 'Réseaux sociaux'],
+            ['active', 'Entreprise active'],
           ] as const
         ).map(([key, label]) => (
           <div key={key} className="grid items-center gap-2 sm:grid-cols-[8rem_1fr]">
@@ -75,6 +78,16 @@ export function FilterPanel({ value, onChange }: { value: ProspectFilter; onChan
             <Segmented label={label} value={value[key] ?? 'any'} onChange={(v) => set({ [key]: v })} options={PRESENCE} />
           </div>
         ))}
+      </Group>
+
+      <Group title="Enrichissement">
+        <div className="flex flex-wrap gap-2">
+          {(['none', 'enriched', 'partial', 'failed'] as const).map((s) => (
+            <Chip key={s} selected={!!value.enrichment?.includes(s)} onClick={() => set({ enrichment: toggle<EnrichmentStatus>(value.enrichment, s) })}>
+              {ENRICHMENT_LABEL[s]}
+            </Chip>
+          ))}
+        </div>
       </Group>
 
       <Group title="Statut">

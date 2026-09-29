@@ -1,21 +1,27 @@
 // Déduplication des prospects.
 //
-// Ordre de priorité : SIRET > SIREN > téléphone > nom + ville > nom + adresse.
-//  • « exact » (SIRET / SIREN) : c'est la même entreprise → mise à jour de la fiche existante ;
-//  • « probable » (téléphone / nom) : très probablement la même → la fiche existante est seulement complétée,
-//    jamais écrasée ni supprimée.
-// Deux établissements d'une même entreprise (même SIREN, SIRET différents) ne sont PAS des doublons.
+// Ordre de priorité : SIRET > SIREN > nom + adresse > nom + téléphone  (correspondances « sûres »),
+// puis téléphone seul (« à vérifier ») et nom + ville (sûre si rien ne se contredit, sinon « à vérifier »).
+//  • sûre : c'est la même entreprise → la fiche existante est mise à jour / complétée ;
+//  • à vérifier : aucune fusion automatique → un « doublon potentiel » est proposé
+//    (Fusionner / Ignorer / Conserver les deux).
+// Deux établissements d'une même entreprise (SIRET différents) et deux SIREN différents ne sont jamais fusionnés.
+import type { DuplicateRule } from './types';
 import { normName, normPhone, normText } from './normalize';
 
-export type MatchRule = 'siret' | 'siren' | 'phone' | 'name_city' | 'name_address';
+export type MatchRule = DuplicateRule;
 
 export const MATCH_LABEL: Record<MatchRule, string> = {
   siret: 'même SIRET',
   siren: 'même SIREN',
+  name_address: 'même nom et même adresse',
+  name_phone: 'même nom et même téléphone',
   phone: 'même téléphone',
   name_city: 'même nom et même ville',
-  name_address: 'même nom et même adresse',
 };
+
+/** Correspondances assez sûres pour fusionner automatiquement. */
+export const STRONG_RULES: MatchRule[] = ['siret', 'siren', 'name_address', 'name_phone'];
 
 export interface DedupeKeys {
   id: string;
@@ -30,6 +36,7 @@ export interface DedupeKeys {
 export interface Match {
   id: string;
   rule: MatchRule;
+  /** true : même entreprise (fusion automatique) ; false : doublon potentiel à vérifier */
   exact: boolean;
 }
 
@@ -37,9 +44,11 @@ export class DedupeIndex {
   private bySiret = new Map<string, string>();
   private bySiren = new Map<string, { id: string; siret: string | null }[]>();
   private byPhone = new Map<string, string>();
+  private byNamePhone = new Map<string, string>();
   private byNameCity = new Map<string, string>();
   private byNameAddress = new Map<string, string>();
   private sirenOf = new Map<string, string>();
+  private details = new Map<string, { phone: string | null; address: string }>();
 
   constructor(items: DedupeKeys[] = []) {
     items.forEach((i) => this.add(i));
@@ -55,39 +64,55 @@ export class DedupeIndex {
       this.bySiren.set(siren, list);
     }
     const phone = normPhone(k.phone);
-    if (phone) this.byPhone.set(phone, k.id);
     const name = normName(k.name);
+    this.details.set(k.id, { phone, address: normText(k.address) });
+    if (phone) {
+      this.byPhone.set(phone, k.id);
+      if (name) this.byNamePhone.set(`${name}|${phone}`, k.id);
+    }
     if (name && k.city) this.byNameCity.set(`${name}|${normText(k.city)}`, k.id);
     if (name && k.address) this.byNameAddress.set(`${name}|${normText(k.address)}`, k.id);
   }
 
-  find(k: Omit<DedupeKeys, 'id'>): Match | null {
+  find(k: Omit<DedupeKeys, 'id'>, excludeId?: string): Match | null {
+    const ok = (id: string | undefined): id is string => !!id && id !== excludeId;
     if (k.siret) {
       const id = this.bySiret.get(k.siret);
-      if (id) return { id, rule: 'siret', exact: true };
+      if (ok(id)) return { id, rule: 'siret', exact: true };
     }
     const siren = k.siren ?? k.siret?.slice(0, 9) ?? null;
     if (siren) {
       const list = this.bySiren.get(siren) ?? [];
       // Un autre établissement (SIRET différent) de la même entreprise n'est pas un doublon.
-      const hit = list.find((x) => !k.siret || !x.siret || x.siret === k.siret);
+      const hit = list.find((x) => ok(x.id) && (!k.siret || !x.siret || x.siret === k.siret));
       if (hit) return { id: hit.id, rule: 'siren', exact: true };
     }
-    // Correspondances approximatives : jamais entre deux SIREN connus et différents (entreprises distinctes).
-    const compatible = (id: string | undefined): id is string => !!id && !(siren && this.sirenOf.has(id) && this.sirenOf.get(id) !== siren);
+    // Correspondances par nom / téléphone : jamais entre deux SIREN connus et différents.
+    const compatible = (id: string | undefined): id is string => ok(id) && !(siren && this.sirenOf.has(id) && this.sirenOf.get(id) !== siren);
+    const name = normName(k.name);
     const phone = normPhone(k.phone);
+    if (name && k.address) {
+      const id = this.byNameAddress.get(`${name}|${normText(k.address)}`);
+      if (compatible(id)) return { id, rule: 'name_address', exact: true };
+    }
+    if (name && phone) {
+      const id = this.byNamePhone.get(`${name}|${phone}`);
+      if (compatible(id)) return { id, rule: 'name_phone', exact: true };
+    }
     if (phone) {
       const id = this.byPhone.get(phone);
       if (compatible(id)) return { id, rule: 'phone', exact: false };
     }
-    const name = normName(k.name);
     if (name && k.city) {
       const id = this.byNameCity.get(`${name}|${normText(k.city)}`);
-      if (compatible(id)) return { id, rule: 'name_city', exact: false };
-    }
-    if (name && k.address) {
-      const id = this.byNameAddress.get(`${name}|${normText(k.address)}`);
-      if (compatible(id)) return { id, rule: 'name_address', exact: false };
+      if (compatible(id)) {
+        // Même nom et même ville, sans adresse ni téléphone contradictoires : c'est la même entreprise
+        // (ex. réimport d'un fichier sans SIRET). Sinon : doublon potentiel à vérifier.
+        const d = this.details.get(id);
+        const address = normText(k.address);
+        const conflict = !!d && ((!!phone && !!d.phone && phone !== d.phone) || (!!address && !!d.address && address !== d.address));
+        return { id, rule: 'name_city', exact: !conflict };
+      }
     }
     return null;
   }

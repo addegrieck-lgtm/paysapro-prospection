@@ -19,6 +19,17 @@ export interface Kpis {
   followUpsToday: number;
   priorityNeverContacted: number;
   awaitingReply: number;
+  // Qualité des données / enrichissement
+  active: number;
+  enriched: number;
+  partial: number;
+  notEnriched: number;
+  failed: number;
+  withEmail: number;
+  withPhone: number;
+  withWebsite: number;
+  averageScore: number | null;
+  followUpsPlanned: number;
 }
 
 const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : null);
@@ -30,8 +41,18 @@ export function computeKpis(rows: ProspectRow[], tasks: ProspectTask[], averageD
   let inProgress = 0;
   let priorityNeverContacted = 0;
   let awaitingReply = 0;
+  const q = { active: 0, enriched: 0, partial: 0, notEnriched: 0, failed: 0, withEmail: 0, withPhone: 0, withWebsite: 0, scoreSum: 0 };
   const m: Record<Milestone, number> = { contacted: 0, replied: 0, demo: 0, trial: 0, client: 0 };
   for (const r of rows) {
+    if (r.active) q.active++;
+    if (r.enrichmentStatus === 'enriched') q.enriched++;
+    else if (r.enrichmentStatus === 'partial') q.partial++;
+    else if (r.enrichmentStatus === 'failed') q.failed++;
+    else q.notEnriched++;
+    if (r.email) q.withEmail++;
+    if (r.phone) q.withPhone++;
+    if (r.website) q.withWebsite++;
+    q.scoreSum += r.score;
     if (r.score >= 80) priority++;
     if (r.status === 'to_contact') toContact++;
     if (IN_PROGRESS.includes(r.status)) inProgress++;
@@ -55,6 +76,16 @@ export function computeKpis(rows: ProspectRow[], tasks: ProspectTask[], averageD
     followUpsToday: tasks.filter((x) => !x.done && x.dueAt.slice(0, 10) <= t).length,
     priorityNeverContacted,
     awaitingReply,
+    active: q.active,
+    enriched: q.enriched,
+    partial: q.partial,
+    notEnriched: q.notEnriched,
+    failed: q.failed,
+    withEmail: q.withEmail,
+    withPhone: q.withPhone,
+    withWebsite: q.withWebsite,
+    averageScore: rows.length ? Math.round(q.scoreSum / rows.length) : null,
+    followUpsPlanned: tasks.filter((x) => !x.done).length,
   };
 }
 

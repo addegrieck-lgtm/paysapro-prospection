@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { parseCsv, toCsv, detectDelimiter } from '../src/domain/csv';
 import { autoDetectMapping, mapRow } from '../src/domain/mapping';
 import { DedupeIndex } from '../src/domain/dedupe';
-import { computeScore, priorityOf } from '../src/domain/scoring';
+import { computeScore, priorityOf, SCORING_CONFIG } from '../src/domain/scoring';
 import { matchesFilter, sortRows, describeFilter } from '../src/domain/filters';
-import { createProspect, mergeProspect, toRow, applyStatus } from '../src/domain/prospect';
+import { anonymize, applyManualEdit, combineProspects, createProspect, mergeProspect, originFor, toRow, applyStatus } from '../src/domain/prospect';
 import { renderTemplate, toInformal, builtInTemplates, variablesFor } from '../src/domain/templates';
 import { contactReasons, prospectingAngle } from '../src/domain/insights';
 import { can, assertCan, quotaAllows, PLAN_QUOTAS } from '../src/domain/access';
@@ -69,12 +69,17 @@ describe('Déduplication', () => {
     { id: 'b', siret: null, siren: '222222222', phone: null, name: 'Paysages Nord', city: 'Lille', address: '5 place B' },
   ]);
 
-  it('priorité SIRET > SIREN > téléphone > nom + ville > nom + adresse', () => {
+  it('priorité SIRET > SIREN > nom + adresse > nom + téléphone, puis téléphone et nom + ville', () => {
     expect(index.find({ siret: '11111111100011', siren: null, phone: null, name: 'x', city: null, address: null })).toEqual({ id: 'a', rule: 'siret', exact: true });
     expect(index.find({ siret: null, siren: '222222222', phone: null, name: 'x', city: null, address: null })?.rule).toBe('siren');
-    expect(index.find({ siret: null, siren: null, phone: '+33 2 35 00 00 00', name: 'x', city: null, address: null })?.rule).toBe('phone');
-    expect(index.find({ siret: null, siren: null, phone: null, name: 'JARDINS DU VAL', city: 'rouen', address: null })).toEqual({ id: 'a', rule: 'name_city', exact: false });
-    expect(index.find({ siret: null, siren: null, phone: null, name: 'Paysages Nord', city: 'Roubaix', address: '5 Place B' })?.rule).toBe('name_address');
+    expect(index.find({ siret: null, siren: null, phone: null, name: 'Paysages Nord', city: 'Roubaix', address: '5 Place B' })).toEqual({ id: 'b', rule: 'name_address', exact: true });
+    expect(index.find({ siret: null, siren: null, phone: '02 35 00 00 00', name: 'Jardins du Val', city: 'Caen', address: null })).toEqual({ id: 'a', rule: 'name_phone', exact: true });
+    // Téléphone seul : doublon potentiel, jamais fusionné automatiquement
+    expect(index.find({ siret: null, siren: null, phone: '+33 2 35 00 00 00', name: 'x', city: null, address: null })).toEqual({ id: 'a', rule: 'phone', exact: false });
+    // Même nom + même ville sans contradiction : même entreprise (réimport sans SIRET)
+    expect(index.find({ siret: null, siren: null, phone: null, name: 'JARDINS DU VAL', city: 'rouen', address: null })).toEqual({ id: 'a', rule: 'name_city', exact: true });
+    // … mais avec une adresse différente : à vérifier
+    expect(index.find({ siret: null, siren: null, phone: null, name: 'JARDINS DU VAL', city: 'rouen', address: '99 avenue Z' })).toEqual({ id: 'a', rule: 'name_city', exact: false });
   });
 
   it('même nom et même ville mais SIREN différents : entreprises distinctes', () => {
@@ -87,46 +92,65 @@ describe('Déduplication', () => {
 });
 
 describe('Scoring', () => {
-  it('explique chaque point du score', () => {
-    const r = computeScore({
-      phone: '0612345678',
-      email: null,
-      website: 'https://x.fr',
-      googleUrl: 'https://maps.google.com/x',
-      googleRating: 4.7,
-      googleReviews: 84,
-      headcount: 5,
-      headcountBand: null,
-      services: ['amenagement', 'entretien'],
-      activity: null,
-    });
-    expect(r.score).toBe(95);
+  const now = new Date('2026-09-29');
+  const admin = { siren: '123456789', siret: '12345678900011', nafCode: '81.30Z', address: '1 rue A', postalCode: '76000', city: 'Rouen', name: 'A', creationDate: '2025-02-01' };
+
+  it('explique chaque point du score (+ et −)', () => {
+    const r = computeScore(
+      {
+        ...admin,
+        active: true,
+        department: '76',
+        phone: '0612345678',
+        email: null,
+        website: 'https://x.fr',
+        googleUrl: 'https://maps.google.com/x',
+        googleRating: 4.7,
+        googleReviews: 84,
+        headcount: 5,
+        headcountBand: null,
+        services: ['amenagement', 'entretien'],
+        activity: null,
+      },
+      { targetDepartments: ['76'], now },
+    );
     expect(r.reasons.map((x) => `+${x.points} ${x.label}`)).toEqual([
-      '+15 Téléphone disponible',
-      '+15 Site internet',
-      '+15 Présence Google',
-      '+20 84 avis Google',
-      '+10 Note Google 4,7',
-      '+10 Effectif : 5 personnes',
-      "+5 Activité de création / d'aménagement",
-      '+5 2 prestations complémentaires',
+      '+15 Entreprise active',
+      '+10 Téléphone disponible',
+      '+10 Site web disponible',
+      '+5 Présence Google',
+      '+10 84 avis Google',
+      '+5 Note Google 4,7',
+      '+5 Effectif connu : 5 personne(s)',
+      '+5 Effectif ≥ 3 personnes',
+      '+5 Entreprise récente (2025)',
+      '+5 Zone ciblée (76)',
+      '+5 Services correspondants (création / aménagement)',
+      '+5 Informations administratives complètes',
     ]);
-    expect(r.missing).toEqual(['E-mail']);
+    expect(r.score).toBe(85);
+    expect(r.missing).toEqual(['E-mail', 'Réseaux sociaux inconnus']);
   });
 
-  it('ne compte pas deux fois et plafonne à 100', () => {
-    const full = computeScore({ phone: '1', email: 'a@b.fr', website: 'w', googleUrl: 'g', googleRating: 5, googleReviews: 500, headcount: 50, headcountBand: '12', services: ['creation', 'amenagement', 'elagage'], activity: null });
+  it('ne compte pas deux fois et plafonne à 100 ; configuration = 100 points', () => {
+    expect(Object.values(SCORING_CONFIG).reduce((a, b) => a + b, 0) - SCORING_CONFIG.reviews20).toBe(100);
+    const full = computeScore(
+      { ...admin, active: true, department: '76', phone: '1', email: 'a@b.fr', website: 'w', googleUrl: 'g', googleRating: 5, googleReviews: 500, headcount: 50, headcountBand: '12', services: ['creation', 'amenagement', 'elagage'], activity: null, instagram: 'i' },
+      { targetDepartments: ['76'], now },
+    );
     expect(full.score).toBe(100);
     expect(full.reasons.filter((r) => r.label.includes('avis'))).toHaveLength(1);
+    expect(full.missing).toEqual([]);
   });
 
-  it('prospect SIRENE brut : score faible, jamais de points inventés', () => {
-    const r = computeScore({ phone: null, email: null, website: null, googleUrl: null, googleRating: null, googleReviews: null, headcount: null, headcountBand: '01', services: [], activity: "Services d'aménagement paysager" });
+  it('prospect sans données : 0, jamais de points inventés ; le NAF ne donne rien', () => {
+    const r = computeScore({ phone: null, email: null, website: null, googleUrl: null, googleRating: null, googleReviews: null, headcount: null, headcountBand: null, services: [], activity: "Services d'aménagement paysager" }, { targetDepartments: [], now });
     expect(r.score).toBe(0);
+    expect(r.missing).toContain('Statut administratif inconnu');
   });
 
-  it('note ignorée avec moins de 5 avis ; tranche INSEE ≥ 3 comptée', () => {
-    expect(computeScore({ phone: null, email: null, website: null, googleUrl: null, googleRating: 5, googleReviews: 2, headcount: null, headcountBand: '02', services: [], activity: null }).score).toBe(25);
+  it('note ignorée avec moins de 5 avis ; tranche INSEE ≥ 3 comptée ; zone hors cible sans point', () => {
+    expect(computeScore({ department: '33', phone: null, email: null, website: null, googleUrl: null, googleRating: 5, googleReviews: 2, headcount: null, headcountBand: '02', services: [], activity: null }, { targetDepartments: ['76'], now }).score).toBe(15);
   });
 
   it('niveaux de priorité', () => {
@@ -145,13 +169,54 @@ describe('Fiche prospect', () => {
   });
 
   it('fusion « fill » ne remplace jamais une donnée existante ; « overwrite » oui ; jamais par du vide', () => {
-    const p = make({ name: 'A', phone: '0611111111', email: null });
+    const p = createProspect({ name: 'A', phone: '0611111111', email: null }, ctx, 'csv');
     const fill = mergeProspect(p, { phone: '0622222222', email: 'a@b.fr' }, 'fill', 'now');
     expect(fill.prospect.phone).toBe('0611111111');
     expect(fill.prospect.email).toBe('a@b.fr');
     const over = mergeProspect(p, { phone: '0622222222', email: null }, 'overwrite', 'now');
     expect(over.prospect.phone).toBe('0622222222');
     expect(over.changed).toEqual(['phone']);
+  });
+
+  it('provenance : chaque champ a une source ; une donnée manuelle n’est jamais remplacée automatiquement', () => {
+    const p = createProspect({ name: 'A', phone: '0611111111', address: '1 rue A' }, ctx, 'manual');
+    expect(p.fieldSources.phone).toMatchObject({ type: 'manual' });
+    const api = originFor('sirene', '2026-09-29');
+    const r = mergeProspect(p, { phone: '0622222222', address: '2 rue B', siren: '123456789' }, 'identity', '2026-09-29', api);
+    expect(r.prospect.phone).toBe('0611111111');
+    expect(r.prospect.address).toBe('1 rue A');
+    expect(r.kept).toEqual(['phone', 'address']);
+    expect(r.prospect.siren).toBe('123456789');
+    expect(r.prospect.fieldSources.siren).toMatchObject({ type: 'official_api', provider: 'recherche-entreprises', at: '2026-09-29' });
+    // Saisie manuelle : devient « Manuel », un champ vidé perd sa source
+    const edited = applyManualEdit(r.prospect, { phone: null, email: 'x@y.fr' }, '2026-09-30', 'Adrien');
+    expect(edited.prospect.fieldSources.phone).toBeUndefined();
+    expect(edited.prospect.fieldSources.email).toMatchObject({ type: 'manual', provider: 'Adrien' });
+  });
+
+  it('source officielle : rafraîchit sa propre donnée, confirme les valeurs identiques', () => {
+    const p = createProspect({ name: 'A', address: '1 rue A', nafCode: '81.30Z' }, ctx, 'sirene');
+    const r = mergeProspect(p, { address: '3 rue C', nafCode: '81.30Z' }, 'identity', '2026-10-01', originFor('sirene', '2026-10-01'));
+    expect(r.changed).toEqual(['address']);
+    expect(r.confirmed).toEqual(['nafCode']);
+    expect(r.prospect.fieldSources.nafCode?.at).toBe('2026-10-01');
+  });
+
+  it('anonymisation RGPD : données personnelles effacées, exclusion définitive', () => {
+    const ei = createProspect({ name: 'Jean Dupont', individual: true, siren: '123456789', email: 'jean@x.fr', phone: '0611111111', city: 'Rouen', nafCode: '81.30Z' }, ctx, 'csv');
+    const a = anonymize(ei, 'now');
+    expect(a).toMatchObject({ name: 'Entreprise anonymisée', siren: null, email: null, phone: null, city: 'Rouen', nafCode: '81.30Z', doNotContact: true, anonymized: true });
+    const sas = anonymize(createProspect({ name: 'Jardins SAS', individual: false, siren: '987654321', email: 'contact@j.fr', contactFirstName: 'Paul' }, ctx, 'csv'), 'now');
+    expect(sas).toMatchObject({ name: 'Jardins SAS', siren: '987654321', email: null, contactFirstName: null });
+  });
+
+  it('fusion de deux fiches : les informations des deux sont conservées', () => {
+    const a = createProspect({ name: 'A', siret: '12345678900011', phone: '0611111111' }, ctx, 'sirene');
+    const b = applyStatus(createProspect({ name: 'A bis', email: 'a@a.fr', website: 'https://a.fr', services: ['entretien'] }, ctx, 'csv'), 'contacted', '2026-01-01');
+    const m = combineProspects(a, b, 'now');
+    expect(m).toMatchObject({ name: 'A', siret: '12345678900011', phone: '0611111111', email: 'a@a.fr', website: 'https://a.fr', services: ['entretien'] });
+    expect(m.milestones.contacted).toBe('2026-01-01');
+    expect(m.fieldSources.email).toMatchObject({ type: 'csv' });
   });
 
   it('les étapes du tunnel sont datées une seule fois', () => {

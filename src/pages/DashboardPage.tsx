@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { AlarmClock, Building2, Flame, Upload } from 'lucide-react';
+import { AlarmClock, Building2, Flame, Sparkles, Upload } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { ButtonLink } from '../components/ui/Button';
 import { Card, CardTitle } from '../components/ui/Card';
@@ -55,6 +55,32 @@ export function DashboardPage() {
               hint={kpis.potentialValue !== null ? 'prospects ouverts × panier moyen' : <Link to="/settings" className="text-brand hover:underline">Définir le panier moyen</Link>}
             />
           </div>
+
+          <Card>
+            <CardTitle icon={<Sparkles className="h-5 w-5" />} action={<Link to="/import" className="text-sm font-medium text-brand hover:underline">Import & enrichissement</Link>}>
+              Qualité des données
+            </CardTitle>
+            <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+              {(
+                [
+                  ['Entreprises actives', kpis.active],
+                  ['Enrichis', kpis.enriched],
+                  ['Partiellement enrichis', kpis.partial],
+                  ['Non enrichis', kpis.notEnriched + kpis.failed],
+                  ['Avec e-mail', kpis.withEmail],
+                  ['Avec téléphone', kpis.withPhone],
+                  ['Avec site', kpis.withWebsite],
+                  ['Score moyen', kpis.averageScore],
+                  ['Relances prévues', kpis.followUpsPlanned],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="rounded-xl bg-surface-2 p-3">
+                  <dt className="text-muted">{label}</dt>
+                  <dd className="text-xl font-bold tabular-nums text-ink">{value === null ? '—' : nf.format(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>

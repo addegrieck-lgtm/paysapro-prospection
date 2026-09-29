@@ -11,8 +11,9 @@ import { useApp, useCan, useQuery } from '../app/context';
 import { DEPARTMENT_CODES, DEPARTMENTS } from '../domain/geo';
 import { NAF_CHOICES, NAF_LABELS } from '../domain/referentials';
 import { ROLE_LABEL, CURRENT_PLAN, PLAN_QUOTAS } from '../domain/access';
-import { csvProvider, googlePlacesProvider, manualProvider } from '../providers/data';
-import { SireneProvider } from '../providers/sirene';
+import { csvProvider, googlePlacesProvider, manualProvider } from '../providers/company';
+import { SireneProvider } from '../providers/company/SireneProvider';
+import { ENRICHMENT_CONFIG } from '../config';
 import { aiProvider } from '../providers/ai';
 import { emailProvider } from '../providers/email';
 import { downloadText, stampedName } from '../data/export';
@@ -29,9 +30,13 @@ export function SettingsPage() {
   const set = <K extends keyof Settings>(k: K) => (v: Settings[K]) => setS((x) => ({ ...x, [k]: v }));
 
   const save = async () => {
+    const zoneChanged = JSON.stringify([...s.targetDepartments].sort()) !== JSON.stringify([...settings.targetDepartments].sort());
     await run(async () => {
       await api.saveSettings(s);
       await reloadSettings();
+      // Le critère « zone ciblée » du score dépend des départements ciblés
+      if (zoneChanged) await api.rescoreAll((d, t) => setProgress(`Recalcul des scores : ${nf.format(d)} / ${nf.format(t)}`));
+      setProgress(null);
     }, 'Paramètres enregistrés');
   };
 
@@ -109,6 +114,11 @@ export function SettingsPage() {
         <Card>
           <CardTitle icon={<Plug className="h-5 w-5" />}>Fournisseurs</CardTitle>
           <ul className="divide-y divide-line text-sm">
+            <Provider
+              name="API Recherche d’entreprises — enrichissement"
+              status="active"
+              desc={`Données publiques officielles (SIRENE / INSEE), gratuites et sans clé. ${ENRICHMENT_CONFIG.rateLimitPerSecond} requêtes/s maximum, cache ${ENRICHMENT_CONFIG.cacheDays} jours, lots de ${ENRICHMENT_CONFIG.batchSize} (variables VITE_ENRICHMENT_*).`}
+            />
             <Provider name={new SireneProvider().label} status="active" desc={new SireneProvider().description} />
             <Provider name={csvProvider.label} status="active" desc={csvProvider.description} />
             <Provider name={manualProvider.label} status="active" desc={manualProvider.description} />

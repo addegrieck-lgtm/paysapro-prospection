@@ -38,7 +38,21 @@ export type ServiceTag =
   | 'piscine'
   | 'engazonnement';
 
-export type SourceKind = 'sirene' | 'csv' | 'manual' | 'demo' | 'enrichment';
+export type SourceKind = 'sirene' | 'csv' | 'manual' | 'demo' | 'enrichment' | 'search';
+
+/** Provenance d'une donnée (champ par champ). */
+export type FieldSourceType = 'official_api' | 'csv' | 'manual' | 'web' | 'import';
+export type Confidence = 'high' | 'medium' | 'low';
+
+export interface FieldSource {
+  type: FieldSourceType;
+  /** Fournisseur précis : « recherche-entreprises », nom du fichier CSV, « démo »… */
+  provider: string;
+  at: ISODate;
+  confidence: Confidence;
+}
+
+export type EnrichmentStatus = 'none' | 'pending' | 'processing' | 'enriched' | 'partial' | 'failed';
 
 interface Tracked {
   id: ID;
@@ -107,6 +121,20 @@ export interface Prospect extends Tracked {
   lastVerifiedAt: ISODate | null;
   /** Entreprise fictive (mode démo) — jamais contactable */
   demo: boolean;
+  // Données administratives complémentaires (source officielle)
+  isHeadOffice: boolean | null;
+  companyCategory: string | null;
+  openEstablishments: number | null;
+  employer: boolean | null;
+  description: string | null;
+  // Enrichissement
+  enrichmentStatus: EnrichmentStatus;
+  enrichedAt: ISODate | null;
+  enrichmentError: string | null;
+  /** Provenance, date et confiance de chaque champ renseigné */
+  fieldSources: Partial<Record<string, FieldSource>>;
+  /** Données personnelles effacées (RGPD) */
+  anonymized: boolean;
 }
 
 /** Version compacte d'un prospect, gardée en mémoire pour filtrer 100 000 lignes instantanément. */
@@ -114,6 +142,7 @@ export interface ProspectRow {
   id: ID;
   workspaceId: ID;
   name: string;
+  address: string | null;
   city: string | null;
   postalCode: string | null;
   department: string | null;
@@ -140,6 +169,10 @@ export interface ProspectRow {
   doNotContact: boolean;
   demo: boolean;
   createdAt: ISODate;
+  active: boolean | null;
+  hasSocial: boolean;
+  enrichmentStatus: EnrichmentStatus;
+  enrichedAt: ISODate | null;
   /** Texte normalisé pour la recherche instantanée */
   search: string;
 }
@@ -163,7 +196,9 @@ export type ActivityType =
   | 'message'
   | 'task_created'
   | 'task_done'
-  | 'do_not_contact';
+  | 'do_not_contact'
+  | 'merged'
+  | 'anonymized';
 
 export interface ProspectActivity {
   id: ID;
@@ -173,6 +208,53 @@ export interface ProspectActivity {
   label: string;
   at: ISODate;
   by: string;
+  /** Détail (ex. « ✓ SIREN confirmé », « ✓ Adresse mise à jour ») */
+  details?: string[];
+}
+
+// ─── Enrichissement ───
+
+export type QueueJobStatus = 'pending' | 'processing' | 'completed' | 'partial' | 'failed';
+
+export interface EnrichmentJob {
+  id: ID;
+  workspaceId: ID;
+  prospectId: ID;
+  status: QueueJobStatus;
+  /** Résultat détaillé une fois traité */
+  outcome: 'enriched' | 'partial' | 'no_change' | 'not_found' | 'ambiguous' | 'error' | null;
+  force: boolean;
+  attempts: number;
+  error: string | null;
+  createdAt: ISODate;
+  updatedAt: ISODate;
+}
+
+export interface EnrichmentLog {
+  id: ID;
+  workspaceId: ID;
+  prospectId: ID;
+  provider: string;
+  status: 'enriched' | 'partial' | 'no_change' | 'not_found' | 'ambiguous' | 'failed';
+  startedAt: ISODate;
+  completedAt: ISODate;
+  fieldsUpdated: string[];
+  fieldsConfirmed: string[];
+  fromCache: boolean;
+  error: string | null;
+}
+
+export type DuplicateRule = 'siret' | 'siren' | 'name_address' | 'name_phone' | 'phone' | 'name_city';
+
+export interface DuplicateCandidate {
+  id: ID;
+  workspaceId: ID;
+  prospectIdA: ID;
+  prospectIdB: ID;
+  rule: DuplicateRule;
+  status: 'open' | 'merged' | 'ignored' | 'kept_both';
+  createdAt: ISODate;
+  resolvedAt: ISODate | null;
 }
 
 export type TaskType = 'call' | 'email' | 'follow_up' | 'demo' | 'other';
@@ -207,6 +289,9 @@ export interface ProspectFilter {
   hasWebsite?: Presence;
   hasEmail?: Presence;
   hasGoogle?: Presence;
+  hasSocial?: Presence;
+  active?: Presence;
+  enrichment?: EnrichmentStatus[];
   services?: ServiceTag[];
   nafCodes?: string[];
   createdAfter?: string | null;
@@ -308,6 +393,8 @@ export interface ImportReport extends Tracked {
   excluded: number;
   /** Enrichissement : lignes qui ne correspondent à aucun prospect existant */
   notFound: number;
+  /** Doublons potentiels créés (à vérifier) */
+  candidates?: number;
   errors: { line: number; message: string }[];
   finishedAt: ISODate | null;
 }

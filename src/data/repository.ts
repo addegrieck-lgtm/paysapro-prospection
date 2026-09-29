@@ -12,6 +12,10 @@ import type {
   ActivityType,
   Campaign,
   CampaignRecipient,
+  DuplicateCandidate,
+  DuplicateRule,
+  EnrichmentJob,
+  EnrichmentLog,
   ExclusionReason,
   ImportReport,
   MessageTemplate,
@@ -33,8 +37,13 @@ import type {
   TaskPriority,
   TaskType,
 } from '../domain/types';
-import { applyStatus, createProspect, finalize, mergeProspect, toRow, type MergeMode, type ProspectInput } from '../domain/prospect';
+import { adminComplete, anonymize, applyManualEdit, applyStatus, combineProspects, createProspect, finalize, mergeProspect, originFor, toRow, upgradeProspect, type MergeMode, type ProspectInput } from '../domain/prospect';
 import { DedupeIndex, MATCH_LABEL } from '../domain/dedupe';
+import { applyEnrichment, type EnrichmentApplication } from '../domain/enrichment';
+import { setScoringContext } from '../domain/scoring';
+import { ProviderError } from '../providers/http';
+import type { CompanyDataProvider, EnrichOutcome } from '../providers/company/CompanyDataProvider';
+import { ENRICHMENT_CONFIG } from '../config';
 import { matchesFilter, sortRows, today } from '../domain/filters';
 import { computeScore } from '../domain/scoring';
 import { assertCan } from '../domain/access';
@@ -104,6 +113,7 @@ const SOURCE_LABEL: Record<SourceKind, string> = {
   manual: 'saisie manuelle',
   demo: 'données de démonstration',
   enrichment: "fichier d'enrichissement",
+  search: 'la recherche d’entreprises (données publiques)',
 };
 
 const yieldToUI = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -137,7 +147,19 @@ export class ProspectsApi {
     return x && x.workspaceId === this.ctx.workspaceId ? x : undefined;
   }
 
-  private async byWorkspace<S extends 'prospect_rows' | 'prospect_tasks' | 'prospect_segments' | 'prospect_campaigns' | 'message_templates' | 'prospect_imports' | 'suppression_list'>(store: S) {
+  private async byWorkspace<
+    S extends
+      | 'prospect_rows'
+      | 'prospect_tasks'
+      | 'prospect_segments'
+      | 'prospect_campaigns'
+      | 'message_templates'
+      | 'prospect_imports'
+      | 'suppression_list'
+      | 'enrichment_queue'
+      | 'enrichment_logs'
+      | 'duplicate_candidates',
+  >(store: S) {
     // (le typage générique d'idb ne sait pas exprimer « toutes ces tables ont un index workspaceId »)
     return this.db.getAllFromIndex(store, 'workspaceId', this.ctx.workspaceId as never);
   }
@@ -145,12 +167,14 @@ export class ProspectsApi {
   // ─────────────── Paramètres ───────────────
 
   async getSettings(): Promise<Settings> {
-    const s = await this.db.get('settings', this.ctx.workspaceId);
-    return { ...defaultSettings(this.ctx.workspaceId), ...s };
+    const s = { ...defaultSettings(this.ctx.workspaceId), ...(await this.db.get('settings', this.ctx.workspaceId)) };
+    setScoringContext({ targetDepartments: s.targetDepartments });
+    return s;
   }
 
   async saveSettings(s: Settings): Promise<void> {
     await this.db.put('settings', { ...s, workspaceId: this.ctx.workspaceId });
+    setScoringContext({ targetDepartments: s.targetDepartments });
     this.emit();
   }
 
@@ -193,13 +217,14 @@ export class ProspectsApi {
 
   async getProspect(id: string): Promise<Prospect | undefined> {
     assertCan(this.ctx.role, 'prospecting.view');
-    return this.mine(await this.db.get('prospects', id));
+    const p = this.mine(await this.db.get('prospects', id));
+    return p ? upgradeProspect(p) : undefined;
   }
 
   async getProspects(ids: string[]): Promise<Prospect[]> {
     const tx = this.db.transaction('prospects');
     const list = await Promise.all(ids.map((id) => tx.store.get(id)));
-    return list.filter((p): p is Prospect => !!this.mine(p));
+    return list.filter((p): p is Prospect => !!this.mine(p)).map(upgradeProspect);
   }
 
   private activity(prospectId: string, type: ActivityType, label: string, at = this.now()): ProspectActivity {
@@ -241,9 +266,9 @@ export class ProspectsApi {
     const existing = await this.getProspect(id);
     if (!existing) throw new Error('Prospect introuvable.');
     const now = this.now();
-    // Une saisie manuelle peut aussi VIDER un champ : on applique le patch tel quel.
-    const next = finalize({ ...existing, ...patch, updatedAt: now });
-    const acts = [this.activity(id, 'updated', label, now)];
+    // Une saisie manuelle peut aussi VIDER un champ ; chaque champ modifié devient de source « Manuel ».
+    const { prospect: next, changed } = applyManualEdit(existing, patch, now, this.ctx.user);
+    const acts = [this.activity(id, 'updated', changed.length ? `${label} (${changed.length} champ(s))` : label, now)];
     if (next.score !== existing.score) acts.push(this.activity(id, 'score', `Score recalculé : ${existing.score} → ${next.score}`, now));
     await this.write([next], acts);
     this.emit();
@@ -319,15 +344,20 @@ export class ProspectsApi {
     assertCan(this.ctx.role, 'prospecting.delete');
     const prospects = await this.getProspects(ids);
     if (suppress) for (const p of prospects) await this.addSuppressionFor(p, 'Suppression à la demande (RGPD)');
-    const stores = ['prospects', 'prospect_rows', 'prospect_notes', 'prospect_activities', 'prospect_tasks'] as const;
+    const stores = ['prospects', 'prospect_rows', 'prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates'] as const;
     const tx = this.db.transaction(stores, 'readwrite');
+    const removed = new Set(prospects.map((p) => p.id));
     for (const p of prospects) {
       await tx.objectStore('prospects').delete(p.id);
       await tx.objectStore('prospect_rows').delete(p.id);
-      for (const s of ['prospect_notes', 'prospect_activities', 'prospect_tasks'] as const) {
+      for (const s of ['prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs'] as const) {
         const keys = await tx.objectStore(s).index('prospectId').getAllKeys(p.id);
         for (const k of keys) await tx.objectStore(s).delete(k);
       }
+    }
+    if (removed.size) {
+      const dups = await tx.objectStore('duplicate_candidates').index('workspaceId').getAll(this.ctx.workspaceId);
+      for (const d of dups) if (removed.has(d.prospectIdA) || removed.has(d.prospectIdB)) await tx.objectStore('duplicate_candidates').delete(d.id);
     }
     await tx.done;
     prospects.forEach((p) => this.rows?.delete(p.id));
@@ -416,7 +446,7 @@ export class ProspectsApi {
       finishedAt: null,
     };
     const rows = await this.allRows();
-    const index = new DedupeIndex(rows.map((r) => ({ id: r.id, siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: null })));
+    const index = new DedupeIndex(rows.map((r) => ({ id: r.id, siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address })));
     const suppressed = await this.suppressionSet();
     const ctx = { workspaceId: this.ctx.workspaceId, user: this.ctx.user };
     const batchSize = opts.batchSize ?? 500;
@@ -432,6 +462,7 @@ export class ProspectsApi {
       const pending = new Map<string, Prospect>();
       const touched = new Set<string>();
       const activities: ProspectActivity[] = [];
+      const candidates: DuplicateCandidate[] = [];
 
       // Lecture groupée des fiches existantes qui vont être fusionnées
       const matches = batch.map((l) => (l.input ? index.find({ siret: l.input.siret ?? null, siren: l.input.siren ?? null, phone: l.input.phone ?? null, name: l.input.name ?? '', city: l.input.city ?? null, address: l.input.address ?? null }) : null));
@@ -453,8 +484,9 @@ export class ProspectsApi {
         // Une ligne précédente du même lot a pu créer la fiche : on relance la recherche.
         const match = matches[i] ?? index.find({ siret: input.siret ?? null, siren: input.siren ?? null, phone: input.phone ?? null, name: input.name ?? '', city: input.city ?? null, address: input.address ?? null });
         const existing = match ? pending.get(match.id) : undefined;
-        if (match && existing) {
-          const { prospect, changed } = mergeProspect(existing, input, match.exact ? mergeMode : opts.mode === 'enrich' ? 'overwrite' : 'fill', now);
+        const origin = originFor(opts.source, now, opts.source === 'csv' || opts.source === 'enrichment' ? opts.label : undefined);
+        if (match && existing && match.exact) {
+          const { prospect, changed } = mergeProspect(existing, input, mergeMode, now, origin);
           if (opts.source === 'sirene') prospect.lastVerifiedAt = now;
           pending.set(prospect.id, prospect);
           report.duplicates++;
@@ -469,10 +501,10 @@ export class ProspectsApi {
         }
         if (opts.mode === 'enrich') {
           report.notFound++;
-          pushError(l.line, 'Aucun prospect correspondant (SIREN / SIRET / téléphone / nom + ville)');
+          pushError(l.line, match ? `Correspondance incertaine (${MATCH_LABEL[match.rule]}) : ajoutez le SIREN ou le SIRET pour enrichir cette fiche` : 'Aucun prospect correspondant (SIRET / SIREN / nom + adresse / nom + téléphone)');
           return;
         }
-        const p = createProspect({ ...input, lastVerifiedAt: opts.source === 'sirene' ? now : (input.lastVerifiedAt ?? null) }, { ...ctx, now }, opts.source);
+        const p = createProspect({ ...input, lastVerifiedAt: opts.source === 'sirene' ? now : (input.lastVerifiedAt ?? null) }, { ...ctx, now }, opts.source, origin);
         if (!p.name) {
           report.invalid++;
           pushError(l.line, 'Nom de l’entreprise manquant');
@@ -482,6 +514,11 @@ export class ProspectsApi {
         touched.add(p.id);
         index.add({ id: p.id, siret: p.siret, siren: p.siren, phone: p.phone, name: p.name, city: p.city, address: p.address });
         report.added++;
+        // Correspondance incertaine (même téléphone, même nom + ville) : doublon potentiel à vérifier, jamais fusionné d'office
+        if (match && !match.exact) {
+          report.candidates = (report.candidates ?? 0) + 1;
+          candidates.push(this.candidate(match.id, p.id, match.rule, now));
+        }
         activities.push(this.activity(p.id, 'imported', `Prospect importé depuis ${SOURCE_LABEL[opts.source]}`, now));
         activities.push(this.activity(p.id, 'score', `Score calculé : ${p.score}`, now));
       });
@@ -490,6 +527,11 @@ export class ProspectsApi {
         Array.from(touched, (id) => pending.get(id)!),
         activities,
       );
+      if (candidates.length) {
+        const tx = this.db.transaction('duplicate_candidates', 'readwrite');
+        await Promise.all(candidates.map((c) => tx.store.put(c)));
+        await tx.done;
+      }
       opts.onProgress?.(Math.min(lines.length, start + batch.length), lines.length);
       await yieldToUI();
     }
@@ -838,6 +880,263 @@ export class ProspectsApi {
     this.emit();
   }
 
+  // ─────────────── POST /api/prospects/:id/enrich ───────────────
+
+  /** Le prospect a-t-il été enrichi récemment (cache ENRICHMENT_CACHE_DAYS) ? */
+  isFreshlyEnriched(p: Pick<Prospect, 'enrichedAt' | 'enrichmentError'>, now = Date.now()): boolean {
+    return !!p.enrichedAt && !p.enrichmentError && now - new Date(p.enrichedAt).getTime() < ENRICHMENT_CONFIG.cacheDays * 86_400_000;
+  }
+
+  /** Statut d'enrichissement « au repos » d'une fiche (hors file d'attente). */
+  private settledStatus(p: Prospect): Prospect['enrichmentStatus'] {
+    if (!p.enrichedAt) return 'none';
+    if (p.enrichmentError) return 'failed';
+    return adminComplete(p) ? 'enriched' : 'partial';
+  }
+
+  /**
+   * Enrichit un prospect depuis la source officielle gratuite.
+   * Ne remplace jamais une donnée manuelle, enregistre la source de chaque champ, journalise l'opération.
+   * Les erreurs réseau sont transformées en message clair : le prospect reste enregistré.
+   */
+  async enrichProspect(
+    id: string,
+    provider: CompanyDataProvider,
+    opts: { force?: boolean; signal?: AbortSignal } = {},
+  ): Promise<{ application: EnrichmentApplication | null; outcome: EnrichOutcome | null; skipped: boolean; error: string | null }> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const p = await this.getProspect(id);
+    if (!p) throw new Error('Prospect introuvable.');
+    if (p.demo) throw new Error('Donnée de démonstration : entreprise fictive, elle ne peut pas être enrichie.');
+    if (p.anonymized) throw new Error('Prospect anonymisé : il ne peut plus être enrichi.');
+    if (!opts.force && this.isFreshlyEnriched(p)) {
+      if (p.enrichmentStatus === 'pending' || p.enrichmentStatus === 'processing') {
+        await this.write([{ ...p, enrichmentStatus: this.settledStatus(p) }], []);
+        this.emit();
+      }
+      return { application: null, outcome: null, skipped: true, error: null };
+    }
+    const startedAt = this.now();
+    let outcome: EnrichOutcome;
+    try {
+      outcome = await provider.enrich(p, { force: opts.force, signal: opts.signal });
+    } catch (e) {
+      const message = e instanceof ProviderError ? e.message : 'Impossible de récupérer les données actuellement. Le prospect reste enregistré : vous pourrez relancer l’enrichissement plus tard.';
+      console.error('[enrichissement]', id, e);
+      if (e instanceof ProviderError && e.kind === 'aborted') throw e;
+      const failed: Prospect = { ...p, enrichmentStatus: 'failed', enrichmentError: message, enrichedAt: this.now() };
+      await this.write([failed], [this.activity(id, 'enriched', 'Enrichissement automatique : échec', startedAt)]);
+      await this.log({ prospectId: id, provider: provider.id, status: 'failed', startedAt, fieldsUpdated: [], fieldsConfirmed: [], fromCache: false, error: e instanceof ProviderError ? e.detail : String(e) });
+      this.emit();
+      return { application: null, outcome: null, skipped: false, error: message };
+    }
+    const now = this.now();
+    const application = applyEnrichment(p, outcome, now);
+    const act = this.activity(id, 'enriched', outcome.status === 'found' ? 'Enrichissement automatique' : 'Enrichissement automatique : entreprise non identifiée', now);
+    act.details = application.details;
+    const acts = [act];
+    if (application.prospect.score !== p.score) acts.push(this.activity(id, 'score', `Score recalculé : ${p.score} → ${application.prospect.score}`, now));
+    await this.write([application.prospect], acts);
+    await this.log({
+      prospectId: id,
+      provider: provider.id,
+      status: application.outcome,
+      startedAt,
+      fieldsUpdated: application.fieldsUpdated,
+      fieldsConfirmed: application.fieldsConfirmed,
+      fromCache: outcome.fromCache,
+      error: application.prospect.enrichmentError,
+    });
+    // Le SIREN / SIRET récupéré peut révéler un doublon déjà présent
+    if (outcome.status === 'found') await this.detectDuplicatesOf(application.prospect);
+    this.emit();
+    return { application, outcome, skipped: false, error: null };
+  }
+
+  /** L'utilisateur choisit la bonne entreprise parmi plusieurs candidates (recherche par nom ambiguë). */
+  async chooseCompany(id: string, siret: string, provider: CompanyDataProvider) {
+    const p = await this.getProspect(id);
+    if (!p) throw new Error('Prospect introuvable.');
+    const now = this.now();
+    const origin = { ...originFor('manual', now, 'Choix parmi les données publiques'), confidence: 'high' as const };
+    const { prospect } = mergeProspect(p, { siret, siren: siret.slice(0, 9) }, 'overwrite', now, origin);
+    await this.write([prospect], []);
+    return this.enrichProspect(id, provider, { force: true });
+  }
+
+  private async log(l: Omit<EnrichmentLog, 'id' | 'workspaceId' | 'completedAt'>) {
+    await this.db.put('enrichment_logs', { ...l, id: uid(), workspaceId: this.ctx.workspaceId, completedAt: this.now() });
+  }
+
+  async enrichmentLogs(prospectId: string): Promise<EnrichmentLog[]> {
+    const list = await this.db.getAllFromIndex('enrichment_logs', 'prospectId', prospectId);
+    return list.filter((l) => l.workspaceId === this.ctx.workspaceId).sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+  }
+
+  // ─────────────── File d'attente d'enrichissement (persistée) ───────────────
+
+  async queueJobs(): Promise<EnrichmentJob[]> {
+    return (await this.byWorkspace('enrichment_queue')).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  /** Ajoute des prospects à la file (sans doublon de tâche en attente). Renvoie le nombre ajouté. */
+  async enqueueEnrichment(ids: string[], force = false): Promise<number> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const jobs = await this.queueJobs();
+    const waiting = new Set(jobs.filter((j) => j.status === 'pending' || j.status === 'processing').map((j) => j.prospectId));
+    const rows = new Map((await this.allRows()).map((r) => [r.id, r]));
+    const now = this.now();
+    const add = ids.filter((id) => !waiting.has(id) && rows.has(id) && !rows.get(id)!.demo);
+    const tx = this.db.transaction('enrichment_queue', 'readwrite');
+    await Promise.all(
+      add.map((prospectId) => tx.store.put({ id: uid(), workspaceId: this.ctx.workspaceId, prospectId, status: 'pending', outcome: null, force, attempts: 0, error: null, createdAt: now, updatedAt: now })),
+    );
+    await tx.done;
+    // Statut visible dans la liste
+    for (let i = 0; i < add.length; i += 500) {
+      const batch = await this.getProspects(add.slice(i, i + 500));
+      await this.write(batch.map((p) => ({ ...p, enrichmentStatus: 'pending' as const })), []);
+    }
+    this.emit();
+    return add.length;
+  }
+
+  async saveJob(job: EnrichmentJob): Promise<void> {
+    await this.db.put('enrichment_queue', { ...job, updatedAt: this.now() });
+  }
+
+  /** Relance les échecs (ils repassent « en attente »). */
+  async retryFailedJobs(): Promise<number> {
+    const failed = (await this.queueJobs()).filter((j) => j.status === 'failed');
+    await Promise.all(failed.map((j) => this.saveJob({ ...j, status: 'pending', error: null, force: true })));
+    this.emit();
+    return failed.length;
+  }
+
+  /** Vide l'historique de la file (tâches terminées). */
+  async clearFinishedJobs(): Promise<void> {
+    const done = (await this.queueJobs()).filter((j) => j.status !== 'pending' && j.status !== 'processing');
+    await Promise.all(done.map((j) => this.db.delete('enrichment_queue', j.id)));
+    this.emit();
+  }
+
+  /** Annule les tâches en attente (le statut des prospects revient à l'état précédent connu). */
+  async cancelPendingJobs(): Promise<void> {
+    const pending = (await this.queueJobs()).filter((j) => j.status === 'pending' || j.status === 'processing');
+    await Promise.all(pending.map((j) => this.db.delete('enrichment_queue', j.id)));
+    const prospects = await this.getProspects(pending.map((j) => j.prospectId));
+    await this.write(
+      prospects.map((p) => ({ ...p, enrichmentStatus: this.settledStatus(p) })),
+      [],
+    );
+    this.emit();
+  }
+
+  // ─────────────── Doublons potentiels ───────────────
+
+  private candidate(a: string, b: string, rule: DuplicateRule, now: string): DuplicateCandidate {
+    return { id: uid(), workspaceId: this.ctx.workspaceId, prospectIdA: a, prospectIdB: b, rule, status: 'open', createdAt: now, resolvedAt: null };
+  }
+
+  async listDuplicates(status: DuplicateCandidate['status'] | 'all' = 'open'): Promise<DuplicateCandidate[]> {
+    const list = await this.byWorkspace('duplicate_candidates');
+    return list.filter((c) => status === 'all' || c.status === status).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  private async pairExists(a: string, b: string): Promise<boolean> {
+    return (await this.listDuplicates('all')).some((c) => (c.prospectIdA === a && c.prospectIdB === b) || (c.prospectIdA === b && c.prospectIdB === a));
+  }
+
+  private async detectDuplicatesOf(p: Prospect) {
+    const rows = (await this.allRows()).filter((r) => r.id !== p.id);
+    const index = new DedupeIndex(rows.map((r) => ({ id: r.id, siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address })));
+    const m = index.find({ siret: p.siret, siren: p.siren, phone: p.phone, name: p.name, city: p.city, address: p.address });
+    if (m && !(await this.pairExists(m.id, p.id))) await this.db.put('duplicate_candidates', this.candidate(m.id, p.id, m.rule, this.now()));
+  }
+
+  /** Analyse toute la base à la recherche de doublons (SIRET, SIREN, nom + adresse, nom + téléphone, téléphone, nom + ville). */
+  async scanDuplicates(): Promise<number> {
+    const rows = await this.allRows();
+    const existing = await this.listDuplicates('all');
+    const known = new Set(existing.flatMap((c) => [`${c.prospectIdA}|${c.prospectIdB}`, `${c.prospectIdB}|${c.prospectIdA}`]));
+    const index = new DedupeIndex();
+    const now = this.now();
+    const found: DuplicateCandidate[] = [];
+    for (const r of rows) {
+      const keys = { siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address };
+      const m = index.find(keys, r.id);
+      if (m && !known.has(`${m.id}|${r.id}`)) {
+        found.push(this.candidate(m.id, r.id, m.rule, now));
+        known.add(`${m.id}|${r.id}`);
+        known.add(`${r.id}|${m.id}`);
+      }
+      index.add({ id: r.id, ...keys });
+    }
+    const tx = this.db.transaction('duplicate_candidates', 'readwrite');
+    await Promise.all(found.map((c) => tx.store.put(c)));
+    await tx.done;
+    this.emit();
+    return found.length;
+  }
+
+  async resolveDuplicate(id: string, resolution: 'ignored' | 'kept_both'): Promise<void> {
+    const c = this.mine(await this.db.get('duplicate_candidates', id));
+    if (!c) throw new Error('Doublon introuvable.');
+    await this.db.put('duplicate_candidates', { ...c, status: resolution, resolvedAt: this.now() });
+    this.emit();
+  }
+
+  /** Fusionne deux fiches : `keepId` est conservée et complétée ; notes, relances et historique sont regroupés. */
+  async mergeDuplicate(candidateId: string, keepId: string): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const c = this.mine(await this.db.get('duplicate_candidates', candidateId));
+    if (!c) throw new Error('Doublon introuvable.');
+    const otherId = c.prospectIdA === keepId ? c.prospectIdB : c.prospectIdA;
+    const [keep, other] = await Promise.all([this.getProspect(keepId), this.getProspect(otherId)]);
+    if (!keep || !other) throw new Error('Une des deux fiches n’existe plus.');
+    const now = this.now();
+    const merged = combineProspects(keep, other, now);
+    const stores = ['prospect_notes', 'prospect_activities', 'prospect_tasks'] as const;
+    const tx = this.db.transaction([...stores, 'duplicate_candidates'], 'readwrite');
+    for (const s of stores) {
+      const items = await tx.objectStore(s).index('prospectId').getAll(otherId);
+      for (const it of items) await tx.objectStore(s).put({ ...it, prospectId: keepId, ...('prospectName' in it ? { prospectName: merged.name } : {}) } as never);
+    }
+    const all = await tx.objectStore('duplicate_candidates').index('workspaceId').getAll(this.ctx.workspaceId);
+    for (const d of all) {
+      if (d.id === c.id) await tx.objectStore('duplicate_candidates').put({ ...d, status: 'merged', resolvedAt: now });
+      else if (d.status === 'open' && (d.prospectIdA === otherId || d.prospectIdB === otherId)) await tx.objectStore('duplicate_candidates').put({ ...d, status: 'merged', resolvedAt: now });
+    }
+    await tx.done;
+    await this.write([merged], [this.activity(keepId, 'merged', `Fusionné avec « ${other.name} » (${MATCH_LABEL[c.rule]})`, now)]);
+    await this.db.delete('prospects', otherId);
+    await this.db.delete('prospect_rows', otherId);
+    this.rows?.delete(otherId);
+    this.emit();
+    return merged;
+  }
+
+  // ─────────────── RGPD : anonymisation ───────────────
+
+  /** Efface les données personnelles, conserve les données d'entreprise utiles aux statistiques, exclut définitivement. */
+  async anonymizeProspect(id: string): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.delete');
+    const p = await this.getProspect(id);
+    if (!p) throw new Error('Prospect introuvable.');
+    await this.addSuppressionFor(p, 'Anonymisation (RGPD)');
+    const now = this.now();
+    const next = anonymize(p, now);
+    const tx = this.db.transaction(['prospect_notes', 'prospect_tasks'], 'readwrite');
+    for (const s of ['prospect_notes', 'prospect_tasks'] as const) {
+      const keys = await tx.objectStore(s).index('prospectId').getAllKeys(id);
+      for (const k of keys) await tx.objectStore(s).delete(k);
+    }
+    await tx.done;
+    await this.write([next], [this.activity(id, 'anonymized', 'Données personnelles anonymisées (RGPD)', now)]);
+    this.emit();
+    return next;
+  }
+
   // ─────────────── Divers ───────────────
 
   /** Recalcule tous les scores (après une évolution des règles). */
@@ -864,7 +1163,7 @@ export class ProspectsApi {
     const ids = rows.filter((r) => !onlyDemo || r.demo).map((r) => r.id);
     for (let i = 0; i < ids.length; i += 500) await this.deleteProspects(ids.slice(i, i + 500));
     if (!onlyDemo) {
-      for (const s of ['prospect_segments', 'prospect_campaigns', 'prospect_imports', 'suppression_list'] as const) {
+      for (const s of ['prospect_segments', 'prospect_campaigns', 'prospect_imports', 'suppression_list', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates'] as const) {
         const list = await this.byWorkspace(s);
         await Promise.all(list.map((x) => this.db.delete(s, x.id)));
       }
@@ -875,11 +1174,27 @@ export class ProspectsApi {
   /** Sauvegarde JSON complète du workspace (à conserver : les données ne sont que sur cet appareil). */
   async exportBackup() {
     const w = this.ctx.workspaceId;
-    const get = <S extends 'prospects' | 'prospect_notes' | 'prospect_activities' | 'prospect_tasks' | 'prospect_segments' | 'prospect_campaigns' | 'message_templates' | 'prospect_imports' | 'suppression_list'>(s: S) =>
-      this.db.getAllFromIndex(s, 'workspaceId', w as never);
+    const get = <
+      S extends
+        | 'prospects'
+        | 'prospect_notes'
+        | 'prospect_activities'
+        | 'prospect_tasks'
+        | 'prospect_segments'
+        | 'prospect_campaigns'
+        | 'message_templates'
+        | 'prospect_imports'
+        | 'suppression_list'
+        | 'enrichment_logs'
+        | 'duplicate_candidates',
+    >(
+      s: S,
+    ) => this.db.getAllFromIndex(s, 'workspaceId', w as never);
     return {
       app: 'paysapro-prospection',
-      version: 1,
+      version: 2,
+      enrichmentLogs: await get('enrichment_logs'),
+      duplicates: await get('duplicate_candidates'),
       exportedAt: this.now(),
       settings: await this.getSettings(),
       prospects: await get('prospects'),
@@ -901,9 +1216,24 @@ export class ProspectsApi {
     const own = <T extends { workspaceId: string }>(list: T[] = []) => list.map((x) => ({ ...x, workspaceId: w }));
     await this.clearWorkspace();
     await this.db.put('settings', { ...data.settings, workspaceId: w });
-    const prospects = own(data.prospects);
+    const prospects = own(data.prospects).map(upgradeProspect);
     for (let i = 0; i < prospects.length; i += 500) await this.write(prospects.slice(i, i + 500), []);
-    const put = async <S extends 'prospect_notes' | 'prospect_activities' | 'prospect_tasks' | 'prospect_segments' | 'prospect_campaigns' | 'message_templates' | 'prospect_imports' | 'suppression_list'>(s: S, list: ProspectingValue<S>[]) => {
+    const put = async <
+      S extends
+        | 'prospect_notes'
+        | 'prospect_activities'
+        | 'prospect_tasks'
+        | 'prospect_segments'
+        | 'prospect_campaigns'
+        | 'message_templates'
+        | 'prospect_imports'
+        | 'suppression_list'
+        | 'enrichment_logs'
+        | 'duplicate_candidates',
+    >(
+      s: S,
+      list: ProspectingValue<S>[],
+    ) => {
       const tx = this.db.transaction(s, 'readwrite');
       await Promise.all(list.map((x) => tx.store.put(x)));
       await tx.done;
@@ -918,6 +1248,8 @@ export class ProspectsApi {
     await put('message_templates', own(data.templates));
     await put('prospect_imports', own(data.imports));
     await put('suppression_list', own(data.suppression));
+    await put('enrichment_logs', own(data.enrichmentLogs ?? []));
+    await put('duplicate_candidates', own(data.duplicates ?? []));
     this.rows = null;
     this.emit();
   }
@@ -937,4 +1269,8 @@ type ProspectingValue<S extends string> = S extends 'prospect_notes'
             ? MessageTemplate
             : S extends 'prospect_imports'
               ? ImportReport
-              : SuppressionEntry;
+              : S extends 'enrichment_logs'
+                ? EnrichmentLog
+                : S extends 'duplicate_candidates'
+                  ? DuplicateCandidate
+                  : SuppressionEntry;
