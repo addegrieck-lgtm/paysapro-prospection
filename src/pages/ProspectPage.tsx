@@ -27,6 +27,7 @@ import { Checkbox } from '../components/ui/Form';
 import { InfoRow, ScoreBadge, StatusBadge, Value, formatDateShort, formatDateTime, useAction } from '../components/common';
 import { MessageDialog, NoteDialog, StatusDialog, TaskDialog } from '../components/dialogs';
 import { EnrichmentBadge, LastEnrichment, SourceLine, WebSearchDialog } from '../components/enrichment';
+import { ConfidenceBadge, ContactsPanel, SourcesPanel } from '../components/ContactsPanel';
 import { useApp, useCan, useQuery } from '../app/context';
 import { computeScore, priorityOf } from '../domain/scoring';
 import { contactReasons, prospectingAngle } from '../domain/insights';
@@ -64,7 +65,7 @@ const yesNo = (v: boolean | null) => (v === null ? null : v ? 'Oui' : 'Non');
 export function ProspectPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const { api, companyProvider } = useApp();
+  const { api, companyProvider, engine } = useApp();
   const run = useAction();
   const canEdit = useCan('prospecting.edit');
   const canDelete = useCan('prospecting.delete');
@@ -102,13 +103,12 @@ export function ProspectPage() {
   const enrich = async (force: boolean) => {
     setEnriching(true);
     setFound(null);
-    const r = await run(() => api.enrichProspect(p.id, companyProvider, { force }));
+    const r = await run(() => engine.enrichCompany(p.id, { force, maxPhones: force }));
     setEnriching(false);
     if (!r) return;
-    if (r.skipped) return setFound([`Déjà enrichi le ${formatDateShort(p.enrichedAt)} : données récentes conservées (cache). Utilisez « Forcer » pour réinterroger la source.`]);
-    if (r.error) return setFound([r.error]);
-    if (r.outcome?.status === 'ambiguous') return setCandidates(r.outcome.candidates);
-    setFound(r.application?.details.length ? r.application.details : ['Aucune nouvelle donnée : la fiche était déjà à jour.']);
+    if (r.candidates?.length) setCandidates(r.candidates);
+    const lines = [...(r.error ? [r.error] : []), ...r.details];
+    setFound(lines.length ? lines : [`Aucune nouvelle donnée publique trouvée (étapes : ${r.steps.join(', ')}). Utilisez « Forcer » pour réinterroger toutes les sources, ou « Rechercher sur le web ».`]);
   };
 
   return (
@@ -154,6 +154,12 @@ export function ProspectPage() {
             <EnrichmentBadge status={p.enrichmentStatus} />
             {p.city && <span className="text-sm text-muted">· {p.city}</span>}
           </div>
+          {p.phone && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-lg font-semibold tabular-nums">
+              📞 {blocked ? formatPhone(p.phone) : <a href={tel ?? undefined} className="text-brand hover:underline">{formatPhone(p.phone)}</a>}
+              <ConfidenceBadge value={p.phoneConfidence} status={p.phoneStatus} />
+            </p>
+          )}
           <p className="mt-1 text-sm">
             <LastEnrichment at={p.enrichedAt} />
           </p>
@@ -163,7 +169,7 @@ export function ProspectPage() {
       <div className="mb-6 flex flex-wrap gap-2">
         {canEnrich && (
           <Button icon={<Sparkles className="h-5 w-5" />} onClick={() => enrich(false)} disabled={enriching}>
-            {enriching ? 'Enrichissement…' : p.enrichedAt ? 'Réenrichir' : 'Enrichir automatiquement'}
+            {enriching ? 'Enrichissement…' : '🚀 Enrichir'}
           </Button>
         )}
         {tel && !blocked && (
@@ -227,6 +233,8 @@ export function ProspectPage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* Colonne gauche : informations */}
         <div className="space-y-4">
+          <ContactsPanel prospect={p} />
+
           <Card>
             <CardTitle>Ce que l'application connaît</CardTitle>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -372,19 +380,10 @@ export function ProspectPage() {
 
           <Card>
             <CardTitle action={<Button size="sm" variant="ghost" icon={<Search className="h-4 w-4" />} onClick={() => setDialog('web')}>Rechercher</Button>}>
-              Enrichissement commercial
+              Présence en ligne et activité
             </CardTitle>
-            <p className="mb-2 text-xs text-muted">Jamais présent dans les données officielles : saisi manuellement, importé (CSV) ou reporté après une recherche web.</p>
+            <p className="mb-2 text-xs text-muted">Téléphones, e-mails et sites : voir « Contact ». Ces informations ne figurent jamais dans les données officielles : annuaire public, site de l'entreprise, import CSV ou saisie après une recherche web.</p>
             <dl>
-              <Sourced p={p} field="phone" label="Téléphone" href={blocked ? null : tel}>
-                {p.phone ? formatPhone(p.phone) : null}
-              </Sourced>
-              <Sourced p={p} field="email" label="E-mail">
-                {p.email}
-              </Sourced>
-              <Sourced p={p} field="website" label="Site web" href={p.website}>
-                {p.website?.replace(/^https?:\/\//, '')}
-              </Sourced>
               <Sourced p={p} field="googleUrl" label="Google Business" href={p.googleUrl}>
                 {p.googleUrl ? 'Voir la fiche' : null}
               </Sourced>
@@ -469,6 +468,8 @@ export function ProspectPage() {
 
         {/* Colonne droite : intelligence, tâches, notes, historique */}
         <div className="space-y-4">
+          <SourcesPanel prospect={p} />
+
           <Card>
             <CardTitle icon={<Lightbulb className="h-5 w-5" />}>Pourquoi contacter cette entreprise ?</CardTitle>
             {reasons.length ? (

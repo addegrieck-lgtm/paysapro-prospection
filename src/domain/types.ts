@@ -135,6 +135,74 @@ export interface Prospect extends Tracked {
   fieldSources: Partial<Record<string, FieldSource>>;
   /** Données personnelles effacées (RGPD) */
   anonymized: boolean;
+  // V2 — coordonnées vérifiées (résumé du meilleur numéro, détail dans company_phones)
+  phoneConfidence: number | null;
+  phoneStatus: ContactStatus | null;
+  websiteVerified: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** Date de l'opposition (« Ne plus contacter ») */
+  oppositionAt: ISODate | null;
+  /** Date d'entrée dans le CRM actif (statut « À contacter ») */
+  qualifiedAt: ISODate | null;
+  /** Dernière recherche de coordonnées (annuaire, site) — cache ENRICHMENT_CACHE_DAYS */
+  contactsCheckedAt: ISODate | null;
+}
+
+// ─── V2 : coordonnées multi-sources ───
+
+export type PhoneType = 'landline' | 'mobile' | 'fax' | 'unknown';
+export type PhoneRole = 'primary' | 'secondary' | 'mobile' | 'fax';
+/** 🟢 vérifié (fortement associé) · 🟠 à vérifier · ⚪ non vérifié · rejeté par l'utilisateur */
+export type ContactStatus = 'verified' | 'to_verify' | 'unverified' | 'rejected';
+export type ContactSourceKind = 'manual' | 'official' | 'website' | 'directory' | 'import' | 'social';
+
+/** Une source où la donnée a été trouvée. */
+export interface ContactEvidence {
+  kind: ContactSourceKind;
+  /** « Site officiel », « OpenStreetMap », « Import CSV (fichier.csv) », « Saisie manuelle »… */
+  provider: string;
+  url: string | null;
+  at: ISODate;
+  /** Éléments concordants constatés sur la source (SIRET, nom, ville, adresse, domaine) */
+  matched: string[];
+}
+
+interface CompanyContact {
+  id: ID;
+  workspaceId: ID;
+  prospectId: ID;
+  /** Valeur normalisée (clé de déduplication) */
+  value: string;
+  display: string;
+  evidence: ContactEvidence[];
+  confidence: number;
+  confidenceReasons: string[];
+  status: ContactStatus;
+  isPrimary: boolean;
+  /** Saisi ou validé par l'utilisateur : jamais remplacé automatiquement */
+  manual: boolean;
+  /** Même valeur trouvée chez une autre entreprise */
+  shared: boolean;
+  foundAt: ISODate;
+  verifiedAt: ISODate | null;
+  updatedAt: ISODate;
+}
+
+export interface CompanyPhone extends CompanyContact {
+  /** Format interne +33XXXXXXXXX */
+  e164: string;
+  type: PhoneType;
+  role: PhoneRole;
+}
+
+export interface CompanyEmail extends CompanyContact {
+  kind: 'generic' | 'nominative' | 'unknown';
+}
+
+export interface CompanyWebsite extends CompanyContact {
+  /** Le site mentionne le SIREN / SIRET, ou le nom et la commune de l'entreprise */
+  verified: boolean;
 }
 
 /** Version compacte d'un prospect, gardée en mémoire pour filtrer 100 000 lignes instantanément. */
@@ -173,6 +241,9 @@ export interface ProspectRow {
   hasSocial: boolean;
   enrichmentStatus: EnrichmentStatus;
   enrichedAt: ISODate | null;
+  phoneConfidence: number | null;
+  phoneStatus: ContactStatus | null;
+  headcountBand: string | null;
   /** Texte normalisé pour la recherche instantanée */
   search: string;
 }
@@ -224,10 +295,27 @@ export interface EnrichmentJob {
   /** Résultat détaillé une fois traité */
   outcome: 'enriched' | 'partial' | 'no_change' | 'not_found' | 'ambiguous' | 'error' | null;
   force: boolean;
+  /** retry_count */
   attempts: number;
+  /** last_error */
   error: string | null;
+  /** next_retry_at : erreur temporaire, nouvel essai différé */
+  nextRetryAt: ISODate | null;
+  /** Mode « Maximiser les téléphones » : toutes les sources configurées */
+  maxPhones: boolean;
+  result: EnrichmentFound | null;
   createdAt: ISODate;
   updatedAt: ISODate;
+}
+
+/** Ce qu'un enrichissement a trouvé (statistiques de performance). */
+export interface EnrichmentFound {
+  phones: number;
+  verifiedPhones: number;
+  emails: number;
+  websites: number;
+  /** Nouvelles données par source (« Site officiel », « OpenStreetMap »…) */
+  bySource: Record<string, number>;
 }
 
 export interface EnrichmentLog {
@@ -242,6 +330,10 @@ export interface EnrichmentLog {
   fieldsConfirmed: string[];
   fromCache: boolean;
   error: string | null;
+  durationMs?: number;
+  found?: EnrichmentFound;
+  /** Étapes exécutées (administratif, annuaire, site, contacts…) */
+  steps?: string[];
 }
 
 export type DuplicateRule = 'siret' | 'siren' | 'name_address' | 'name_phone' | 'phone' | 'name_city';
@@ -292,6 +384,10 @@ export interface ProspectFilter {
   hasSocial?: Presence;
   active?: Presence;
   enrichment?: EnrichmentStatus[];
+  /** Niveau du meilleur téléphone */
+  phoneStatus?: ('verified' | 'to_verify' | 'unverified')[];
+  /** Tranches d'effectif INSEE */
+  headcountBands?: string[];
   services?: ServiceTag[];
   nafCodes?: string[];
   createdAfter?: string | null;
@@ -421,4 +517,8 @@ export interface Settings {
   excludeIndividuals: boolean;
   emailProvider: 'mailto';
   onboarded: boolean;
+  /** Ajoute automatiquement au CRM (statut « À contacter ») les prospects actifs avec un téléphone vérifié */
+  autoQualify: boolean;
+  /** Sources activées pour l'enrichissement */
+  providers: { official: boolean; directory: boolean; website: boolean; websiteDiscovery: boolean };
 }

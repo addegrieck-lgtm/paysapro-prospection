@@ -30,6 +30,9 @@ export interface Kpis {
   withWebsite: number;
   averageScore: number | null;
   followUpsPlanned: number;
+  phonesVerified: number;
+  /** % de prospects avec un téléphone */
+  phoneRate: number | null;
 }
 
 const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : null);
@@ -41,7 +44,7 @@ export function computeKpis(rows: ProspectRow[], tasks: ProspectTask[], averageD
   let inProgress = 0;
   let priorityNeverContacted = 0;
   let awaitingReply = 0;
-  const q = { active: 0, enriched: 0, partial: 0, notEnriched: 0, failed: 0, withEmail: 0, withPhone: 0, withWebsite: 0, scoreSum: 0 };
+  const q = { active: 0, enriched: 0, partial: 0, notEnriched: 0, failed: 0, withEmail: 0, withPhone: 0, withWebsite: 0, scoreSum: 0, phonesVerified: 0 };
   const m: Record<Milestone, number> = { contacted: 0, replied: 0, demo: 0, trial: 0, client: 0 };
   for (const r of rows) {
     if (r.active) q.active++;
@@ -51,6 +54,7 @@ export function computeKpis(rows: ProspectRow[], tasks: ProspectTask[], averageD
     else q.notEnriched++;
     if (r.email) q.withEmail++;
     if (r.phone) q.withPhone++;
+    if (r.phone && r.phoneStatus === 'verified') q.phonesVerified++;
     if (r.website) q.withWebsite++;
     q.scoreSum += r.score;
     if (r.score >= 80) priority++;
@@ -86,6 +90,8 @@ export function computeKpis(rows: ProspectRow[], tasks: ProspectTask[], averageD
     withWebsite: q.withWebsite,
     averageScore: rows.length ? Math.round(q.scoreSum / rows.length) : null,
     followUpsPlanned: tasks.filter((x) => !x.done).length,
+    phonesVerified: q.phonesVerified,
+    phoneRate: pct(q.withPhone, rows.length),
   };
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { BarChart3, Bell, CalendarClock, Ellipsis, FileText, Filter, LayoutDashboard, Mail, Settings, Upload, Users } from 'lucide-react';
+import { BarChart3, Gauge, Bell, CalendarClock, Ellipsis, FileText, Filter, LayoutDashboard, Mail, Settings, Upload, Users } from 'lucide-react';
 import { Drawer } from '../components/ui/Extras';
 import { useApp, useQuery } from './context';
 import { today } from '../domain/filters';
@@ -14,6 +14,7 @@ export const NAV = [
   { to: '/tasks', label: 'Relances', icon: CalendarClock, end: false },
   { to: '/templates', label: 'Templates', icon: FileText, end: false },
   { to: '/stats', label: 'Statistiques', icon: BarChart3, end: false },
+  { to: '/performance', label: 'Performance', icon: Gauge, end: false },
   { to: '/settings', label: 'Paramètres', icon: Settings, end: false },
 ];
 

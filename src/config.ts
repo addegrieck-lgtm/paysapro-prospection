@@ -15,4 +15,6 @@ export const ENRICHMENT_CONFIG = {
   batchSize: num(env.VITE_ENRICHMENT_BATCH_SIZE, 50, 1, 500),
   /** Requêtes par seconde vers l'API (limite officielle ≈ 7/s : 4 par défaut pour garder de la marge) */
   rateLimitPerSecond: num(env.VITE_ENRICHMENT_RATE_LIMIT, 4, 0.2, 7),
+  /** Relais web gratuit (Cloudflare Worker, voir worker/README.md) ; vide = lecture des sites désactivée */
+  webProxyUrl: (env.VITE_WEB_PROXY_URL || '').replace(/\/$/, ''),
 };

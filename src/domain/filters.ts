@@ -43,6 +43,11 @@ export function matchesFilter(r: ProspectRow, f: ProspectFilter, now = new Date(
   if (!presence(f.demo, r.demo)) return false;
   if (!presence(f.hasSocial, r.hasSocial)) return false;
   if (!presence(f.active, r.active === true)) return false;
+  if (f.phoneStatus?.length) {
+    const s = r.phoneStatus ?? (r.phone ? 'unverified' : null);
+    if (!s || !f.phoneStatus.includes(s as 'verified' | 'to_verify' | 'unverified')) return false;
+  }
+  if (f.headcountBands?.length && !f.headcountBands.includes(r.headcountBand ?? '')) return false;
   if (f.enrichment?.length) {
     // « Non enrichi » regroupe aussi les fiches en attente dans la file
     const s = r.enrichmentStatus === 'pending' || r.enrichmentStatus === 'processing' ? 'none' : r.enrichmentStatus;
@@ -127,6 +132,8 @@ export function describeFilter(f: ProspectFilter): string {
   ];
   pres.forEach(([p, l]) => p && p !== 'any' && parts.push(`${p === 'yes' ? 'Avec' : 'Sans'} ${l}`));
   if (f.services?.length) parts.push(`${f.services.length} prestation(s)`);
+  if (f.phoneStatus?.length) parts.push(`Téléphone : ${f.phoneStatus.map((s) => ({ verified: 'vérifié', to_verify: 'à vérifier', unverified: 'non vérifié' })[s]).join(', ')}`);
+  if (f.headcountBands?.length) parts.push('Effectif filtré');
   if (f.active === 'yes') parts.push('Actives');
   if (f.active === 'no') parts.push('Non actives');
   if (f.enrichment?.length) parts.push(`Enrichissement : ${f.enrichment.length} statut(s)`);

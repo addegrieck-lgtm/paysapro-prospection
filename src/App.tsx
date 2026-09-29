@@ -15,6 +15,7 @@ const ImportPage = lazyPage(() => import('./pages/ImportPage'), 'ImportPage');
 const SegmentsPage = lazyPage(() => import('./pages/SegmentsPage'), 'SegmentsPage');
 const CampaignsPage = lazyPage(() => import('./pages/CampaignsPage'), 'CampaignsPage');
 const CampaignPage = lazyPage(() => import('./pages/CampaignsPage'), 'CampaignPage');
+const PerformancePage = lazyPage(() => import('./pages/PerformancePage'), 'PerformancePage');
 const DuplicatesPage = lazyPage(() => import('./pages/DuplicatesPage'), 'DuplicatesPage');
 const TasksPage = lazyPage(() => import('./pages/TasksPage'), 'TasksPage');
 const TemplatesPage = lazyPage(() => import('./pages/TemplatesPage'), 'TemplatesPage');
@@ -62,6 +63,7 @@ export default function App() {
                 <Route path="prospects/:id/edit" element={<ProspectFormPage />} />
                 <Route path="import" element={<ImportPage />} />
                 <Route path="duplicates" element={<DuplicatesPage />} />
+                <Route path="performance" element={<PerformancePage />} />
                 <Route path="segments" element={<SegmentsPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="campaigns/:id" element={<CampaignPage />} />

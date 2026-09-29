@@ -10,7 +10,8 @@
     "preview": "vite preview --host",
     "lint": "eslint .",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "osm:update": "node scripts/update-osm.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",

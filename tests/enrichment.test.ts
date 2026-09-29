@@ -4,6 +4,7 @@ import { openDB } from 'idb';
 import { openProspectingDB } from '../src/data/db';
 import { ProspectsApi } from '../src/data/repository';
 import { EnrichmentQueue } from '../src/data/enrichmentQueue';
+import { EnrichmentEngine } from '../src/data/enrichmentEngine';
 import { memoryCache } from '../src/data/cache';
 import { RechercheEntreprisesProvider, nameSimilarity, type ApiEtablissement, type ApiUniteLegale } from '../src/providers/company/RechercheEntreprisesProvider';
 import { RateLimiter, fetchJson, ProviderError, type HttpResponse } from '../src/providers/http';
@@ -240,7 +241,8 @@ describe('File d’enrichissement (EnrichmentQueue)', () => {
     const c = await api.createProspect({ name: 'C', siren: '111111111' });
     const demo = (await api.importLines([{ line: 1, errors: [], input: { name: '[DÉMO] D', demo: true } }], { source: 'demo', label: 'démo', mode: 'create' })).added;
     expect(demo).toBe(1);
-    const queue = new EnrichmentQueue(api, prov);
+    const queue = new EnrichmentQueue(api, new EnrichmentEngine(api, { official: prov }));
+    queue.retryDelayMs = () => 0; // erreurs temporaires : nouveaux essais immédiats dans le test
     const progress: number[] = [];
     queue.subscribe((p) => progress.push(p.processed));
     const added = await queue.add((await api.allRows()).map((r) => r.id));
@@ -270,7 +272,7 @@ describe('File d’enrichissement (EnrichmentQueue)', () => {
     await api.enqueueEnrichment([a.id]);
     const [job] = await api.queueJobs();
     await api.saveJob({ ...job!, status: 'processing' }); // onglet fermé en plein traitement
-    const queue = new EnrichmentQueue(api, provider(fetchImpl));
+    const queue = new EnrichmentQueue(api, new EnrichmentEngine(api, { official: provider(fetchImpl) }));
     await queue.start();
     expect((await api.queueJobs())[0]).toMatchObject({ status: 'completed', outcome: 'enriched' });
   });

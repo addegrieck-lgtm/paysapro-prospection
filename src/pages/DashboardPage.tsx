@@ -1,10 +1,9 @@
 import { Link } from 'react-router';
-import { AlarmClock, Building2, Flame, Sparkles, Upload } from 'lucide-react';
+import { AlarmClock, Flame, Sparkles } from 'lucide-react';
+import { FindProspects } from '../components/FindProspects';
 import { PageHeader } from '../components/ui/PageHeader';
-import { ButtonLink } from '../components/ui/Button';
 import { Card, CardTitle } from '../components/ui/Card';
 import { StatCard, Skeleton } from '../components/ui/Extras';
-import { EmptyState } from '../components/ui/Feedback';
 import { FunnelChart, GeoTable } from '../components/charts';
 import { ScoreBadge, formatDateShort, nf, pctFmt } from '../components/common';
 import { useApp, useQuery } from '../app/context';
@@ -35,12 +34,23 @@ export function DashboardPage() {
     <>
       <PageHeader title="Prospection commerciale" subtitle="Trouvez, qualifiez et transformez les paysagistes en clients." />
 
+      <div className="mb-4">
+        <FindProspects />
+      </div>
       {kpis.total === 0 ? (
-        <EmptyState icon={<Building2 className="h-7 w-7" />} title="Commencez par constituer votre base" action={<ButtonLink to="/import" icon={<Upload className="h-5 w-5" />}>Importer les paysagistes français</ButtonLink>}>
-          Import gratuit depuis SIRENE (INSEE), depuis un fichier CSV, ou 100 entreprises fictives pour découvrir l'outil.
-        </EmptyState>
+        <p className="text-sm text-muted">
+          Vous pouvez aussi <Link to="/import" className="font-medium text-brand hover:underline">importer un fichier CSV</Link> ou charger 100 entreprises fictives pour découvrir l'outil.
+        </p>
       ) : (
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <StatCard label="Total entreprises" value={nf.format(kpis.total)} />
+            <StatCard label="Téléphones trouvés" value={nf.format(kpis.withPhone)} hint="téléphone principal" />
+            <StatCard label="Téléphones vérifiés" value={nf.format(kpis.phonesVerified)} hint="🟢 fortement associés" />
+            <StatCard label="Taux de téléphone" value={pctFmt(kpis.phoneRate)} />
+            <StatCard label="E-mails trouvés" value={nf.format(kpis.withEmail)} />
+            <StatCard label="Sites trouvés" value={nf.format(kpis.withWebsite)} />
+          </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <StatCard label="Prospects" value={nf.format(kpis.total)} />
             <StatCard label="Priorité élevée" value={nf.format(kpis.priority)} hint="score ≥ 80" />

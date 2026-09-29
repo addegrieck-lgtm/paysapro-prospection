@@ -73,7 +73,8 @@ describe('Déduplication', () => {
     expect(index.find({ siret: '11111111100011', siren: null, phone: null, name: 'x', city: null, address: null })).toEqual({ id: 'a', rule: 'siret', exact: true });
     expect(index.find({ siret: null, siren: '222222222', phone: null, name: 'x', city: null, address: null })?.rule).toBe('siren');
     expect(index.find({ siret: null, siren: null, phone: null, name: 'Paysages Nord', city: 'Roubaix', address: '5 Place B' })).toEqual({ id: 'b', rule: 'name_address', exact: true });
-    expect(index.find({ siret: null, siren: null, phone: '02 35 00 00 00', name: 'Jardins du Val', city: 'Caen', address: null })).toEqual({ id: 'a', rule: 'name_phone', exact: true });
+    expect(index.find({ siret: null, siren: null, phone: '02 35 00 00 00', name: 'Jardins du Val', city: 'Rouen', address: null })).toEqual({ id: 'a', rule: 'name_phone', exact: true });
+    expect(index.find({ siret: null, siren: null, phone: '02 35 00 00 00', name: 'Jardins du Val', city: 'Caen', address: null })).toEqual({ id: 'a', rule: 'name_phone', exact: false });
     // Téléphone seul : doublon potentiel, jamais fusionné automatiquement
     expect(index.find({ siret: null, siren: null, phone: '+33 2 35 00 00 00', name: 'x', city: null, address: null })).toEqual({ id: 'a', rule: 'phone', exact: false });
     // Même nom + même ville sans contradiction : même entreprise (réimport sans SIRET)

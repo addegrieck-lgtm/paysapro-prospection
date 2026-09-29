@@ -193,7 +193,84 @@ Téléphone, e-mail, site, fiche Google, avis, note, Facebook, Instagram, Linked
   « nom + téléphone », « nom + SIRET », Google Maps, PagesJaunes, réseaux sociaux, Annuaire des entreprises — ouvertes par
   l'utilisateur, **aucun scraping**.
 La fiche affiche clairement ce que l'application connaît (✓) et ce qui manque (⚠ … non trouvé). Rien n'est jamais inventé :
-donnée absente → « Non disponible ».
+donnée absente → « Non disponible ». Depuis la V2, une partie de ces coordonnées est aussi recherchée **automatiquement**
+dans des sources publiques gratuites : voir § 6 bis.
+
+---
+
+## 6 bis. Moteur V2 — recherche, coordonnées et téléphones professionnels
+
+> Recherche automatique des coordonnées professionnelles **disponibles** : tous les numéros ne sont pas publics, aucun
+> taux de 100 % n'est promis. Coût obligatoire : **0 €**.
+
+### Parcours
+**Dashboard → 🔎 Trouver des prospects** (`src/components/FindProspects.tsx`, `src/data/searchEngine.ts`) : activité
+(paysagiste NAF 81.30Z, autre NAF, recherche libre), zone (France, région, département, code postal, ville), entreprises
+actives, établissements pertinents, filtres avancés (effectif 0 / 1–5 / 6–9 / 10–19 / 20–49 / 50+, siège / secondaire,
+date de création). Une recherche sur plusieurs départements demande **toujours une confirmation** (jamais de lancement massif
+par erreur). Résultats normalisés → dédoublonnés (SIRET > SIREN > nom + adresse > nom + ville + téléphone) → file
+d'enrichissement.
+
+### EnrichmentEngine (`src/data/enrichmentEngine.ts`) — `enrichCompany(id, { force, maxPhones })`
+1. **Administratif** : API Recherche d'entreprises (voir § 6), cache 30 jours.
+2. **Annuaire public — OpenStreetMap** (`OpenStreetMapProvider`) : instantané livré avec l'application
+   (`public/data/osm-paysagistes.json`, ≈ 900 entreprises du paysage dont ≈ 500 avec téléphone), rapprochement **local**
+   (aucune requête par entreprise) : SIRET / SIREN = sûr ; sinon nom très proche (≥ 0,75) + même code postal / commune ou
+   < 3 km ; jamais si ambigu ou si le SIREN diffère. Serveur Overpass en secours seulement (souvent saturé : 30 s max, puis
+   source en pause 15 min pour ne jamais bloquer la file). Mise à jour : `npm run osm:update` (garde-fou : une réponse vide
+   n'écrase jamais l'instantané). Données © les contributeurs OpenStreetMap, licence ODbL (attribution affichée sur la fiche).
+3. **Site officiel** (`WebsiteProvider`, via le relais gratuit, voir plus bas) : accueil + jusqu'à 3 pages contact /
+   mentions légales. Si aucun site n'est connu, quelques domaines plausibles (`jardins-du-val.fr`…) sont testés ; un site
+   n'est retenu que si son contenu mentionne le **SIREN / SIRET**, ou le **nom + la commune / le code postal**.
+4. **Garde-fous contre les faux positifs** (mesurés en test réel, voir plus bas) :
+   - **page listant plusieurs agences** (> 3 numéros ou e-mails, ex. un groupe national) : seuls les numéros / e-mails les
+     plus proches d'une mention de la commune ou du code postal de l'établissement sont retenus ;
+   - **coordonnées de tiers** dans les mentions légales (hébergeur, webmaster, « réalisé par », agence web…) : écartées —
+     c'est le dernier intitulé du bloc qui décide (« Hébergeur : … Tél » → tiers ; « Éditeur : … Tél » → entreprise) ;
+   - **e-mail sans lien avec l'entreprise** (adresse d'un thème WordPress, d'un fournisseur…) : retenu seulement s'il
+     utilise le domaine du site, une messagerie grand public (gmail, orange…) ou un domaine contenant le nom ;
+   - e-mail nominatif retenu seulement s'il est publié en lien `mailto:` sur le site vérifié ; aucun e-mail n'est jamais
+     construit ou deviné ;
+   - numéro présent sur plusieurs fiches : « ⚠ Numéro partagé » (−30).
+5. **Normalisation** (`src/domain/phone.ts`) : format interne `+33…`, affichage `06 12 34 56 78`, type fixe / mobile / fax,
+   numéros spéciaux exclus.
+6. **Vérification / confiance** (`src/domain/contacts.ts`) : base par source (manuel 100, officiel 70, site 55, import 50,
+   annuaire 45, réseau social 35) + concordances (SIRET/SIREN +25, site vérifié +15, adresse +10, nom +10, ville +10,
+   code postal +5, lien d'appel +5) + 10 par source concordante supplémentaire (max +20) − 30 si partagé.
+   Statut : 🟢 **Vérifié** ≥ 80, 🟠 **À vérifier** ≥ 50, ⚪ **Non vérifié** en dessous. Chaque numéro affiche ses raisons
+   (« Confiance 96 % · Sources concordantes : 2 »).
+7. **Fusion** (`mergeContacts`) : tables `company_phones`, `company_emails`, `company_websites` (plusieurs valeurs par
+   entreprise, rôle Principal / Mobile / Secondaire / Fax, source, URL, date). **Une saisie manuelle n'est jamais remplacée** ;
+   un numéro non vérifié (< 50) ne devient jamais le numéro principal de la fiche.
+8. **Qualification automatique** (option, désactivée par défaut) : entreprise active + téléphone vérifié → « À contacter ».
+
+### File d'enrichissement
+Un seul traitement à la fois, même avec plusieurs onglets (verrou navigateur `navigator.locks`) ; chaque tâche est relue
+avant traitement (jamais traitée deux fois) ; erreurs temporaires → `next_retry_at` (1 min, 2 min, 4 min), 3 essais ;
+compteurs en direct (téléphones trouvés / vérifiés, e-mails, sites, taux). Boutons : **⚡ Enrichir la sélection**,
+**⚡ Enrichir tous les prospects**, **📞 Maximiser les téléphones**, **🚀 Enrichir** (fiche).
+
+### Relais web gratuit (`worker/`)
+Un navigateur ne peut pas lire un autre site (CORS). Le relais (Cloudflare Worker, offre gratuite) lit **uniquement** des
+pages HTML publiques d'entreprises : robots.txt respecté, moteurs de recherche / annuaires / réseaux sociaux / adresses
+privées refusés, origines autorisées limitées (`ALLOWED_ORIGINS`), aucun contournement (ni CAPTCHA, ni proxy, ni anti-bot).
+Sans relais (`VITE_WEB_PROXY_URL` vide), l'étape « site officiel » est simplement désactivée. Déploiement : `worker/README.md`.
+Test en local : `node worker/dev-server.mjs` puis `VITE_WEB_PROXY_URL=http://localhost:8787` dans `.env.local`.
+
+### Écran « Performance » (`/performance`)
+Taux de téléphones trouvés et vérifiés, sources les plus efficaces, temps moyen, erreurs.
+
+### Test réel (29/09/2026, 72 entreprises NAF 81.30Z, relais local — chiffres après correction des faux positifs)
+| Échantillon | Entreprises | Avec téléphone | Téléphones (dont 🟢) | E-mails | Sites |
+|---|---|---|---|---|---|
+| La Rochelle 17000 | 18 | 7 (39 %) | 9 (8) | 5 | 6 |
+| Rouen 76000 | 14 | 1 (7 %) | 1 (1) | 1 | 1 |
+| Bordeaux 33000 | 40 | 6 (15 %) | 8 (8) | 5 | 6 |
+
+Temps moyen 4,8 s par entreprise (médiane 4,0 s, max 20 s), 0 erreur. Chaque numéro a été contrôlé à la main : 3 types de
+faux positifs trouvés au premier passage (page de 37 agences d'un groupe national, numéros de l'hébergeur et du webmaster
+dans les mentions légales, e-mail d'un thème WordPress) — tous corrigés par les garde-fous du point 4 et couverts par des
+tests. Les micro-entreprises sans site ni fiche OpenStreetMap restent sans téléphone : c'est la limite des sources gratuites.
 
 ---
 
@@ -367,12 +444,16 @@ Toutes facultatives (`.env.example`). Toute variable `VITE_*` est visible dans l
 | `VITE_ENRICHMENT_CACHE_DAYS` | durée du cache d'enrichissement (jours) | `30` |
 | `VITE_ENRICHMENT_BATCH_SIZE` | prospects lus par lot dans la file | `50` |
 | `VITE_ENRICHMENT_RATE_LIMIT` | requêtes par seconde vers l'API | `4` |
+| `VITE_WEB_PROXY_URL` | URL de votre relais web gratuit (lecture des sites d'entreprises, § 6 bis) | vide = étape « site officiel » désactivée |
 
 Il n'y a ni `DATABASE_URL` (base locale) ni `AI_API_KEY` (la clé vit dans le proxy, jamais dans ce code).
 
 ## 15. Tests
 
-`npm test` — 82 tests (Vitest) : import CSV (valide, incorrect, colonnes manquantes), import SIRENE (pagination, cache, filtres, 429),
+`npm test` — 104 tests (Vitest). V2 : normalisation des téléphones, confiance, extraction depuis un site (dont groupe
+multi-agences, hébergeur / webmaster, e-mail de thème, texte encodé), relais web (refus, robots.txt, origines),
+OpenStreetMap (lecture, rapprochement, cache), coordonnées multi-sources, moteur complet, file (nouvel essai différé), export.
+Socle : import CSV (valide, incorrect, colonnes manquantes), import SIRENE (pagination, cache, filtres, 429),
 recherche (SIREN, SIRET, nom, code postal), enrichissement (complet, partiel, introuvable, ambigu, API indisponible, API limitée,
 timeout, cache / forcer), file d'attente (succès, échec, relance, reprise, limiteur), déduplication et fusion, provenance et
 protection des saisies manuelles, scoring, filtres, segments, CRUD, export, permissions, isolation des workspaces (y compris

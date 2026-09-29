@@ -101,16 +101,29 @@ export function QueueProgressCard({ compact }: { compact?: boolean }) {
         <div className="h-full rounded-full bg-brand transition-[width]" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-2 text-sm tabular-nums text-muted">
-        {nf.format(p.processed)} / {nf.format(p.total)} prospects traités{p.current && p.running ? ` · ${p.current}` : ''}
+        {nf.format(p.processed)} / {nf.format(p.total)} entreprises analysées{p.current && p.running ? ` · ${p.current}` : ''}
       </p>
-      {(
-        <ul className={`mt-2 grid grid-cols-2 gap-x-4 sm:grid-cols-4 ${compact ? 'text-xs text-muted' : 'text-sm'}`}>
-          <li>✓ {nf.format(p.enriched)} enrichis</li>
-          <li>✓ {nf.format(p.partial)} partiellement enrichis</li>
-          <li>✓ {nf.format(p.noChange)} sans nouvelle donnée</li>
-          <li className={p.failed ? 'text-danger' : ''}>✗ {nf.format(p.failed)} échecs</li>
-        </ul>
-      )}
+      <dl className={`mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 ${compact ? 'text-xs' : 'text-sm'}`}>
+        {(
+          [
+            ['📞 Téléphones trouvés', p.phonesFound],
+            ['🟢 Fortement associés', p.phonesVerified],
+            ['✉ E-mails trouvés', p.emailsFound],
+            ['🌐 Sites trouvés', p.websitesFound],
+          ] as const
+        ).map(([l, v]) => (
+          <div key={l} className="rounded-lg bg-surface-2 px-2 py-1.5">
+            <dt className="text-muted">{l}</dt>
+            <dd className="text-base font-bold tabular-nums">{nf.format(v)}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className={`mt-2 text-muted ${compact ? 'text-xs' : 'text-sm'}`}>
+        Taux : {p.processed ? `${Math.round((p.withPhone / p.processed) * 1000) / 10} %`.replace('.', ',') : '—'} des entreprises analysées avec un nouveau téléphone ·{' '}
+        {nf.format(p.enriched)} enrichies · {nf.format(p.partial)} partielles · {nf.format(p.noChange)} sans nouvelle donnée ·{' '}
+        <span className={p.failed ? 'text-danger' : ''}>{nf.format(p.failed)} échecs</span>
+      </p>
+      <p className="mt-1 text-xs text-muted">Recherche automatique des coordonnées professionnelles disponibles dans les sources configurées — tous les numéros ne sont pas publics.</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {p.running ? (
           <Button size="sm" variant="secondary" icon={<Pause className="h-4 w-4" />} onClick={() => queue.stop()}>

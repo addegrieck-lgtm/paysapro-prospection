@@ -31,6 +31,8 @@ export interface ApiEtablissement {
   est_siege: boolean;
   tranche_effectif_salarie: string | null;
   caractere_employeur?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
   nom_commercial?: string | null;
   liste_enseignes?: string[] | null;
   statut_diffusion_etablissement?: string | null;
@@ -102,6 +104,8 @@ export function toEstablishment(u: ApiUniteLegale, e: ApiEtablissement): Establi
     headcountBand: band(e.tranche_effectif_salarie),
     tradeName: enseigne ? titleCase(enseigne) : null,
     employer: e.caractere_employeur === 'O' ? true : e.caractere_employeur === 'N' ? false : null,
+    latitude: e.latitude ? Number(e.latitude) || null : null,
+    longitude: e.longitude ? Number(e.longitude) || null : null,
     diffusible: (e.statut_diffusion_etablissement ?? 'O') === 'O',
   };
 }
@@ -149,6 +153,8 @@ export function companyToInput(c: Company, e: Establishment | null): ProspectInp
     companyCategory: c.category,
     openEstablishments: c.openEstablishments,
     employer: est?.employer ?? null,
+    latitude: est?.latitude ?? null,
+    longitude: est?.longitude ?? null,
     sourceUrl: annuaireEntreprisesUrl(c.siren),
   };
 }

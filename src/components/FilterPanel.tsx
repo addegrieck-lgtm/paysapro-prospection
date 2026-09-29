@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { Chip, Checkbox, NumberField, SelectField, TextField, Segmented } from './ui/Form';
 import type { EnrichmentStatus, Presence, ProspectFilter, ProspectStatus, ServiceTag } from '../domain/types';
 import { ENRICHMENT_LABEL } from '../domain/enrichment';
+import { HEADCOUNT_BUCKETS } from '../domain/headcount';
 import { DEPARTMENT_CODES, DEPARTMENTS, REGIONS } from '../domain/geo';
 import { SERVICES, STATUSES } from '../domain/referentials';
 
@@ -78,6 +79,35 @@ export function FilterPanel({ value, onChange }: { value: ProspectFilter; onChan
             <Segmented label={label} value={value[key] ?? 'any'} onChange={(v) => set({ [key]: v })} options={PRESENCE} />
           </div>
         ))}
+      </Group>
+
+      <Group title="Téléphone">
+        <div className="flex flex-wrap gap-2">
+          <Chip selected={value.hasPhone === 'yes' && !value.phoneStatus?.length} onClick={() => set({ hasPhone: value.hasPhone === 'yes' && !value.phoneStatus?.length ? 'any' : 'yes', phoneStatus: undefined })}>
+            📞 Téléphone trouvé
+          </Chip>
+          <Chip selected={value.hasPhone === 'no'} onClick={() => set({ hasPhone: value.hasPhone === 'no' ? 'any' : 'no', phoneStatus: undefined })}>
+            Téléphone non trouvé
+          </Chip>
+          {(['verified', 'to_verify', 'unverified'] as const).map((s) => (
+            <Chip key={s} selected={!!value.phoneStatus?.includes(s)} onClick={() => set({ phoneStatus: toggle(value.phoneStatus, s), hasPhone: 'any' })}>
+              {{ verified: '🟢 Vérifié', to_verify: '🟠 À vérifier', unverified: '⚪ Non vérifié' }[s]}
+            </Chip>
+          ))}
+        </div>
+      </Group>
+
+      <Group title="Effectif (tranches INSEE)">
+        <div className="flex flex-wrap gap-2">
+          {HEADCOUNT_BUCKETS.map((b) => {
+            const on = b.bands.every((x) => value.headcountBands?.includes(x));
+            return (
+              <Chip key={b.id} selected={on} onClick={() => set({ headcountBands: on ? (value.headcountBands ?? []).filter((x) => !b.bands.includes(x)) : [...(value.headcountBands ?? []), ...b.bands] })}>
+                {b.label}
+              </Chip>
+            );
+          })}
+        </div>
       </Group>
 
       <Group title="Enrichissement">

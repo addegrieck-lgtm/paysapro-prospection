@@ -5,6 +5,9 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type {
   Campaign,
+  CompanyEmail,
+  CompanyPhone,
+  CompanyWebsite,
   DuplicateCandidate,
   EnrichmentJob,
   EnrichmentLog,
@@ -20,6 +23,7 @@ import type {
   SuppressionEntry,
 } from '../domain/types';
 import { finalize, toRow, upgradeProspect } from '../domain/prospect';
+import { applyPrimaryContacts, contactsFromFields } from '../domain/contactSync';
 
 export interface CacheEntry {
   key: string;
@@ -31,7 +35,20 @@ export interface ProspectingDB extends DBSchema {
   prospects: {
     key: string;
     value: Prospect;
-    indexes: { workspaceId: string; siren: string; siret: string; nafCode: string; postalCode: string; department: string; status: string; enrichmentStatus: string; score: number };
+    indexes: {
+      workspaceId: string;
+      siren: string;
+      siret: string;
+      nafCode: string;
+      postalCode: string;
+      department: string;
+      status: string;
+      enrichmentStatus: string;
+      score: number;
+      city: string;
+      phone: string;
+      email: string;
+    };
   };
   prospect_rows: { key: string; value: ProspectRow; indexes: { workspaceId: string } };
   prospect_notes: { key: string; value: ProspectNote; indexes: { prospectId: string; workspaceId: string } };
@@ -51,10 +68,17 @@ export interface ProspectingDB extends DBSchema {
   enrichment_queue: { key: string; value: EnrichmentJob; indexes: { workspaceId: string; status: string; prospectId: string } };
   enrichment_logs: { key: string; value: EnrichmentLog; indexes: { workspaceId: string; prospectId: string } };
   duplicate_candidates: { key: string; value: DuplicateCandidate; indexes: { workspaceId: string; status: string } };
+  // v3 — coordonnées multi-sources (plusieurs numéros / e-mails / sites par entreprise, avec preuves)
+  company_phones: { key: string; value: CompanyPhone; indexes: { workspaceId: string; prospectId: string; value: string } };
+  company_emails: { key: string; value: CompanyEmail; indexes: { workspaceId: string; prospectId: string; value: string } };
+  company_websites: { key: string; value: CompanyWebsite; indexes: { workspaceId: string; prospectId: string; value: string } };
 }
 
+export const CONTACT_STORES = ['company_phones', 'company_emails', 'company_websites'] as const;
+export type ContactStore = (typeof CONTACT_STORES)[number];
+
 export const DB_NAME = 'paysapro-prospection';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export type DB = IDBPDatabase<ProspectingDB>;
 
@@ -109,19 +133,43 @@ export function openProspectingDB(name = DB_NAME): Promise<DB> {
         const dups = db.createObjectStore('duplicate_candidates', { keyPath: 'id' });
         dups.createIndex('workspaceId', 'workspaceId');
         dups.createIndex('status', 'status');
-        if (oldVersion >= 1) {
-          // Fiches existantes : nouveaux champs par défaut, provenance déduite de leur source, index compact recalculé
-          const rows = tx.objectStore('prospect_rows');
-          void prospects.openCursor().then(async function step(cursor): Promise<void> {
-            if (!cursor) return;
-            const p = finalize(upgradeProspect(cursor.value)); // score recalculé avec le nouveau barème
-            await cursor.update(p);
-            await rows.put(toRow(p));
-            return step(await cursor.continue());
-          });
+      }
+      // Migration 3 — coordonnées multi-sources (téléphones, e-mails, sites) + index de recherche
+      if (oldVersion < 3) {
+        const prospects = tx.objectStore('prospects');
+        for (const idx of ['city', 'phone', 'email'] as const) prospects.createIndex(idx, idx);
+        for (const store of CONTACT_STORES) {
+          const s = db.createObjectStore(store, { keyPath: 'id' });
+          s.createIndex('workspaceId', 'workspaceId');
+          s.createIndex('prospectId', 'prospectId');
+          s.createIndex('value', 'value');
         }
       }
-      // Migration 3 (exemple futur) : if (oldVersion < 3) { … createIndex / createObjectStore … }
+      // Données existantes (v1 / v2) : un seul passage, sans perte — nouveaux champs par défaut, provenance
+      // déduite de la source, score recalculé, index compact recalculé, numéros / e-mails / sites recopiés
+      // dans les tables de coordonnées avec leur provenance.
+      if (oldVersion >= 1 && oldVersion < 3) {
+        const rows = tx.objectStore('prospect_rows');
+        const stores = { phones: tx.objectStore('company_phones'), emails: tx.objectStore('company_emails'), websites: tx.objectStore('company_websites') };
+        void tx
+          .objectStore('prospects')
+          .openCursor()
+          .then(async function step(cursor): Promise<void> {
+            if (!cursor) return;
+            const now = new Date().toISOString();
+            const upgraded = finalize(upgradeProspect(cursor.value));
+            const seeded = contactsFromFields(upgraded, now);
+            const synced = applyPrimaryContacts(upgraded, seeded.phones, seeded.emails, seeded.websites);
+            const p = finalize(synced.prospect);
+            await cursor.update(p);
+            await rows.put(toRow(p));
+            for (const c of synced.phones) await stores.phones.put(c);
+            for (const c of synced.emails) await stores.emails.put(c);
+            for (const c of synced.websites) await stores.websites.put(c);
+            return step(await cursor.continue());
+          });
+      }
+      // Migration 4 (exemple futur) : if (oldVersion < 4) { … createIndex / createObjectStore … }
     },
   });
   const p = Promise.race([opening, blocked]);

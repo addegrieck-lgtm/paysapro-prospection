@@ -30,6 +30,9 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+        env:
+          # Relais web gratuit (facultatif) : Settings → Secrets and variables → Actions → Variables
+          VITE_WEB_PROXY_URL: ${{ vars.VITE_WEB_PROXY_URL }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

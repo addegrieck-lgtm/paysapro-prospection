@@ -204,7 +204,8 @@ describe('Export', () => {
     const parsed = parseCsv(csv);
     expect(parsed.rows).toHaveLength(1);
     expect(parsed.headers).toEqual(expect.arrayContaining(['Entreprise', 'SIRET', 'Score', 'Source', 'Date de collecte', 'Ne plus contacter']));
-    expect(parsed.rows[0]![parsed.headers.indexOf('Téléphone')]).toBe('0612345678');
+    expect(parsed.rows[0]![parsed.headers.indexOf('Téléphone principal')]).toBe('06 12 34 56 78');
+    expect(parsed.headers).toEqual(expect.arrayContaining(['Téléphones secondaires', 'Confiance téléphone', 'Source téléphone']));
   });
 });
 

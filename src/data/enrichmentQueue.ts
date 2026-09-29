@@ -1,15 +1,15 @@
 // EnrichmentQueue : enrichissement progressif de milliers de prospects, sans bloquer l'interface.
 //
-//   Import → Validation → Déduplication → File d'attente → Enrichissement progressif → Base → Statistiques
+//   Import → Validation → Déduplication → File d'attente → EnrichmentEngine → Base → Statistiques
 //
 // • La file est ENREGISTRÉE (table enrichment_queue) : fermer l'onglet ne perd rien, elle reprend au lancement.
-// • Un seul prospect traité à la fois ; toutes les requêtes passent par le limiteur de débit partagé (4 req/s).
-// • États : pending → processing → completed | partial | failed. Les échecs peuvent être relancés.
-// • Erreur réseau / API indisponible : jusqu'à 3 essais par prospect (en plus des reprises HTTP), puis « failed ».
+// • Un prospect à la fois ; chaque source a son propre limiteur de débit (API officielle, OSM, relais web).
+// • États : pending → processing → completed | partial | failed, avec retry_count (attempts), last_error (error)
+//   et next_retry_at (nextRetryAt) : une erreur temporaire est réessayée plus tard (1 min, 2 min, 4 min), 3 fois.
 import type { EnrichmentJob } from '../domain/types';
 import type { ProspectsApi } from './repository';
-import type { CompanyDataProvider } from '../providers/company/CompanyDataProvider';
-import { ProviderError } from '../providers/http';
+import type { EnrichmentEngine } from './enrichmentEngine';
+import { ProviderError, sleep } from '../providers/http';
 import { ENRICHMENT_CONFIG } from '../config';
 
 export interface QueueProgress {
@@ -22,12 +22,21 @@ export interface QueueProgress {
   failed: number;
   pending: number;
   current: string | null;
+  // Résultats cumulés de la file (mode « Maximiser les téléphones »)
+  phonesFound: number;
+  phonesVerified: number;
+  emailsFound: number;
+  websitesFound: number;
+  /** Prospects de la file ayant au moins un téléphone après traitement */
+  withPhone: number;
+  maxPhones: boolean;
 }
 
 const MAX_ATTEMPTS = 3;
 
 export function summarize(jobs: EnrichmentJob[], running: boolean, current: string | null = null): QueueProgress {
   const count = (f: (j: EnrichmentJob) => boolean) => jobs.filter(f).length;
+  const sum = (k: 'phones' | 'verifiedPhones' | 'emails' | 'websites') => jobs.reduce((s, j) => s + Math.max(0, j.result?.[k] ?? 0), 0);
   const pending = count((j) => j.status === 'pending' || j.status === 'processing');
   return {
     running,
@@ -39,19 +48,38 @@ export function summarize(jobs: EnrichmentJob[], running: boolean, current: stri
     failed: count((j) => j.status === 'failed'),
     pending,
     current,
+    phonesFound: sum('phones'),
+    phonesVerified: sum('verifiedPhones'),
+    emailsFound: sum('emails'),
+    websitesFound: sum('websites'),
+    withPhone: count((j) => (j.result?.phones ?? 0) > 0),
+    maxPhones: jobs.some((j) => j.maxPhones),
   };
+}
+
+/**
+ * Un seul traitement de la file à la fois, même avec plusieurs onglets ouverts (Web Locks API).
+ * Si un autre onglet traite déjà la file, celui-ci ne fait rien (l'autre onglet s'en charge).
+ */
+async function withQueueLock<T>(fn: () => Promise<T>, busy: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return fn();
+  return locks.request('paysapro-enrichment-queue', { ifAvailable: true }, (lock) => (lock ? fn() : busy()));
 }
 
 export class EnrichmentQueue {
   private api: ProspectsApi;
-  private provider: CompanyDataProvider;
+  private engine: EnrichmentEngine;
   private controller: AbortController | null = null;
   private listeners = new Set<(p: QueueProgress) => void>();
   private progress: QueueProgress = summarize([], false);
+  private current: Promise<QueueProgress> | null = null;
+  /** Attente maximale avant un nouvel essai différé (réduite dans les tests) */
+  retryDelayMs = (attempt: number) => 60_000 * 2 ** Math.max(0, attempt - 1);
 
-  constructor(api: ProspectsApi, provider: CompanyDataProvider) {
+  constructor(api: ProspectsApi, engine: EnrichmentEngine) {
     this.api = api;
-    this.provider = provider;
+    this.engine = engine;
   }
 
   get running(): boolean {
@@ -80,8 +108,8 @@ export class EnrichmentQueue {
   }
 
   /** Ajoute des prospects et démarre le traitement. */
-  async add(ids: string[], force = false): Promise<number> {
-    const n = await this.api.enqueueEnrichment(ids, force);
+  async add(ids: string[], force = false, maxPhones = false): Promise<number> {
+    const n = await this.api.enqueueEnrichment(ids, force, maxPhones);
     await this.refresh();
     void this.start();
     return n;
@@ -109,11 +137,9 @@ export class EnrichmentQueue {
     await this.refresh();
   }
 
-  private current: Promise<QueueProgress> | null = null;
-
   /** Traite la file jusqu'à épuisement (ou interruption). Si déjà en cours, attend la fin du traitement en cours. */
   start(): Promise<QueueProgress> {
-    if (!this.current) this.current = this.loop().finally(() => (this.current = null));
+    if (!this.current) this.current = withQueueLock(() => this.loop(), () => this.refresh()).finally(() => (this.current = null));
     return this.current;
   }
 
@@ -126,15 +152,25 @@ export class EnrichmentQueue {
       for (;;) {
         if (controller.signal.aborted) break;
         const jobs = await this.api.queueJobs();
-        const batch = jobs.filter((j) => j.status === 'pending').slice(0, ENRICHMENT_CONFIG.batchSize);
-        if (!batch.length) break;
-        for (const job of batch) {
+        const pending = jobs.filter((j) => j.status === 'pending');
+        if (!pending.length) break;
+        const now = Date.now();
+        const ready = pending.filter((j) => !j.nextRetryAt || new Date(j.nextRetryAt).getTime() <= now).slice(0, ENRICHMENT_CONFIG.batchSize);
+        if (!ready.length) {
+          // Uniquement des nouveaux essais différés : on attend le plus proche (sans bloquer l'interface)
+          const next = Math.min(...pending.map((j) => new Date(j.nextRetryAt!).getTime()));
+          await sleep(Math.max(200, Math.min(60_000, next - now)), controller.signal).catch(() => undefined);
+          continue;
+        }
+        const names = new Map((await this.api.allRows()).map((r) => [r.id, r.name]));
+        for (const job of ready) {
           if (controller.signal.aborted) break;
-          const row = (await this.api.allRows()).find((r) => r.id === job.prospectId);
-          this.publish({ ...summarize(await this.api.queueJobs(), true, row?.name ?? null) });
-          await this.api.saveJob({ ...job, status: 'processing', attempts: job.attempts + 1 });
-          const next = await this.process(job, controller.signal);
-          await this.api.saveJob(next);
+          const all = await this.api.queueJobs();
+          // Tâche déjà prise / annulée entre-temps : on ne la traite jamais deux fois
+          if (all.find((j) => j.id === job.id)?.status !== 'pending') continue;
+          this.publish(summarize(all, true, names.get(job.prospectId) ?? null));
+          await this.api.saveJob({ ...job, status: 'processing' });
+          await this.api.saveJob(await this.process(job, controller.signal));
         }
       }
     } finally {
@@ -148,19 +184,23 @@ export class EnrichmentQueue {
   private async process(job: EnrichmentJob, signal: AbortSignal): Promise<EnrichmentJob> {
     const attempts = job.attempts + 1;
     try {
-      const r = await this.api.enrichProspect(job.prospectId, this.provider, { force: job.force, signal });
-      if (r.skipped) return { ...job, attempts, status: 'completed', outcome: 'no_change', error: null };
-      if (r.error) {
-        // Indisponibilité temporaire : on réessaiera (jusqu'à MAX_ATTEMPTS)
-        return { ...job, attempts, status: attempts < MAX_ATTEMPTS ? 'pending' : 'failed', outcome: 'error', error: r.error };
+      const r = await this.engine.enrichCompany(job.prospectId, { force: job.force, maxPhones: job.maxPhones, signal });
+      if (r.error && !r.found.phones && !r.found.emails && !r.found.websites && attempts < MAX_ATTEMPTS) {
+        // Indisponibilité temporaire : nouvel essai différé
+        return { ...job, attempts, status: 'pending', outcome: 'error', error: r.error, nextRetryAt: new Date(Date.now() + this.retryDelayMs(attempts)).toISOString(), result: r.found };
       }
-      const outcome = r.application!.outcome;
-      if (outcome === 'not_found' || outcome === 'ambiguous') return { ...job, attempts, status: 'failed', outcome, error: r.application!.prospect.enrichmentError };
-      return { ...job, attempts, status: outcome === 'partial' ? 'partial' : 'completed', outcome: outcome === 'failed' ? 'error' : outcome, error: null };
+      if (r.outcome === 'not_found' || r.outcome === 'ambiguous') {
+        return { ...job, attempts, status: 'failed', outcome: r.outcome, error: r.prospect?.enrichmentError ?? null, nextRetryAt: null, result: r.found };
+      }
+      if (r.error && !r.found.phones && !r.found.emails && !r.found.websites) {
+        return { ...job, attempts, status: 'failed', outcome: 'error', error: r.error, nextRetryAt: null, result: r.found };
+      }
+      const outcome = r.outcome === 'skipped' ? 'no_change' : r.outcome === 'failed' ? 'error' : r.outcome;
+      return { ...job, attempts, status: outcome === 'partial' ? 'partial' : 'completed', outcome, error: null, nextRetryAt: null, result: r.found };
     } catch (e) {
       if (e instanceof ProviderError && e.kind === 'aborted') return { ...job, status: 'pending' };
       console.error('[file d’enrichissement]', job.prospectId, e);
-      return { ...job, attempts, status: 'failed', outcome: 'error', error: e instanceof Error ? e.message : 'Erreur inconnue' };
+      return { ...job, attempts, status: 'failed', outcome: 'error', error: e instanceof Error ? e.message : 'Erreur inconnue', nextRetryAt: null };
     }
   }
 }

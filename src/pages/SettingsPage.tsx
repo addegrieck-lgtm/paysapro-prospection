@@ -112,6 +112,38 @@ export function SettingsPage() {
         </Card>
 
         <Card>
+          <CardTitle>Moteur d'enrichissement</CardTitle>
+          <p className="mb-3 text-sm text-muted">Sources utilisées par « 🚀 Enrichir » et « 📞 Maximiser les téléphones ». Toutes gratuites ; chacune peut être désactivée.</p>
+          <div className="space-y-1">
+            <Checkbox checked={s.providers.official} onChange={(v) => set('providers')({ ...s.providers, official: v })}>
+              Données publiques officielles (SIRENE — API Recherche d'entreprises) : identité, adresse, NAF, statut, effectif
+            </Checkbox>
+            <Checkbox checked={s.providers.directory} onChange={(v) => set('providers')({ ...s.providers, directory: v })}>
+              Annuaire public OpenStreetMap : téléphone, site, e-mail publiés (© contributeurs OpenStreetMap, ODbL)
+            </Checkbox>
+            <Checkbox checked={s.providers.website} onChange={(v) => set('providers')({ ...s.providers, website: v })}>
+              Site officiel de l'entreprise : accueil, contact, mentions légales {ENRICHMENT_CONFIG.webProxyUrl ? '' : '(relais web non configuré : voir worker/README.md)'}
+            </Checkbox>
+            <Checkbox checked={s.providers.websiteDiscovery} onChange={(v) => set('providers')({ ...s.providers, websiteDiscovery: v })}>
+              Rechercher le site officiel quand il est inconnu (domaines plausibles, retenus seulement si la page mentionne le SIREN ou le nom + la commune)
+            </Checkbox>
+            <div className="pt-2">
+              <Checkbox checked={s.autoQualify} onChange={set('autoQualify')}>
+                <strong>Ajouter automatiquement les prospects qualifiés au CRM</strong> (statut « À contacter ») : entreprise active + téléphone vérifié 🟢
+              </Checkbox>
+            </div>
+          </div>
+          {!ENRICHMENT_CONFIG.webProxyUrl && (
+            <div className="mt-3">
+              <Alert tone="info" title="Relais web gratuit non configuré">
+                La lecture des sites officiels (souvent la meilleure source de téléphones) nécessite un petit relais gratuit (Cloudflare Workers, sans carte bancaire). Voir le fichier
+                worker/README.md du projet. Le reste fonctionne sans.
+              </Alert>
+            </div>
+          )}
+        </Card>
+
+        <Card>
           <CardTitle icon={<Plug className="h-5 w-5" />}>Fournisseurs</CardTitle>
           <ul className="divide-y divide-line text-sm">
             <Provider

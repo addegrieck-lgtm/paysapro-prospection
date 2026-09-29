@@ -14,7 +14,7 @@ export default defineConfig({
       injectRegister: false, // enregistrement manuel dans src/pwa.ts
       manifest: false, // manifest écrit à la main : public/manifest.webmanifest
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,webmanifest,json}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         clientsClaim: true,

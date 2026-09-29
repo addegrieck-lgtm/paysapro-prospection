@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { AlarmClock, Download, Eye, Filter as FilterIcon, Flame, Globe, Mail, Phone, Plus, Save, Search, Sparkles, StickyNote, Users, X } from 'lucide-react';
+import { AlarmClock, Contact, Download, Ellipsis, Eye, Filter as FilterIcon, Flame, Globe, Mail, Phone, PhoneCall, Plus, Save, Search, Sparkles, StickyNote, Users, X } from 'lucide-react';
+import { ConfidenceBadge } from '../components/ContactsPanel';
+import { HEADCOUNT_BANDS } from '../domain/referentials';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, ButtonLink } from '../components/ui/Button';
 import { EmptyState, Dialog, useToast } from '../components/ui/Feedback';
@@ -69,6 +71,17 @@ export function ProspectsPage() {
   const exportIds = (ids: string[], label: string) => setExportTarget({ ids, label });
 
   /** Enrichissement progressif via la file (respect des limites de l'API gratuite). */
+  const addToCrm = async (ids: string[]) => {
+    const n = await run(() => api.addToCrm(ids));
+    if (n !== undefined) toast(n ? `${nf.format(n)} prospect(s) ajouté(s) au CRM (À contacter)` : 'Déjà dans le CRM ou exclus', n ? 'success' : 'info');
+  };
+
+  const enrichAll = async (maxPhones: boolean) => {
+    const ids = await api.matchingIds(maxPhones ? { ...effective, phoneStatus: undefined } : effective);
+    const n = await run(() => queue.add(ids, maxPhones, maxPhones));
+    if (n !== undefined) toast(n ? `${nf.format(n)} prospect(s) en cours d’enrichissement` : 'Déjà en cours d’enrichissement', n ? 'success' : 'info');
+  };
+
   const enrichRows = async (ids: string[]) => {
     const n = await run(() => queue.add(ids, true));
     if (n !== undefined) toast(n ? `${nf.format(n)} prospect(s) ajouté(s) à la file d'enrichissement` : 'Déjà en cours d’enrichissement', n ? 'success' : 'info');
@@ -132,6 +145,16 @@ export function ProspectsPage() {
         >
           Mes prospects prioritaires
         </Button>
+        {canEdit && data && data.total > 0 && (
+          <>
+            <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={() => enrichAll(false)} title="Enrichir les prospects affichés (filtres actuels)">
+              ⚡ Enrichir tous les prospects ({nf.format(data.total)})
+            </Button>
+            <Button size="sm" variant="secondary" icon={<PhoneCall className="h-4 w-4" />} onClick={() => enrichAll(true)} title="Recherche toutes les coordonnées professionnelles disponibles dans les sources configurées">
+              📞 Maximiser les téléphones
+            </Button>
+          </>
+        )}
         <div className="flex gap-1" role="group" aria-label="Qualification">
           {[80, 60, 40, null].map((min) => (
             <button
@@ -179,7 +202,12 @@ export function ProspectsPage() {
           <div className="ml-auto flex flex-wrap gap-2">
             {canEdit && (
               <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={() => enrichRows([...selected])}>
-                Enrichir la sélection
+                ⚡ Enrichir la sélection
+              </Button>
+            )}
+            {canEdit && (
+              <Button size="sm" variant="secondary" icon={<Contact className="h-4 w-4" />} onClick={() => addToCrm([...selected])}>
+                Ajouter au CRM
               </Button>
             )}
             {canExport && (
@@ -207,7 +235,7 @@ export function ProspectsPage() {
       ) : (
         data && (
           <>
-            {/* Tableau (tablette paysage et ordinateur) */}
+            {/* Tableau (ordinateur) */}
             <div className="hidden overflow-x-auto rounded-2xl border border-line bg-surface shadow-card xl:block">
               <table className="w-full text-sm">
                 <thead className="border-b border-line bg-surface-2 text-left text-xs uppercase tracking-wide text-muted">
@@ -225,17 +253,15 @@ export function ProspectsPage() {
                         className="h-4 w-4 accent-[var(--brand)]"
                       />
                     </th>
-                    <th className="px-2 py-2.5">Score</th>
                     <th className="px-2 py-2.5">Entreprise</th>
-                    <th className="px-2 py-2.5">Ville · Dép.</th>
-                    <th className="hidden px-2 py-2.5 min-[1400px]:table-cell">NAF</th>
-                    <th className="hidden px-2 py-2.5 2xl:table-cell">SIRET</th>
+                    <th className="px-2 py-2.5">Ville</th>
+                    <th className="px-2 py-2.5">Téléphone · confiance</th>
                     <th className="hidden px-2 py-2.5 min-[1400px]:table-cell">E-mail</th>
-                    <th className="px-2 py-2.5">Téléphone</th>
                     <th className="px-2 py-2.5">Site</th>
-                    <th className="px-2 py-2.5">Enrichissement</th>
+                    <th className="hidden px-2 py-2.5 min-[1400px]:table-cell">Effectif</th>
+                    <th className="hidden px-2 py-2.5 2xl:table-cell">NAF</th>
+                    <th className="px-2 py-2.5">Score</th>
                     <th className="px-2 py-2.5">Statut</th>
-                    <th className="hidden px-2 py-2.5 2xl:table-cell">Relance</th>
                     <th className="px-2 py-2.5 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -256,23 +282,31 @@ export function ProspectsPage() {
                           className="h-4 w-4 accent-[var(--brand)]"
                         />
                       </td>
-                      <td className="px-2 py-2">
-                        <ScoreBadge score={r.score} />
-                      </td>
-                      <td className="min-w-[13rem] max-w-[18rem] px-2 py-2">
+                      <td className="min-w-[12rem] max-w-[17rem] px-2 py-2">
                         <Link to={`/prospects/${r.id}`} className="font-semibold text-ink hover:text-brand">
                           {r.name}
                         </Link>{' '}
                         {r.demo && <DemoTag />}
+                        <div className="mt-0.5">
+                          <EnrichmentBadge status={r.enrichmentStatus} short />
+                        </div>
                       </td>
                       <td className="px-2 py-2">
                         {r.city ?? <NA />}
                         {r.department && <span className="text-muted"> · {r.department}</span>}
                       </td>
-                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums min-[1400px]:table-cell">{r.nafCode ?? <NA />}</td>
-                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums 2xl:table-cell">{r.siret ?? <NA />}</td>
-                      <td className="hidden max-w-[11rem] truncate px-2 py-2 min-[1400px]:table-cell" title={r.email ?? undefined}>{r.email ?? <NA />}</td>
-                      <td className="whitespace-nowrap px-2 py-2 tabular-nums">{r.phone ? formatPhone(r.phone) : <NA />}</td>
+                      <td className="whitespace-nowrap px-2 py-2 tabular-nums">
+                        {r.phone ? (
+                          <span className="inline-flex items-center gap-1.5">
+                            {formatPhone(r.phone)} <ConfidenceBadge value={r.phoneConfidence} status={r.phoneStatus} />
+                          </span>
+                        ) : (
+                          <NA />
+                        )}
+                      </td>
+                      <td className="hidden max-w-[11rem] truncate px-2 py-2 min-[1400px]:table-cell" title={r.email ?? undefined}>
+                        {r.email ?? <NA />}
+                      </td>
                       <td className="px-2 py-2">
                         {r.website ? (
                           <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
@@ -282,15 +316,16 @@ export function ProspectsPage() {
                           <NA />
                         )}
                       </td>
+                      <td className="hidden whitespace-nowrap px-2 py-2 min-[1400px]:table-cell">{r.headcountBand || r.headcountMin !== null ? (HEADCOUNT_BANDS[r.headcountBand ?? '']?.[0] ?? `≥ ${r.headcountMin}`) : <NA />}</td>
+                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums 2xl:table-cell">{r.nafCode ?? <NA />}</td>
                       <td className="px-2 py-2">
-                        <EnrichmentBadge status={r.enrichmentStatus} short />
+                        <ScoreBadge score={r.score} />
                       </td>
                       <td className="px-2 py-2">
                         <StatusBadge status={r.status} />
                       </td>
-                      <td className="hidden whitespace-nowrap px-2 py-2 tabular-nums 2xl:table-cell">{formatDateShort(r.nextFollowUpAt)}</td>
                       <td className="px-2 py-1">
-                        <RowActions row={r} onAction={openAction} onEnrich={enrichRows} onView={() => navigate(`/prospects/${r.id}`)} />
+                        <RowActions row={r} onAction={openAction} onEnrich={enrichRows} onCrm={addToCrm} onView={() => navigate(`/prospects/${r.id}`)} />
                       </td>
                     </tr>
                   ))}
@@ -326,8 +361,16 @@ export function ProspectsPage() {
                         {[r.city, r.department].filter(Boolean).join(' · ') || 'Localisation non disponible'}
                         {r.googleReviews !== null && ` · ${r.googleReviews} avis`}
                       </div>
-                      <div className="mt-0.5 text-xs text-muted">
-                        {[r.phone ? '☎ Téléphone' : null, r.email ? '✉ E-mail' : null, r.website ? '🌐 Site' : null].filter(Boolean).join(' · ') || 'Coordonnées non disponibles'}
+                      <div className="mt-1 space-y-0.5 text-sm">
+                        {r.phone ? (
+                          <p className="flex flex-wrap items-center gap-1.5 tabular-nums">
+                            📞 {formatPhone(r.phone)} <ConfidenceBadge value={r.phoneConfidence} status={r.phoneStatus} />
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted">📞 Téléphone non disponible</p>
+                        )}
+                        {r.email && <p className="truncate text-xs text-muted">✉ {r.email}</p>}
+                        {r.website && <p className="truncate text-xs text-muted">🌐 {r.website.replace(/^https?:\/\/(www\.)?/, '')}</p>}
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted">
                         <StatusBadge status={r.status} />
@@ -337,7 +380,7 @@ export function ProspectsPage() {
                     </Link>
                   </div>
                   <div className="mt-2 border-t border-line/70 pt-2">
-                    <RowActions row={r} onAction={openAction} onEnrich={enrichRows} onView={() => navigate(`/prospects/${r.id}`)} spread />
+                    <RowActions row={r} onAction={openAction} onEnrich={enrichRows} onCrm={addToCrm} onView={() => navigate(`/prospects/${r.id}`)} spread />
                   </div>
                 </li>
               ))}
@@ -383,23 +426,26 @@ function RowActions({
   row,
   onAction,
   onEnrich,
+  onCrm,
   onView,
   spread,
 }: {
   row: ProspectRow;
   onAction: (k: RowAction, id: string) => void;
   onEnrich: (ids: string[]) => void;
+  onCrm: (ids: string[]) => void;
   onView: () => void;
   spread?: boolean;
 }) {
   const tel = telUrl(row.phone);
   const blocked = row.doNotContact || row.demo;
-  const cls = 'inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-brand disabled:opacity-30';
+  const cls = 'inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted hover:bg-surface-2 hover:text-brand disabled:opacity-30 disabled:pointer-events-none';
   const busy = row.enrichmentStatus === 'pending' || row.enrichmentStatus === 'processing';
+  const inCrm = !['new', 'to_qualify', 'not_now'].includes(row.status);
   return (
     <div className={`flex items-center ${spread ? 'justify-between' : 'justify-end gap-0.5'}`}>
       {tel && !blocked ? (
-        <a href={tel} className={cls} aria-label={`Appeler ${row.name}`} title="Appeler">
+        <a href={tel} className={cls} aria-label={`Appeler ${row.name}`} title="📞 Appeler">
           <Phone className="h-[18px] w-[18px]" />
         </a>
       ) : (
@@ -407,31 +453,43 @@ function RowActions({
           <Phone className="h-[18px] w-[18px]" />
         </button>
       )}
-      <button type="button" className={cls} disabled={blocked} onClick={() => onAction('message', row.id)} aria-label={`Préparer un message pour ${row.name}`} title="E-mail / message">
+      <button type="button" className={cls} disabled={blocked} onClick={() => onAction('message', row.id)} aria-label={`Préparer un e-mail pour ${row.name}`} title="✉ E-mail">
         <Mail className="h-[18px] w-[18px]" />
       </button>
-      <button
-        type="button"
-        className={cls}
-        disabled={row.demo || busy}
-        onClick={() => onEnrich([row.id])}
-        aria-label={`${row.enrichedAt ? 'Réenrichir' : 'Enrichir'} ${row.name}`}
-        title={busy ? 'Enrichissement en cours' : row.enrichedAt ? 'Réenrichir' : 'Enrichir'}
-      >
+      {row.website ? (
+        <a href={row.website} target="_blank" rel="noopener noreferrer" className={cls} aria-label={`Site de ${row.name}`} title="🌐 Site">
+          <Globe className="h-[18px] w-[18px]" />
+        </a>
+      ) : (
+        <button type="button" disabled className={cls} aria-label="Site non disponible" title="Site non disponible">
+          <Globe className="h-[18px] w-[18px]" />
+        </button>
+      )}
+      <a href={googleSearchUrl({ name: row.name, tradeName: null, city: row.city })} target="_blank" rel="noopener noreferrer" className={cls} aria-label={`Rechercher ${row.name} sur le web`} title="🔎 Rechercher sur le web">
+        <Search className="h-[18px] w-[18px]" />
+      </a>
+      <button type="button" className={cls} disabled={blocked || inCrm} onClick={() => onCrm([row.id])} aria-label={`Ajouter ${row.name} au CRM`} title={inCrm ? 'Déjà dans le CRM' : '📇 Ajouter au CRM (À contacter)'}>
+        <Contact className="h-[18px] w-[18px]" />
+      </button>
+      <button type="button" className={cls} disabled={row.demo || busy} onClick={() => onEnrich([row.id])} aria-label={`Enrichir ${row.name}`} title={busy ? 'Enrichissement en cours' : '🚀 Enrichir'}>
         <Sparkles className="h-[18px] w-[18px]" />
       </button>
-      <a href={googleSearchUrl({ name: row.name, tradeName: null, city: row.city })} target="_blank" rel="noopener noreferrer" className={cls} aria-label={`Rechercher ${row.name} sur le web`} title="Rechercher sur le web">
-        <Globe className="h-[18px] w-[18px]" />
-      </a>
-      <button type="button" className={cls} onClick={() => onAction('note', row.id)} aria-label={`Ajouter une note à ${row.name}`} title="Note">
-        <StickyNote className="h-[18px] w-[18px]" />
-      </button>
-      <button type="button" className={cls} disabled={row.doNotContact} onClick={() => onAction('task', row.id)} aria-label={`Planifier une relance pour ${row.name}`} title="Relancer">
-        <AlarmClock className="h-[18px] w-[18px]" />
-      </button>
-      <button type="button" className={cls} onClick={onView} aria-label={`Voir la fiche de ${row.name}`} title="Voir">
-        <Eye className="h-[18px] w-[18px]" />
-      </button>
+      <details className="relative">
+        <summary className={`${cls} cursor-pointer list-none`} aria-label={`Autres actions pour ${row.name}`} title="Autres actions">
+          <Ellipsis className="h-[18px] w-[18px]" />
+        </summary>
+        <div className="absolute right-0 z-20 mt-1 w-44 rounded-xl border border-line bg-surface p-1 shadow-lg">
+          <button type="button" onClick={onView} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-surface-2">
+            <Eye className="h-4 w-4" /> Voir la fiche
+          </button>
+          <button type="button" onClick={() => onAction('note', row.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-surface-2">
+            <StickyNote className="h-4 w-4" /> Ajouter une note
+          </button>
+          <button type="button" disabled={row.doNotContact} onClick={() => onAction('task', row.id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-surface-2 disabled:opacity-40">
+            <AlarmClock className="h-4 w-4" /> Planifier une relance
+          </button>
+        </div>
+      </details>
     </div>
   );
 }

@@ -27,6 +27,8 @@ export interface Establishment {
   headcountBand: string | null;
   tradeName: string | null;
   employer: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
   diffusible: boolean;
 }
 

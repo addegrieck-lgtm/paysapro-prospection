@@ -27,6 +27,12 @@ export interface SireneMapOptions {
   headOfficeOnly?: boolean;
   /** Tranche d'effectif INSEE minimale (« 01 » = au moins 1 salarié) */
   minHeadcountBand?: string | null;
+  /** Tranches d'effectif INSEE acceptées (« 00 », « 01 »…) ; vide = toutes */
+  headcountBands?: string[];
+  /** Établissements pertinents : l'activité de l'établissement lui-même correspond au NAF (défaut : oui) */
+  relevantOnly?: boolean;
+  /** Siège uniquement / établissements secondaires uniquement */
+  establishmentType?: 'all' | 'head' | 'secondary';
   createdAfter?: string | null;
   createdBefore?: string | null;
 }
@@ -44,12 +50,18 @@ export function sireneToInputs(u: ApiUniteLegale, o: SireneMapOptions): Prospect
     .filter((e) => {
       if (seen.has(e.siret)) return false;
       seen.add(e.siret);
-      if (!e.diffusible || !o.nafCodes.includes(e.nafCode ?? '')) return false;
+      if (!e.diffusible) return false;
+      if ((o.relevantOnly ?? true) && !o.nafCodes.includes(e.nafCode ?? '')) return false;
       if ((o.activeOnly ?? true) && !e.active) return false;
       if (o.department && e.department !== o.department) return false;
       if (o.postalCode && e.postalCode !== o.postalCode) return false;
       if (commune && !normText(e.city).includes(commune)) return false;
-      if (o.headOfficeOnly && !e.isHeadOffice) return false;
+      if ((o.headOfficeOnly || o.establishmentType === 'head') && !e.isHeadOffice) return false;
+      if (o.establishmentType === 'secondary' && e.isHeadOffice) return false;
+      if (o.headcountBands?.length) {
+        const b = e.headcountBand ?? c.headcountBand;
+        if (!b || !o.headcountBands.includes(b)) return false;
+      }
       if (minBand !== null) {
         const b = e.headcountBand ?? c.headcountBand;
         if (!b || (HEADCOUNT_BANDS[b]?.[1] ?? -1) < minBand) return false;

@@ -12,6 +12,10 @@ import type {
   ActivityType,
   Campaign,
   CampaignRecipient,
+  CompanyEmail,
+  CompanyPhone,
+  CompanyWebsite,
+  ContactEvidence,
   DuplicateCandidate,
   DuplicateRule,
   EnrichmentJob,
@@ -44,6 +48,19 @@ import { setScoringContext } from '../domain/scoring';
 import { ProviderError } from '../providers/http';
 import type { CompanyDataProvider, EnrichOutcome } from '../providers/company/CompanyDataProvider';
 import { ENRICHMENT_CONFIG } from '../config';
+import { CONTACT_STORES, type ContactStore } from './db';
+import { applyPrimaryContacts, contactKey, contactsFromFields, newEmail, newPhone, newWebsite, upsertContact, type ContactKind } from '../domain/contactSync';
+import { addEvidence, rescore } from '../domain/contacts';
+import { nationalPhone } from '../domain/phone';
+
+export interface ContactSet {
+  phones: CompanyPhone[];
+  emails: CompanyEmail[];
+  websites: CompanyWebsite[];
+}
+
+const CONTACT_STORE_OF: Record<ContactKind, ContactStore> = { phone: 'company_phones', email: 'company_emails', website: 'company_websites' };
+const CONTACT_LABEL: Record<ContactKind, string> = { phone: 'Téléphone', email: 'E-mail', website: 'Site' };
 import { matchesFilter, sortRows, today } from '../domain/filters';
 import { computeScore } from '../domain/scoring';
 import { assertCan } from '../domain/access';
@@ -79,6 +96,8 @@ export function defaultSettings(workspaceId: string): Settings {
     excludeIndividuals: false,
     emailProvider: 'mailto',
     onboarded: false,
+    autoQualify: false,
+    providers: { official: true, directory: true, website: true, websiteDiscovery: true },
   };
 }
 
@@ -97,6 +116,8 @@ export interface ImportOptions {
   /** false : pas d'entrée dans l'historique (import découpé en plusieurs appels, cf. saveImportReport) */
   record?: boolean;
   onProgress?: (done: number, total: number) => void;
+  /** Identifiants des fiches créées ou mises à jour (pour les enrichir ensuite) */
+  onWritten?: (ids: string[]) => void;
   signal?: AbortSignal;
 }
 
@@ -158,7 +179,8 @@ export class ProspectsApi {
       | 'suppression_list'
       | 'enrichment_queue'
       | 'enrichment_logs'
-      | 'duplicate_candidates',
+      | 'duplicate_candidates'
+      | ContactStore,
   >(store: S) {
     // (le typage générique d'idb ne sait pas exprimer « toutes ces tables ont un index workspaceId »)
     return this.db.getAllFromIndex(store, 'workspaceId', this.ctx.workspaceId as never);
@@ -255,6 +277,7 @@ export class ProspectsApi {
       Object.assign(p, finalize(p));
     }
     await this.write([p], [this.activity(p.id, 'created', `Prospect créé (${SOURCE_LABEL[source]})`), this.activity(p.id, 'score', `Score calculé : ${p.score}`)]);
+    await this.syncFieldContacts([p]);
     this.emit();
     return p;
   }
@@ -271,8 +294,9 @@ export class ProspectsApi {
     const acts = [this.activity(id, 'updated', changed.length ? `${label} (${changed.length} champ(s))` : label, now)];
     if (next.score !== existing.score) acts.push(this.activity(id, 'score', `Score recalculé : ${existing.score} → ${next.score}`, now));
     await this.write([next], acts);
+    if (changed.some((k) => k === 'phone' || k === 'email' || k === 'website')) await this.syncFieldContacts([next]);
     this.emit();
-    return next;
+    return (await this.getProspect(id)) ?? next;
   }
 
   async setStatus(id: string, status: ProspectStatus): Promise<Prospect> {
@@ -323,7 +347,7 @@ export class ProspectsApi {
     const now = this.now();
     let next: Prospect;
     if (on) {
-      next = finalize({ ...p, doNotContact: true, doNotContactReason: reason, status: 'do_not_contact', nextFollowUpAt: null, updatedAt: now });
+      next = finalize({ ...p, doNotContact: true, doNotContactReason: reason, status: 'do_not_contact', nextFollowUpAt: null, oppositionAt: now, updatedAt: now });
       await this.addSuppressionFor(next, reason);
       // Les relances en cours sont annulées
       const tasks = await this.tasksFor(id);
@@ -344,13 +368,13 @@ export class ProspectsApi {
     assertCan(this.ctx.role, 'prospecting.delete');
     const prospects = await this.getProspects(ids);
     if (suppress) for (const p of prospects) await this.addSuppressionFor(p, 'Suppression à la demande (RGPD)');
-    const stores = ['prospects', 'prospect_rows', 'prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates'] as const;
+    const stores = ['prospects', 'prospect_rows', 'prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates', ...CONTACT_STORES] as const;
     const tx = this.db.transaction(stores, 'readwrite');
     const removed = new Set(prospects.map((p) => p.id));
     for (const p of prospects) {
       await tx.objectStore('prospects').delete(p.id);
       await tx.objectStore('prospect_rows').delete(p.id);
-      for (const s of ['prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs'] as const) {
+      for (const s of ['prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', ...CONTACT_STORES] as const) {
         const keys = await tx.objectStore(s).index('prospectId').getAllKeys(p.id);
         for (const k of keys) await tx.objectStore(s).delete(k);
       }
@@ -523,10 +547,10 @@ export class ProspectsApi {
         activities.push(this.activity(p.id, 'score', `Score calculé : ${p.score}`, now));
       });
 
-      await this.write(
-        Array.from(touched, (id) => pending.get(id)!),
-        activities,
-      );
+      const written = Array.from(touched, (id) => pending.get(id)!);
+      await this.write(written, activities);
+      await this.syncFieldContacts(written);
+      opts.onWritten?.(written.map((p) => p.id));
       if (candidates.length) {
         const tx = this.db.transaction('duplicate_candidates', 'readwrite');
         await Promise.all(candidates.map((c) => tx.store.put(c)));
@@ -980,7 +1004,7 @@ export class ProspectsApi {
   }
 
   /** Ajoute des prospects à la file (sans doublon de tâche en attente). Renvoie le nombre ajouté. */
-  async enqueueEnrichment(ids: string[], force = false): Promise<number> {
+  async enqueueEnrichment(ids: string[], force = false, maxPhones = false): Promise<number> {
     assertCan(this.ctx.role, 'prospecting.edit');
     const jobs = await this.queueJobs();
     const waiting = new Set(jobs.filter((j) => j.status === 'pending' || j.status === 'processing').map((j) => j.prospectId));
@@ -989,7 +1013,23 @@ export class ProspectsApi {
     const add = ids.filter((id) => !waiting.has(id) && rows.has(id) && !rows.get(id)!.demo);
     const tx = this.db.transaction('enrichment_queue', 'readwrite');
     await Promise.all(
-      add.map((prospectId) => tx.store.put({ id: uid(), workspaceId: this.ctx.workspaceId, prospectId, status: 'pending', outcome: null, force, attempts: 0, error: null, createdAt: now, updatedAt: now })),
+      add.map((prospectId) =>
+        tx.store.put({
+          id: uid(),
+          workspaceId: this.ctx.workspaceId,
+          prospectId,
+          status: 'pending',
+          outcome: null,
+          force,
+          maxPhones,
+          attempts: 0,
+          error: null,
+          nextRetryAt: null,
+          result: null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
     );
     await tx.done;
     // Statut visible dans la liste
@@ -1008,7 +1048,7 @@ export class ProspectsApi {
   /** Relance les échecs (ils repassent « en attente »). */
   async retryFailedJobs(): Promise<number> {
     const failed = (await this.queueJobs()).filter((j) => j.status === 'failed');
-    await Promise.all(failed.map((j) => this.saveJob({ ...j, status: 'pending', error: null, force: true })));
+    await Promise.all(failed.map((j) => this.saveJob({ ...j, status: 'pending', error: null, force: true, nextRetryAt: null, attempts: 0 })));
     this.emit();
     return failed.length;
   }
@@ -1030,6 +1070,199 @@ export class ProspectsApi {
       [],
     );
     this.emit();
+  }
+
+  // ─────────────── Coordonnées multi-sources (company_phones / company_emails / company_websites) ───────────────
+
+  async contactsFor(prospectId: string): Promise<ContactSet> {
+    const get = async <S extends ContactStore>(s: S) => (await this.db.getAllFromIndex(s, 'prospectId', prospectId as never)).filter((c) => c.workspaceId === this.ctx.workspaceId);
+    const [phones, emails, websites] = await Promise.all([get('company_phones'), get('company_emails'), get('company_websites')]);
+    const order = <T extends { isPrimary: boolean; confidence: number }>(l: T[]) => l.sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || b.confidence - a.confidence);
+    return { phones: order(phones as CompanyPhone[]), emails: order(emails as CompanyEmail[]), websites: order(websites as CompanyWebsite[]) };
+  }
+
+  private async saveContacts(prospectId: string, set: ContactSet) {
+    const tx = this.db.transaction(CONTACT_STORES, 'readwrite');
+    const pairs: [ContactStore, (CompanyPhone | CompanyEmail | CompanyWebsite)[]][] = [
+      ['company_phones', set.phones],
+      ['company_emails', set.emails],
+      ['company_websites', set.websites],
+    ];
+    for (const [store, list] of pairs) {
+      const keep = new Set(list.map((c) => c.id));
+      const existing = await tx.objectStore(store).index('prospectId').getAll(prospectId);
+      for (const e of existing) if (!keep.has(e.id)) await tx.objectStore(store).delete(e.id);
+      for (const c of list) await tx.objectStore(store).put(c as never);
+    }
+    await tx.done;
+  }
+
+  /** Autres entreprises (même workspace) possédant ce numéro : « ⚠ Numéro partagé ». */
+  private async otherPhoneOwners(e164: string, prospectId: string): Promise<CompanyPhone[]> {
+    return (await this.db.getAllFromIndex('company_phones', 'value', e164)).filter((c) => c.workspaceId === this.ctx.workspaceId && c.prospectId !== prospectId && c.status !== 'rejected');
+  }
+
+  /**
+   * Fusionne des coordonnées trouvées (ou issues des champs de la fiche) avec celles déjà connues,
+   * détecte les numéros partagés, recalcule la confiance, puis recopie les valeurs principales sur la fiche.
+   * Ne remplace jamais une saisie manuelle. Renvoie la fiche mise à jour (non enregistrée).
+   */
+  async mergeContacts(p: Prospect, incoming: Partial<ContactSet> = {}, now = this.now()): Promise<{ prospect: Prospect; contacts: ContactSet; created: ContactSet }> {
+    const current = await this.contactsFor(p.id);
+    const fromFields = contactsFromFields(p, now);
+    const created: ContactSet = { phones: [], emails: [], websites: [] };
+    const merge = <T extends CompanyPhone | CompanyEmail | CompanyWebsite>(list: T[], add: T[], out: T[]) => {
+      let l = list;
+      for (const c of add) {
+        const r = upsertContact(l, c, now);
+        l = r.list;
+        if (r.created) out.push(c);
+      }
+      return l;
+    };
+    let phones = merge(current.phones, [...fromFields.phones, ...(incoming.phones ?? [])], created.phones);
+    const emails = merge(current.emails, [...fromFields.emails, ...(incoming.emails ?? [])], created.emails);
+    const websites = merge(current.websites, [...fromFields.websites, ...(incoming.websites ?? [])], created.websites);
+    // Numéro partagé par plusieurs entreprises : jamais attribué d'office, confiance réduite partout
+    phones = await Promise.all(
+      phones.map(async (ph) => {
+        const others = await this.otherPhoneOwners(ph.value, p.id);
+        const shared = others.length > 0;
+        if (shared) {
+          for (const o of others.filter((x) => !x.shared)) {
+            await this.db.put('company_phones', rescore({ ...o, shared: true, updatedAt: now }));
+            await this.refreshSummary(o.prospectId);
+          }
+        }
+        return shared === ph.shared ? ph : rescore({ ...ph, shared, updatedAt: now });
+      }),
+    );
+    const synced = applyPrimaryContacts(p, phones, emails, websites);
+    const contacts = { phones: synced.phones, emails: synced.emails, websites: synced.websites };
+    await this.saveContacts(p.id, contacts);
+    return { prospect: finalize(synced.prospect), contacts, created };
+  }
+
+  /** Recalcule le résumé (téléphone principal, confiance) d'une autre fiche après un changement de ses numéros. */
+  private async refreshSummary(prospectId: string) {
+    const p = await this.getProspect(prospectId);
+    if (!p) return;
+    const c = await this.contactsFor(prospectId);
+    const synced = applyPrimaryContacts(p, c.phones, c.emails, c.websites);
+    await this.saveContacts(prospectId, { phones: synced.phones, emails: synced.emails, websites: synced.websites });
+    await this.write([finalize(synced.prospect)], []);
+  }
+
+  /** Après une écriture de fiches (import, saisie) : leurs téléphones / e-mails / sites rejoignent les tables de coordonnées. */
+  private async syncFieldContacts(prospects: Prospect[]) {
+    const withContacts = prospects.filter((p) => !p.demo && (p.phone || p.email || p.website));
+    const updated: Prospect[] = [];
+    for (const p of withContacts) {
+      const { prospect } = await this.mergeContacts(p);
+      if (prospect.phoneConfidence !== p.phoneConfidence || prospect.phoneStatus !== p.phoneStatus || prospect.phone !== p.phone || prospect.email !== p.email || prospect.website !== p.website)
+        updated.push(prospect);
+    }
+    if (updated.length) await this.write(updated, []);
+  }
+
+  /** « Définir comme principal » : la coordonnée est validée par l'utilisateur (confiance 100). */
+  async setPrimaryContact(kind: ContactKind, contactId: string): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const store = CONTACT_STORE_OF[kind];
+    const c = this.mine(await this.db.get(store, contactId));
+    if (!c) throw new Error('Coordonnée introuvable.');
+    const p = await this.getProspect(c.prospectId);
+    if (!p) throw new Error('Prospect introuvable.');
+    const now = this.now();
+    const validated = rescore({ ...c, manual: true, status: 'unverified', evidence: addEvidence(c.evidence, { kind: 'manual', provider: `Validé par ${this.ctx.user}`, url: null, at: now, matched: [] }), updatedAt: now } as CompanyPhone);
+    await this.db.put(store, validated as never);
+    const value = kind === 'phone' ? nationalPhone((validated as CompanyPhone).e164) : kind === 'email' ? validated.value : validated.display;
+    const fiche: Prospect = { ...p, [kind]: value, fieldSources: { ...p.fieldSources, [kind]: originFor('manual', now, `Validé par ${this.ctx.user}`) } };
+    const { prospect } = await this.mergeContacts(fiche, {}, now);
+    await this.write([prospect], [this.activity(p.id, 'updated', `${CONTACT_LABEL[kind]} principal validé : ${validated.display}`, now)]);
+    this.emit();
+    return prospect;
+  }
+
+  /** « Écarter » : la coordonnée ne correspond pas à l'entreprise ; elle ne sera plus proposée. */
+  async rejectContact(kind: ContactKind, contactId: string): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const store = CONTACT_STORE_OF[kind];
+    const c = this.mine(await this.db.get(store, contactId));
+    if (!c) throw new Error('Coordonnée introuvable.');
+    const p = await this.getProspect(c.prospectId);
+    if (!p) throw new Error('Prospect introuvable.');
+    const now = this.now();
+    await this.db.put(store, { ...c, status: 'rejected', manual: false, isPrimary: false, updatedAt: now } as never);
+    let fiche: Prospect = p;
+    if (contactKey(kind, p[kind]) === c.value) {
+      fiche = { ...p, [kind]: null, fieldSources: { ...p.fieldSources } };
+      delete fiche.fieldSources[kind];
+    }
+    const { prospect } = await this.mergeContacts(fiche, {}, now);
+    await this.write([prospect], [this.activity(p.id, 'updated', `${CONTACT_LABEL[kind]} écarté : ${c.display}`, now)]);
+    this.emit();
+    return prospect;
+  }
+
+  /** Ajoute une coordonnée saisie à la main (confiance 100). */
+  async addManualContact(prospectId: string, kind: ContactKind, value: string): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const p = await this.getProspect(prospectId);
+    if (!p) throw new Error('Prospect introuvable.');
+    const now = this.now();
+    const e: ContactEvidence = { kind: 'manual', provider: 'Saisie manuelle', url: null, at: now, matched: [] };
+    const c = kind === 'phone' ? newPhone(p, value, e, now) : kind === 'email' ? newEmail(p, value, e, now) : newWebsite(p, value, e, now);
+    if (!c) throw new Error(kind === 'phone' ? 'Numéro invalide.' : kind === 'email' ? 'Adresse e-mail invalide.' : 'Adresse de site invalide.');
+    const incoming: Partial<ContactSet> = kind === 'phone' ? { phones: [c as CompanyPhone] } : kind === 'email' ? { emails: [c as CompanyEmail] } : { websites: [c as CompanyWebsite] };
+    const { prospect } = await this.mergeContacts(p, incoming, now);
+    await this.write([prospect], [this.activity(p.id, 'updated', `${CONTACT_LABEL[kind]} ajouté manuellement : ${c.display}`, now)]);
+    this.emit();
+    return prospect;
+  }
+
+  /**
+   * « 📇 Ajouter au CRM » : les prospects passent au statut « À contacter » (CRM actif).
+   * Jamais pour un prospect « Ne plus contacter », une donnée de démonstration ou un prospect déjà en cours.
+   */
+  async addToCrm(ids: string[]): Promise<number> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const now = this.now();
+    const eligible = (await this.getProspects(ids)).filter((p) => !p.doNotContact && !p.demo && ['new', 'to_qualify', 'not_now'].includes(p.status));
+    for (let i = 0; i < eligible.length; i += 500) {
+      const batch = eligible.slice(i, i + 500);
+      await this.write(
+        batch.map((p) => ({ ...applyStatus(p, 'to_contact', now), qualifiedAt: now })),
+        batch.map((p) => this.activity(p.id, 'status', `Ajouté au CRM : ${STATUS_LABEL[p.status]} → ${STATUS_LABEL.to_contact}`, now)),
+      );
+    }
+    this.emit();
+    return eligible.length;
+  }
+
+  /** Enregistre le résultat du moteur d'enrichissement : fiche, entrée d'historique détaillée, journal. */
+  async saveEngineResult(p: Prospect, label: string, details: string[], log: Omit<EnrichmentLog, 'id' | 'workspaceId' | 'completedAt' | 'prospectId'>): Promise<void> {
+    const act = this.activity(p.id, 'enriched', label);
+    act.details = details;
+    const before = await this.getProspect(p.id);
+    const acts = [act];
+    const final = finalize(p);
+    if (before && before.score !== final.score) acts.push(this.activity(p.id, 'score', `Score recalculé : ${before.score} → ${final.score}`));
+    if (before && before.status !== final.status) acts.push(this.activity(p.id, 'status', `Statut : ${STATUS_LABEL[before.status]} → ${STATUS_LABEL[final.status]}`));
+    await this.write([final], acts);
+    await this.log({ ...log, prospectId: p.id });
+    this.emit();
+  }
+
+  /** Journaux d'enrichissement du workspace (écran « Performance »). */
+  async allEnrichmentLogs(): Promise<EnrichmentLog[]> {
+    return this.byWorkspace('enrichment_logs') as Promise<EnrichmentLog[]>;
+  }
+
+  /** Tous les téléphones / e-mails / sites du workspace (statistiques de performance). */
+  async allContacts(): Promise<ContactSet> {
+    const [phones, emails, websites] = await Promise.all([this.byWorkspace('company_phones'), this.byWorkspace('company_emails'), this.byWorkspace('company_websites')]);
+    return { phones: phones as CompanyPhone[], emails: emails as CompanyEmail[], websites: websites as CompanyWebsite[] };
   }
 
   // ─────────────── Doublons potentiels ───────────────
@@ -1108,12 +1341,17 @@ export class ProspectsApi {
       else if (d.status === 'open' && (d.prospectIdA === otherId || d.prospectIdB === otherId)) await tx.objectStore('duplicate_candidates').put({ ...d, status: 'merged', resolvedAt: now });
     }
     await tx.done;
-    await this.write([merged], [this.activity(keepId, 'merged', `Fusionné avec « ${other.name} » (${MATCH_LABEL[c.rule]})`, now)]);
+    // Les téléphones / e-mails / sites des deux fiches sont regroupés (preuves cumulées, pas de doublon)
+    const otherContacts = await this.contactsFor(otherId);
+    const moved = (<T extends CompanyPhone | CompanyEmail | CompanyWebsite>(l: T[]) => l.map((x) => ({ ...x, id: uid(), prospectId: keepId, isPrimary: false })));
+    await this.saveContacts(otherId, { phones: [], emails: [], websites: [] });
     await this.db.delete('prospects', otherId);
     await this.db.delete('prospect_rows', otherId);
     this.rows?.delete(otherId);
+    const { prospect: final } = await this.mergeContacts(merged, { phones: moved(otherContacts.phones), emails: moved(otherContacts.emails), websites: moved(otherContacts.websites) }, now);
+    await this.write([final], [this.activity(keepId, 'merged', `Fusionné avec « ${other.name} » (${MATCH_LABEL[c.rule]})`, now)]);
     this.emit();
-    return merged;
+    return final;
   }
 
   // ─────────────── RGPD : anonymisation ───────────────
@@ -1126,13 +1364,13 @@ export class ProspectsApi {
     await this.addSuppressionFor(p, 'Anonymisation (RGPD)');
     const now = this.now();
     const next = anonymize(p, now);
-    const tx = this.db.transaction(['prospect_notes', 'prospect_tasks'], 'readwrite');
-    for (const s of ['prospect_notes', 'prospect_tasks'] as const) {
+    const tx = this.db.transaction(['prospect_notes', 'prospect_tasks', ...CONTACT_STORES], 'readwrite');
+    for (const s of ['prospect_notes', 'prospect_tasks', ...CONTACT_STORES] as const) {
       const keys = await tx.objectStore(s).index('prospectId').getAllKeys(id);
       for (const k of keys) await tx.objectStore(s).delete(k);
     }
     await tx.done;
-    await this.write([next], [this.activity(id, 'anonymized', 'Données personnelles anonymisées (RGPD)', now)]);
+    await this.write([{ ...next, phoneConfidence: null, phoneStatus: null, websiteVerified: null }], [this.activity(id, 'anonymized', 'Données personnelles anonymisées (RGPD)', now)]);
     this.emit();
     return next;
   }
@@ -1163,7 +1401,7 @@ export class ProspectsApi {
     const ids = rows.filter((r) => !onlyDemo || r.demo).map((r) => r.id);
     for (let i = 0; i < ids.length; i += 500) await this.deleteProspects(ids.slice(i, i + 500));
     if (!onlyDemo) {
-      for (const s of ['prospect_segments', 'prospect_campaigns', 'prospect_imports', 'suppression_list', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates'] as const) {
+      for (const s of ['prospect_segments', 'prospect_campaigns', 'prospect_imports', 'suppression_list', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates', ...CONTACT_STORES] as const) {
         const list = await this.byWorkspace(s);
         await Promise.all(list.map((x) => this.db.delete(s, x.id)));
       }
@@ -1218,6 +1456,7 @@ export class ProspectsApi {
     await this.db.put('settings', { ...data.settings, workspaceId: w });
     const prospects = own(data.prospects).map(upgradeProspect);
     for (let i = 0; i < prospects.length; i += 500) await this.write(prospects.slice(i, i + 500), []);
+    await this.syncFieldContacts(prospects);
     const put = async <
       S extends
         | 'prospect_notes'

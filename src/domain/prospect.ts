@@ -40,6 +40,8 @@ export const IDENTITY_FIELDS = [
   'companyCategory',
   'openEstablishments',
   'employer',
+  'latitude',
+  'longitude',
 ] as const satisfies readonly (keyof Prospect)[];
 
 /** Informations commerciales : jamais présentes dans les sources officielles. */
@@ -207,6 +209,14 @@ export function emptyProspect(ctx: Context, source: SourceKind): Prospect {
     enrichmentError: null,
     fieldSources: {},
     anonymized: false,
+    phoneConfidence: null,
+    phoneStatus: null,
+    websiteVerified: null,
+    latitude: null,
+    longitude: null,
+    oppositionAt: null,
+    qualifiedAt: null,
+    contactsCheckedAt: null,
   };
 }
 
@@ -393,13 +403,25 @@ export function anonymize(p: Prospect, now: string): Prospect {
 
 /** Met à niveau une fiche enregistrée par une version précédente (valeurs par défaut, provenance déduite). */
 export function upgradeProspect(raw: Prospect): Prospect {
-  if (raw.fieldSources && raw.enrichmentStatus) return raw;
+  if (raw.fieldSources && raw.enrichmentStatus && raw.phoneConfidence !== undefined) return raw;
+  const v2 = {
+    phoneConfidence: raw.phoneConfidence ?? null,
+    phoneStatus: raw.phoneStatus ?? null,
+    websiteVerified: raw.websiteVerified ?? null,
+    latitude: raw.latitude ?? null,
+    longitude: raw.longitude ?? null,
+    oppositionAt: raw.oppositionAt ?? (raw.doNotContact ? raw.updatedAt : null),
+    qualifiedAt: raw.qualifiedAt ?? null,
+    contactsCheckedAt: raw.contactsCheckedAt ?? null,
+  };
+  if (raw.fieldSources && raw.enrichmentStatus) return { ...raw, ...v2 };
   const at = raw.lastVerifiedAt ?? raw.dateCollected ?? raw.createdAt;
   const o = originFor(raw.source ?? 'manual', at);
   const fieldSources: Prospect['fieldSources'] = {};
   for (const k of SOURCED_FIELDS) if (!isEmpty(raw[k])) fieldSources[k] = o;
   const p: Prospect = {
     ...raw,
+    ...v2,
     isHeadOffice: raw.isHeadOffice ?? null,
     companyCategory: raw.companyCategory ?? null,
     openEstablishments: raw.openEstablishments ?? null,
@@ -450,6 +472,9 @@ export function toRow(p: Prospect): ProspectRow {
     hasSocial: !!(p.facebook || p.instagram || p.linkedin || p.tiktok),
     enrichmentStatus: p.enrichmentStatus,
     enrichedAt: p.enrichedAt,
+    phoneConfidence: p.phoneConfidence,
+    phoneStatus: p.phoneStatus,
+    headcountBand: p.headcountBand,
     search: normText(
       [p.name, p.tradeName, p.siren, p.siret, p.city, p.postalCode, p.department, p.phone?.replace(/\D/g, ''), p.email, p.contactLastName, p.nafCode]
         .filter(Boolean)

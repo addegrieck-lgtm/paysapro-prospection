@@ -1,6 +1,6 @@
 // Déduplication des prospects.
 //
-// Ordre de priorité : SIRET > SIREN > nom + adresse > nom + téléphone  (correspondances « sûres »),
+// Ordre de priorité : SIRET > SIREN > nom + adresse > nom + ville + téléphone  (correspondances « sûres »),
 // puis téléphone seul (« à vérifier ») et nom + ville (sûre si rien ne se contredit, sinon « à vérifier »).
 //  • sûre : c'est la même entreprise → la fiche existante est mise à jour / complétée ;
 //  • à vérifier : aucune fusion automatique → un « doublon potentiel » est proposé
@@ -15,7 +15,7 @@ export const MATCH_LABEL: Record<MatchRule, string> = {
   siret: 'même SIRET',
   siren: 'même SIREN',
   name_address: 'même nom et même adresse',
-  name_phone: 'même nom et même téléphone',
+  name_phone: 'même nom, même ville et même téléphone',
   phone: 'même téléphone',
   name_city: 'même nom et même ville',
 };
@@ -48,7 +48,7 @@ export class DedupeIndex {
   private byNameCity = new Map<string, string>();
   private byNameAddress = new Map<string, string>();
   private sirenOf = new Map<string, string>();
-  private details = new Map<string, { phone: string | null; address: string }>();
+  private details = new Map<string, { phone: string | null; address: string; city: string }>();
 
   constructor(items: DedupeKeys[] = []) {
     items.forEach((i) => this.add(i));
@@ -65,7 +65,7 @@ export class DedupeIndex {
     }
     const phone = normPhone(k.phone);
     const name = normName(k.name);
-    this.details.set(k.id, { phone, address: normText(k.address) });
+    this.details.set(k.id, { phone, address: normText(k.address), city: normText(k.city) });
     if (phone) {
       this.byPhone.set(phone, k.id);
       if (name) this.byNamePhone.set(`${name}|${phone}`, k.id);
@@ -96,8 +96,13 @@ export class DedupeIndex {
       if (compatible(id)) return { id, rule: 'name_address', exact: true };
     }
     if (name && phone) {
+      // Nom + ville + téléphone : même entreprise ; même nom et même téléphone dans une autre ville : à vérifier
       const id = this.byNamePhone.get(`${name}|${phone}`);
-      if (compatible(id)) return { id, rule: 'name_phone', exact: true };
+      if (compatible(id)) {
+        const d = this.details.get(id);
+        const sameCity = !k.city || !d?.city || normText(k.city) === d.city;
+        return { id, rule: 'name_phone', exact: sameCity };
+      }
     }
     if (phone) {
       const id = this.byPhone.get(phone);

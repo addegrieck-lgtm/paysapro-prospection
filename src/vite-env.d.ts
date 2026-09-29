@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_ENRICHMENT_CACHE_DAYS?: string;
   readonly VITE_ENRICHMENT_BATCH_SIZE?: string;
   readonly VITE_ENRICHMENT_RATE_LIMIT?: string;
+  readonly VITE_WEB_PROXY_URL?: string;
 }
 
 interface ImportMeta {

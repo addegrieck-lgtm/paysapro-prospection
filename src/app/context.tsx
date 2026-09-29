@@ -5,6 +5,10 @@ import { ProspectsApi, defaultSettings } from '../data/repository';
 import { EnrichmentQueue, type QueueProgress } from '../data/enrichmentQueue';
 import { dbCache } from '../data/cache';
 import { RechercheEntreprisesProvider } from '../providers/company/RechercheEntreprisesProvider';
+import { OpenStreetMapProvider } from '../providers/company/OpenStreetMapProvider';
+import { WebsiteProvider } from '../providers/company/WebsiteProvider';
+import { EnrichmentEngine } from '../data/enrichmentEngine';
+import { ENRICHMENT_CONFIG } from '../config';
 import type { CompanyDataProvider } from '../providers/company/CompanyDataProvider';
 import type { Settings } from '../domain/types';
 import { can, type Permission } from '../domain/access';
@@ -18,6 +22,7 @@ interface AppContextValue {
   /** Source officielle gratuite utilisée pour l'enrichissement */
   companyProvider: CompanyDataProvider;
   queue: EnrichmentQueue;
+  engine: EnrichmentEngine;
   settings: Settings;
   reloadSettings: () => Promise<void>;
 }
@@ -27,7 +32,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children, fallback }: { children: ReactNode; fallback: (error: string | null) => ReactNode }) {
   const [value, setValue] = useState<AppContextValue | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const apiRef = useRef<{ api: ProspectsApi; companyProvider: CompanyDataProvider; queue: EnrichmentQueue } | null>(null);
+  const apiRef = useRef<{ api: ProspectsApi; companyProvider: CompanyDataProvider; queue: EnrichmentQueue; engine: EnrichmentEngine } | null>(null);
 
   const reloadSettings = useCallback(async () => {
     const refs = apiRef.current;
@@ -39,6 +44,7 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
 
   useEffect(() => {
     let cancelled = false;
+    let started: EnrichmentQueue | null = null;
     (async () => {
       try {
         const db = await openProspectingDB();
@@ -47,13 +53,19 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
         const api = new ProspectsApi(db, { workspaceId: LOCAL_WORKSPACE, user: settings.userName || 'Moi', role: settings.role });
         await api.getSettings(); // contexte de score (départements ciblés)
         const companyProvider = new RechercheEntreprisesProvider({ cache: dbCache(db, 'company_enrichment_cache') });
-        const queue = new EnrichmentQueue(api, companyProvider);
-        apiRef.current = { api, companyProvider, queue };
+        const directory = new OpenStreetMapProvider({ cache: dbCache(db, 'data_cache'), cacheDays: 30 });
+        const website = new WebsiteProvider(ENRICHMENT_CONFIG.webProxyUrl, { cache: dbCache(db, 'company_enrichment_cache'), cacheDays: ENRICHMENT_CONFIG.cacheDays });
+        const engine = new EnrichmentEngine(api, { official: companyProvider, directory, website });
+        const queue = new EnrichmentQueue(api, engine);
+        apiRef.current = { api, companyProvider, queue, engine };
         await api.listTemplates(); // modèles intégrés au premier lancement
-        if (!cancelled) setValue({ api, companyProvider, queue, settings, reloadSettings });
-        // Une file d'enrichissement interrompue (onglet fermé) reprend automatiquement
+        if (!cancelled) setValue({ api, companyProvider, queue, engine, settings, reloadSettings });
+        // Une file d'enrichissement interrompue (onglet fermé) reprend automatiquement.
+        // Seule l'instance active démarre la file (jamais deux files en parallèle sur les mêmes entreprises).
+        if (cancelled) return;
+        started = queue;
         const progress = await queue.refresh();
-        if (progress.pending > 0) void queue.start();
+        if (progress.pending > 0 && !cancelled) void queue.start();
         void requestPersistentStorage();
       } catch (e) {
         console.error(e);
@@ -63,6 +75,7 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
     })();
     return () => {
       cancelled = true;
+      started?.stop();
     };
   }, [reloadSettings]);
 
