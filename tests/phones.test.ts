@@ -375,11 +375,15 @@ describe('EnrichmentEngine (parcours complet)', () => {
     const queue = new EnrichmentQueue(api, engine);
     queue.retryDelayMs = () => 50;
     await api.enqueueEnrichment([p.id]);
-    const run = queue.start();
-    await new Promise((r) => setTimeout(r, 20));
-    const delayed = (await api.queueJobs())[0]!.nextRetryAt;
-    await run;
-    expect(delayed).not.toBeNull();
+    // Tous les états enregistrés (indépendant de la vitesse de la machine)
+    const saved: (string | null)[] = [];
+    const save = api.saveJob.bind(api);
+    api.saveJob = async (job) => {
+      saved.push(job.nextRetryAt ?? null);
+      return save(job);
+    };
+    await queue.start();
+    expect(saved.some((d) => d !== null)).toBe(true);
     expect((await api.queueJobs())[0]).toMatchObject({ status: 'completed', attempts: 2, error: null });
   });
 });
