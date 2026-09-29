@@ -31,8 +31,9 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          # Relais web gratuit (facultatif) : Settings → Secrets and variables → Actions → Variables
-          VITE_WEB_PROXY_URL: ${{ vars.VITE_WEB_PROXY_URL }}
+          # Relais web gratuit (Cloudflare Worker, pas un secret). Une variable de dépôt du même nom le remplace :
+          # Settings → Secrets and variables → Actions → Variables
+          VITE_WEB_PROXY_URL: ${{ vars.VITE_WEB_PROXY_URL || 'https://paysapro-relais.paysapro-prospection.workers.dev' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

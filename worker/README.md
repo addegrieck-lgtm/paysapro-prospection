@@ -7,6 +7,10 @@ Ce relais permet à Paysapro Prospection de lire les **coordonnées publiées pa
 - **Garde-fous** : pages HTML publiques uniquement, `robots.txt` respecté, 1 requête par seconde côté application,
   moteurs de recherche, annuaires et réseaux sociaux **refusés**, adresses privées refusées, origines limitées.
 
+> **Déjà en place** : `https://paysapro-relais.paysapro-prospection.workers.dev`, déployé avec
+> `npx wrangler deploy worker/web-proxy.js --name paysapro-relais --compatibility-date 2026-09-01 --var ALLOWED_ORIGINS:https://addegrieck-lgtm.github.io`
+> (même commande pour une mise à jour) ; adresse renseignée par défaut dans `.github/workflows/deploy.yml`.
+
 ## Déployer (10 minutes)
 
 1. Créez un compte gratuit sur https://dash.cloudflare.com/sign-up (aucune carte bancaire).
