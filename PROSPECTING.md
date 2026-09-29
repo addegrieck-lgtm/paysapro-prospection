@@ -44,7 +44,21 @@ Le passage à un serveur (Supabase, Cloudflare…) ne demande que de réimpléme
 
 ## 2. Base de données
 
-Base IndexedDB `paysapro-prospection`, version 2. Toutes les tables portent `workspace_id` (champ `workspaceId`) et sont indexées dessus.
+Base IndexedDB `paysapro-prospection`, version 4. Toutes les tables portent `workspace_id` (champ `workspaceId`) et sont indexées dessus.
+
+Tables ajoutées en v3 (coordonnées multi-sources) : `company_phones`, `company_emails`, `company_websites` (index workspaceId,
+prospectId, value = numéro +33 / e-mail / domaine ; champs de fraîcheur `foundAt` = premier vu, `lastSeenAt`, `lastCheckedAt`,
+`currency` actuelle / ancienne, `feedback` ✓ / ✗, `matchScore` pour un site). Tables ajoutées en v4 (moteur auto-apprenant) :
+
+| Table | Contenu | Index |
+|---|---|---|
+| `enrichment_strategy_stats` | par stratégie × champ × secteur × région × taille : essais, réussites, trouvées, vérifiées, confirmées, faux positifs, coût, durée, dernière utilisation — **aucune donnée personnelle** | workspaceId |
+| `source_performance` | par source × secteur × champ : recherches, trouvées, vérifiées, faux positifs | workspaceId |
+| `enrichment_feedback` | retours ✓ / ✗ et corrections de fiche : champ, ancienne / nouvelle valeur, source, stratégie, origine | workspaceId, prospectId |
+| `enrichment_attempts` | trace de chaque stratégie exécutée : requête / cible, mode, exploration, résultats, trouvés, vérifiés, requêtes, durée, erreur (jamais le contenu des pages) | workspaceId, prospectId |
+| `contact_history` | changements de valeur principale : ancienne → nouvelle, raison, source, date | workspaceId, prospectId |
+
+Les trois dernières sont supprimées avec le prospect (suppression / anonymisation RGPD) ; les statistiques agrégées sont conservées.
 
 | Table | Contenu | Index |
 |---|---|---|
@@ -112,6 +126,13 @@ at, confidence: high | medium | low }` (équivalent de `field_source`, `field_up
 | `GET/POST /api/duplicates` | `listDuplicates`, `scanDuplicates`, `mergeDuplicate(id, keepId)`, `resolveDuplicate(id, 'ignored' \| 'kept_both')` |
 | `POST /api/prospects/:id/anonymize` | `anonymizeProspect(id)` |
 | `GET /api/companies/search` | `RechercheEntreprisesProvider.search({ q, siren, siret, postalCode, commune, nafCodes, activeOnly })` |
+| `POST /api/enrichment/company/:id` | `EnrichmentEngine.enrichCompany(id, { mode: 'fast' \| 'normal' \| 'max', force, onProgress })` |
+| `POST /api/enrichment/batch` | `enrichmentBatch(filter, priority, 10 \| 100 \| 500 \| 1000)` puis `EnrichmentQueue.add(ids, force, mode)` |
+| `GET /api/enrichment/status/:id` | `queueJobs()`, `QueueProgress` (abonnement `queue.subscribe`) |
+| `GET /api/enrichment/history/:id` | `contactHistory(id)`, `attemptLogs(id)`, `enrichmentLogs(id)` |
+| `POST /api/enrichment/feedback` | `contactFeedback(kind, contactId, 'correct' \| 'incorrect')` (+ correction de fiche via `updateProspect`) |
+| `GET /api/enrichment/statistics` | `strategyStats()`, `sourcePerformance()`, `feedbackList()`, `allContacts()` |
+| `GET /api/enrichment/strategies` | `strategyStats()` + catalogue `STRATEGIES` (`src/domain/strategies.ts`) |
 
 **Performance** : les versions compactes (`prospect_rows`) sont chargées une fois en mémoire ; filtrer / trier / rechercher
 100 000 lignes prend quelques dizaines de millisecondes, seule la page affichée (50 lignes) est rendue. Recherche avec
@@ -271,6 +292,107 @@ Temps moyen 4,8 s par entreprise (médiane 4,0 s, max 20 s), 0 erreur. Chaque nu
 faux positifs trouvés au premier passage (page de 37 agences d'un groupe national, numéros de l'hébergeur et du webmaster
 dans les mentions légales, e-mail d'un thème WordPress) — tous corrigés par les garde-fous du point 4 et couverts par des
 tests. Les micro-entreprises sans site ni fiche OpenStreetMap restent sans téléphone : c'est la limite des sources gratuites.
+
+---
+
+## 6 ter. Moteur auto-apprenant (EnrichmentOrchestrator)
+
+> Recherche automatique des coordonnées professionnelles disponibles. L'IA ne fait que chercher, extraire, comparer,
+> vérifier, noter et CHOISIR ses recherches : elle n'invente jamais un numéro, un e-mail, un site ni une source.
+> Aucune IA payante : l'apprentissage repose sur des statistiques, des pondérations et vos retours.
+
+### Architecture (modules)
+| Module | Fichier |
+|---|---|
+| EnrichmentOrchestrator | `src/data/enrichmentEngine.ts` — boucle adaptative, budgets, arrêt, progression, apprentissage |
+| CompanyIdentityEngine + score de site | `src/domain/identity.ts` |
+| Catalogue des stratégies | `src/domain/strategies.ts` |
+| StrategyLearningEngine (estimations, choix, exploration, mises à jour) | `src/domain/learning.ts` |
+| WebsiteDiscoveryEngine, WebsiteCrawler, ContactPageDetector | `src/providers/company/WebsiteProvider.ts` |
+| PhoneDiscovery / EmailDiscovery (extraction, contexte, tiers, agences) | `src/domain/phone.ts`, `src/domain/webContacts.ts` |
+| ContactVerification / ConfidenceScoring / FalsePositiveDetector | `src/domain/contacts.ts`, `src/domain/identity.ts`, `src/domain/webContacts.ts` |
+| WebSearchEngine, WebResultAnalyzer, repli A → B → C | `src/providers/search/WebSearchProvider.ts` |
+| SourcePerformance, Feedback, Logger, historique | `src/data/repository.ts` (tables v4) |
+| CacheEngine, RateLimitEngine, retry | `src/data/cache.ts`, `src/providers/http.ts`, file `src/data/enrichmentQueue.ts` |
+
+### Algorithme (pour chaque entreprise)
+1. **Identification** (SIRENE) → identité de référence : SIREN, SIRET, raison sociale, nom commercial, adresse, commune, NAF.
+2. **Champs manquants** : téléphone et e-mail sont « trouvés » à partir de 90 % de confiance (ou saisie manuelle), le site à
+   partir d'une correspondance « probable » (70). Ce qui est déjà sûr n'est jamais recherché (site ✓ téléphone ✓ e-mail ✗ →
+   on cherche l'e-mail). En mode **Maximum contact**, téléphones et e-mails restent recherchés (plusieurs numéros pertinents).
+3. **Choix de la stratégie** parmi celles possibles (prérequis, mode, pas déjà faite) :
+   `valeur attendue = Σ P(trouver) × précision × valeur du champ − coût`, estimées sur l'historique du segment le plus précis
+   qui a au moins 10 essais (secteur × région × taille → secteur × région → secteur → global → estimation a priori).
+   **80 %** : la meilleure valeur attendue ; **20 %** (réglable, Paramètres) : exploration de la stratégie la moins essayée.
+4. **Exécution** avec provenance complète (page, stratégie, concordances). Une source en panne n'arrête rien (statut « partiel »).
+5. **Arrêt** : tout est trouvé (≥ 90 %), ou budget du mode atteint, ou plus aucune piste. Entreprise difficile (rien trouvé
+   au bout du budget) : rallonge de 50 %, une fois (sauf Rapide).
+6. **Vérification** : recoupement des sources (+10 par source concordante), numéros partagés (−30), données disparues de leur
+   page lors d'un réenrichissement → « ancienne » (−20, conservée), faux positifs (tiers, autres agences, homonymes).
+7. **Enregistrement** : jamais d'écrasement d'une saisie manuelle (manuel > vérifié > découvert), historique des valeurs remplacées.
+8. **Apprentissage** : statistiques par stratégie et par source, trace de chaque stratégie.
+
+### Stratégies
+Annuaire OpenStreetMap · site connu (accueil, contact, mentions légales) · exploration approfondie (plan du site, devis,
+à propos, services — modes Normal et Maximum) · domaines plausibles : raison sociale, nom commercial, nom + commune,
+nom + activité (« martin-paysage.fr » — Maximum) · 10 requêtes web (« "Nom" "Ville" », « … téléphone », « … email »,
+« … contact », « … paysagiste », « "Nom" "Adresse" », « … "mentions légales" », « … devis », « … "06" », « … "0X" ») qui
+ne s'activent que si un fournisseur de recherche **autorisé** est branché (aucun par défaut : pas de récupération de Google).
+
+### Budgets par mode
+| Mode | Stratégies max | Requêtes max | Durée max |
+|---|---|---|---|
+| Rapide | 3 | 10 | 25 s |
+| Normal | 6 | 24 | 60 s |
+| Maximum contact | 14 | 60 | 150 s |
+
+### Score de correspondance d'un site (0–100, réglable : `WEBSITE_POINTS`, `CONFIDENCE_BANDS`)
+SIREN / SIRET 70 · nom 30 · commune 20 · code postal 15 · rue 15 · numéro déjà connu 25 · activité 10 · domaine formé sur
+le nom 10 · mentions légales 5. 95–100 très forte · 85–94 forte · 70–84 probable · 50–69 incertaine · < 50 faible. Un nom
+seul (même avec activité et domaine) plafonne à « incertaine » : un homonyme d'une autre ville n'est jamais retenu.
+
+### Comment le moteur apprend (sans « faux machine learning »)
+- **Trouvé ≠ correct** : `précision = (vérifiées − faux positifs parmi elles + confirmées sous 80 %) / trouvées`.
+- **Vos retours** : ✓ Correct (confirmée, 100 %), ✗ Incorrect (écartée), ☆ principale. Chaque retour est rattaché à la
+  stratégie et à la source qui avaient trouvé la donnée, dans le segment de l'entreprise ; un changement d'avis annule
+  l'ancien retour (jamais de double comptage).
+- **Signaux CRM (règle explicite)** : une valeur principale trouvée automatiquement puis remplacée ou effacée à la main
+  compte comme incorrecte — sauf un téléphone remplacé par un numéro d'un autre type (fixe ↔ mobile), considéré comme un
+  numéro supplémentaire. Aucun autre événement n'est interprété.
+- Les statistiques changent **réellement** l'ordre des recherches, les stratégies lancées, l'arrêt et le budget (testé :
+  `tests/learning.test.ts › l'apprentissage change réellement l'ordre des recherches`).
+- Données d'apprentissage : compteurs agrégés uniquement (stratégie, source, champ, secteur, région, taille, résultats).
+
+### Écrans
+- **Fiche** : 🚀 ENRICHIR (Rapide / Normal / Maximum contact), Réenrichir, progression en temps réel (Identification ✓,
+  Recherche du site ✓…), résumé Téléphone / E-mail / Site avec statut et confiance, sources, dernière vérification,
+  ✓ / ✗ / ☆ sur chaque coordonnée, « d'où vient cette donnée ? », historique des coordonnées, notification de fin.
+- **Prospects** : ⚡ Enrichir un lot (10 / 100 / 500 / 1000 ; priorité : sans téléphone, sans e-mail, sans site,
+  prioritaires, nouveaux ; mode), ⚡ Enrichir tous, 📞 Maximum contact.
+- **Performance** : couverture et précision (Verified Contact Rate, téléphone / e-mail / site vérifiés, précision mesurée et
+  estimée, faux positifs, recherches par entreprise, erreurs de source), 🧠 Performance de l'IA (meilleures et faibles
+  stratégies, tableau des stratégies et des sources), 📈 Apprentissage (évolution hebdomadaire, corrections, stratégies
+  nouvelles / délaissées, avant / après), 🔧 vue technique (administrateur).
+
+### Test réel du moteur auto-apprenant (29/09/2026, mêmes 72 entreprises qu'en V2, mode Maximum contact, relais local)
+| Échantillon | Entreprises | Avec téléphone | Téléphones (dont 🟢) | E-mails | Sites confirmés |
+|---|---|---|---|---|---|
+| La Rochelle 17000 | 18 | 7 (39 %) | 9 (6) | 6 | 7 |
+| Rouen 76000 | 14 | 1 (7 %) | 1 (1) | 1 | 1 |
+| Bordeaux 33000 | 40 | 6 (15 %) | 8 (8) | 5 | 6 |
+
+9,9 s par entreprise en moyenne (max 26 s), 3,9 stratégies par entreprise, 0 erreur, 0 plantage. Chaque numéro vérifié à la
+main. Par rapport à la V2 : bon site trouvé pour Creat'Nature (creatnature.fr, qui confirme les 2 numéros OpenStreetMap),
++1 e-mail, +1 site ; moins de numéros « 🟢 » à La Rochelle car la pénalité « numéro partagé » s'applique désormais réellement
+(correction d'un plafond mal placé). Un nouveau faux positif détecté (numéro de l'hébergeur sur 3 lignes dans des mentions
+légales) a été corrigé et testé ; le ✗ de l'utilisateur l'a bien compté contre l'exploration approfondie dans le segment
+paysage / Nouvelle-Aquitaine. Les stratégies « domaine nom + commune » et « nom + activité » n'ont rien trouvé sur ces
+72 entreprises : le moteur les délaisse (encore testées par l'exploration).
+
+### Brancher plus tard un service (sans réécrire le moteur)
+Recherche web : implémenter `WebSearchProvider` (clé éventuelle côté relais, jamais dans l'application) et le passer à
+`EnrichmentEngine` (`search`). Vérification d'e-mail / de téléphone, jeux de données publics supplémentaires, LLM (classement
+de pages, désambiguïsation) : même principe — un fournisseur facultatif ; s'il est indisponible, le moteur classique continue.
 
 ---
 
@@ -450,7 +572,12 @@ Il n'y a ni `DATABASE_URL` (base locale) ni `AI_API_KEY` (la clé vit dans le pr
 
 ## 15. Tests
 
-`npm test` — 104 tests (Vitest). V2 : normalisation des téléphones, confiance, extraction depuis un site (dont groupe
+`npm test` — 121 tests (Vitest). Moteur auto-apprenant (`tests/learning.test.ts`) : score de site (bonne entreprise ≠ homonyme,
+nom seul insuffisant), domaines et requêtes par stratégie, précision « trouvé ≠ correct », stratégie forte privilégiée /
+faible explorée, segments, retours et changement d'avis, découverte du site puis téléphone + e-mail (hébergeur écarté),
+enrichissement partiel (seul le champ manquant), modes Maximum / Rapide, homonyme refusé, relais en panne (partiel, sans
+plantage), apprentissage qui change l'ordre des recherches, recherche web avec repli A → B, doublons par site / e-mail,
+parcours complet entreprise → CRM → ✗ / ✓ → statistiques → correction → historique → RGPD, donnée devenue « ancienne ». V2 : normalisation des téléphones, confiance, extraction depuis un site (dont groupe
 multi-agences, hébergeur / webmaster, e-mail de thème, texte encodé), relais web (refus, robots.txt, origines),
 OpenStreetMap (lecture, rapprochement, cache), coordonnées multi-sources, moteur complet, file (nouvel essai différé), export.
 Socle : import CSV (valide, incorrect, colonnes manquantes), import SIRENE (pagination, cache, filtres, 429),

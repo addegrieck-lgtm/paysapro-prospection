@@ -2,7 +2,7 @@
 //
 // Rôle : permettre à l'application (site statique) de lire la page d'accueil / contact / mentions légales du
 // SITE D'UNE ENTREPRISE, ce que le navigateur interdit directement (CORS). Garde-fous :
-//   • GET uniquement, pages HTML publiques (http/https), 1,5 Mo maximum, 10 s maximum ;
+//   • GET uniquement, pages HTML publiques (http/https) et plan du site (sitemap*.xml), 1,5 Mo maximum, 10 s maximum ;
 //   • robots.txt respecté ; identification claire (User-Agent) ;
 //   • moteurs de recherche, annuaires, réseaux sociaux et cartes REFUSÉS (leurs conditions l'interdisent) ;
 //   • adresses privées / locales refusées (sécurité) ;
@@ -69,12 +69,14 @@ export async function handle(request, env = {}, fetchImpl = fetch) {
 
   try {
     const res = await fetchImpl(target.toString(), {
-      headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'fr-FR,fr;q=0.9' },
+      headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml,application/xml;q=0.8','Accept-Language': 'fr-FR,fr;q=0.9' },
       redirect: 'follow',
       signal: AbortSignal.timeout(10_000),
     });
     const type = res.headers.get('content-type') || '';
-    if (!res.ok || !/text\/html|application\/xhtml/i.test(type)) return json({ ok: false, status: res.status, url: res.url || raw, html: '' }, 200, headers);
+    // Pages HTML, plus le plan du site (sitemap*.xml) : il sert uniquement à repérer les pages contact / mentions
+    const sitemap = /\/sitemap[^/]*\.xml$/i.test(target.pathname) && /xml/i.test(type);
+    if (!res.ok || !(/text\/html|application\/xhtml/i.test(type) || sitemap)) return json({ ok: false, status: res.status, url: res.url || raw, html: '' }, 200, headers);
     const final = new URL(res.url || target.toString());
     if (BLOCKED.test(final.hostname)) return json({ ok: false, status: 451, url: final.toString(), html: '', error: 'Redirection vers un site non autorisé' }, 200, headers);
     const reader = res.body.getReader();

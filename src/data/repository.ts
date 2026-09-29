@@ -15,11 +15,16 @@ import type {
   CompanyEmail,
   CompanyPhone,
   CompanyWebsite,
+  ContactChange,
   ContactEvidence,
   DuplicateCandidate,
   DuplicateRule,
+  EnrichmentAttempt,
+  EnrichmentFeedback,
   EnrichmentJob,
   EnrichmentLog,
+  EnrichmentMode,
+  FeedbackType,
   ExclusionReason,
   ImportReport,
   MessageTemplate,
@@ -36,6 +41,8 @@ import type {
   Segment,
   Settings,
   SourceKind,
+  SourcePerformance,
+  StrategyStat,
   SuppressionEntry,
   SuppressionKind,
   TaskPriority,
@@ -48,10 +55,16 @@ import { setScoringContext } from '../domain/scoring';
 import { ProviderError } from '../providers/http';
 import type { CompanyDataProvider, EnrichOutcome } from '../providers/company/CompanyDataProvider';
 import { ENRICHMENT_CONFIG } from '../config';
-import { CONTACT_STORES, type ContactStore } from './db';
+import { CONTACT_STORES, LEARNING_PROSPECT_STORES, type ContactStore } from './db';
 import { applyPrimaryContacts, contactKey, contactsFromFields, newEmail, newPhone, newWebsite, upsertContact, type ContactKind } from '../domain/contactSync';
 import { addEvidence, rescore } from '../domain/contacts';
-import { nationalPhone } from '../domain/phone';
+import { nationalPhone, phoneType, toE164 } from '../domain/phone';
+import { applyFeedback, applyRun, emptyStat, segmentOf, statKey, type RunOutcome } from '../domain/learning';
+import { STRATEGY_BY_ID } from '../domain/strategies';
+
+type AnyContact = CompanyPhone | CompanyEmail | CompanyWebsite;
+export type EnrichPriority = 'all' | 'no_phone' | 'no_email' | 'no_website' | 'priority' | 'new';
+const LEARNING_STORES = ['enrichment_strategy_stats', 'source_performance', ...LEARNING_PROSPECT_STORES] as const;
 
 export interface ContactSet {
   phones: CompanyPhone[];
@@ -180,7 +193,8 @@ export class ProspectsApi {
       | 'enrichment_queue'
       | 'enrichment_logs'
       | 'duplicate_candidates'
-      | ContactStore,
+      | ContactStore
+      | (typeof LEARNING_STORES)[number],
   >(store: S) {
     // (le typage générique d'idb ne sait pas exprimer « toutes ces tables ont un index workspaceId »)
     return this.db.getAllFromIndex(store, 'workspaceId', this.ctx.workspaceId as never);
@@ -229,6 +243,22 @@ export class ProspectsApi {
   /** Identifiants correspondant à un filtre (sélection « tout », segments, campagnes, export). */
   async matchingIds(filter: ProspectFilter, sort?: ProspectQuery['sort']): Promise<string[]> {
     return sortRows((await this.allRows()).filter((r) => matchesFilter(r, filter)), sort).map((r) => r.id);
+  }
+
+  /**
+   * POST /api/enrichment/batch — les N entreprises à enrichir en priorité (filtres actuels) : sans téléphone,
+   * sans e-mail, sans site, prospects prioritaires (score) ou nouveaux. Jamais les fiches de démonstration
+   * ni les « Ne plus contacter ». Par défaut : jamais enrichies d'abord, puis meilleur score.
+   */
+  async enrichmentBatch(filter: ProspectFilter, priority: EnrichPriority, limit: number): Promise<string[]> {
+    let rows = (await this.allRows()).filter((r) => matchesFilter(r, filter) && !r.demo && !r.doNotContact);
+    if (priority === 'no_phone') rows = rows.filter((r) => !r.phone);
+    if (priority === 'no_email') rows = rows.filter((r) => !r.email);
+    if (priority === 'no_website') rows = rows.filter((r) => !r.website);
+    rows.sort((a, b) =>
+      priority === 'new' ? b.createdAt.localeCompare(a.createdAt) : priority === 'priority' ? b.score - a.score : Number(!!a.enrichedAt) - Number(!!b.enrichedAt) || b.score - a.score,
+    );
+    return rows.slice(0, limit).map((r) => r.id);
   }
 
   async countMatching(filter: ProspectFilter): Promise<number> {
@@ -294,9 +324,36 @@ export class ProspectsApi {
     const acts = [this.activity(id, 'updated', changed.length ? `${label} (${changed.length} champ(s))` : label, now)];
     if (next.score !== existing.score) acts.push(this.activity(id, 'score', `Score recalculé : ${existing.score} → ${next.score}`, now));
     await this.write([next], acts);
-    if (changed.some((k) => k === 'phone' || k === 'email' || k === 'website')) await this.syncFieldContacts([next]);
+    const contactFields = (['phone', 'email', 'website'] as const).filter((k) => changed.includes(k));
+    if (contactFields.length) {
+      for (const f of contactFields) await this.correctionSignal(existing, f, next[f], now);
+      await this.syncFieldContacts([next]);
+    }
     this.emit();
     return (await this.getProspect(id)) ?? next;
+  }
+
+  /**
+   * Signal CRM « donnée corrigée » (règle explicite, documentée) : quand l'utilisateur remplace ou efface À LA MAIN
+   * une valeur principale trouvée automatiquement, l'ancienne est comptée comme INCORRECTE pour la stratégie qui
+   * l'avait trouvée — sauf un téléphone remplacé par un numéro d'un autre type (fixe ↔ mobile), considéré comme
+   * un numéro supplémentaire. L'ancienne valeur est conservée dans l'historique.
+   */
+  private async correctionSignal(before: Prospect, field: ContactKind, newValue: string | null, now: string) {
+    const oldValue = before[field];
+    if (!oldValue || oldValue === newValue) return;
+    await this.logChange(before.id, field, oldValue, newValue, newValue ? 'Correction manuelle' : 'Valeur effacée à la main', 'Saisie manuelle', now);
+    if (before.fieldSources[field]?.type === 'manual') return; // l'utilisateur corrige sa propre saisie : pas un signal
+    if (field === 'phone' && newValue) {
+      const a = toE164(oldValue);
+      const b = toE164(newValue);
+      if (a && b && phoneType(a) !== phoneType(b)) return;
+    }
+    const key = contactKey(field, oldValue);
+    const c = (await this.contactsFor(before.id))[`${field === 'phone' ? 'phones' : field === 'email' ? 'emails' : 'websites'}`].find((x) => x.value === key);
+    if (!c || c.manual || c.status === 'rejected') return;
+    await this.recordContactFeedback(before, field, c, 'incorrect', newValue ? 'correction manuelle de la fiche' : 'valeur effacée de la fiche', newValue);
+    await this.db.put(CONTACT_STORE_OF[field], { ...c, status: 'rejected', isPrimary: false, feedback: 'incorrect', updatedAt: now } as never);
   }
 
   async setStatus(id: string, status: ProspectStatus): Promise<Prospect> {
@@ -368,13 +425,14 @@ export class ProspectsApi {
     assertCan(this.ctx.role, 'prospecting.delete');
     const prospects = await this.getProspects(ids);
     if (suppress) for (const p of prospects) await this.addSuppressionFor(p, 'Suppression à la demande (RGPD)');
-    const stores = ['prospects', 'prospect_rows', 'prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates', ...CONTACT_STORES] as const;
+    const stores = ['prospects', 'prospect_rows', 'prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates', ...CONTACT_STORES, ...LEARNING_PROSPECT_STORES] as const;
     const tx = this.db.transaction(stores, 'readwrite');
     const removed = new Set(prospects.map((p) => p.id));
     for (const p of prospects) {
       await tx.objectStore('prospects').delete(p.id);
       await tx.objectStore('prospect_rows').delete(p.id);
-      for (const s of ['prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', ...CONTACT_STORES] as const) {
+      // (les statistiques d'apprentissage, agrégées et sans donnée personnelle, sont conservées)
+      for (const s of ['prospect_notes', 'prospect_activities', 'prospect_tasks', 'enrichment_queue', 'enrichment_logs', ...CONTACT_STORES, ...LEARNING_PROSPECT_STORES] as const) {
         const keys = await tx.objectStore(s).index('prospectId').getAllKeys(p.id);
         for (const k of keys) await tx.objectStore(s).delete(k);
       }
@@ -470,7 +528,7 @@ export class ProspectsApi {
       finishedAt: null,
     };
     const rows = await this.allRows();
-    const index = new DedupeIndex(rows.map((r) => ({ id: r.id, siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address })));
+    const index = new DedupeIndex(rows.map((r) => ({ id: r.id, siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address, website: r.website, email: r.email })));
     const suppressed = await this.suppressionSet();
     const ctx = { workspaceId: this.ctx.workspaceId, user: this.ctx.user };
     const batchSize = opts.batchSize ?? 500;
@@ -489,7 +547,7 @@ export class ProspectsApi {
       const candidates: DuplicateCandidate[] = [];
 
       // Lecture groupée des fiches existantes qui vont être fusionnées
-      const matches = batch.map((l) => (l.input ? index.find({ siret: l.input.siret ?? null, siren: l.input.siren ?? null, phone: l.input.phone ?? null, name: l.input.name ?? '', city: l.input.city ?? null, address: l.input.address ?? null }) : null));
+      const matches = batch.map((l) => (l.input ? index.find({ siret: l.input.siret ?? null, siren: l.input.siren ?? null, phone: l.input.phone ?? null, name: l.input.name ?? '', city: l.input.city ?? null, address: l.input.address ?? null, website: l.input.website ?? null, email: l.input.email ?? null }) : null));
       const toLoad = Array.from(new Set(matches.filter((m) => m && !pending.has(m.id)).map((m) => m!.id)));
       (await this.getProspects(toLoad)).forEach((p) => pending.set(p.id, p));
 
@@ -506,7 +564,7 @@ export class ProspectsApi {
           return;
         }
         // Une ligne précédente du même lot a pu créer la fiche : on relance la recherche.
-        const match = matches[i] ?? index.find({ siret: input.siret ?? null, siren: input.siren ?? null, phone: input.phone ?? null, name: input.name ?? '', city: input.city ?? null, address: input.address ?? null });
+        const match = matches[i] ?? index.find({ siret: input.siret ?? null, siren: input.siren ?? null, phone: input.phone ?? null, name: input.name ?? '', city: input.city ?? null, address: input.address ?? null, website: input.website ?? null, email: input.email ?? null });
         const existing = match ? pending.get(match.id) : undefined;
         const origin = originFor(opts.source, now, opts.source === 'csv' || opts.source === 'enrichment' ? opts.label : undefined);
         if (match && existing && match.exact) {
@@ -536,7 +594,7 @@ export class ProspectsApi {
         }
         pending.set(p.id, p);
         touched.add(p.id);
-        index.add({ id: p.id, siret: p.siret, siren: p.siren, phone: p.phone, name: p.name, city: p.city, address: p.address });
+        index.add({ id: p.id, siret: p.siret, siren: p.siren, phone: p.phone, name: p.name, city: p.city, address: p.address, website: p.website, email: p.email });
         report.added++;
         // Correspondance incertaine (même téléphone, même nom + ville) : doublon potentiel à vérifier, jamais fusionné d'office
         if (match && !match.exact) {
@@ -1004,7 +1062,9 @@ export class ProspectsApi {
   }
 
   /** Ajoute des prospects à la file (sans doublon de tâche en attente). Renvoie le nombre ajouté. */
-  async enqueueEnrichment(ids: string[], force = false, maxPhones = false): Promise<number> {
+  async enqueueEnrichment(ids: string[], force = false, modeOrMax: EnrichmentMode | boolean = 'normal'): Promise<number> {
+    const mode: EnrichmentMode = modeOrMax === true ? 'max' : modeOrMax === false ? 'normal' : modeOrMax;
+    const maxPhones = mode === 'max';
     assertCan(this.ctx.role, 'prospecting.edit');
     const jobs = await this.queueJobs();
     const waiting = new Set(jobs.filter((j) => j.status === 'pending' || j.status === 'processing').map((j) => j.prospectId));
@@ -1022,6 +1082,7 @@ export class ProspectsApi {
           outcome: null,
           force,
           maxPhones,
+          mode,
           attempts: 0,
           error: null,
           nextRetryAt: null,
@@ -1107,7 +1168,7 @@ export class ProspectsApi {
    * détecte les numéros partagés, recalcule la confiance, puis recopie les valeurs principales sur la fiche.
    * Ne remplace jamais une saisie manuelle. Renvoie la fiche mise à jour (non enregistrée).
    */
-  async mergeContacts(p: Prospect, incoming: Partial<ContactSet> = {}, now = this.now()): Promise<{ prospect: Prospect; contacts: ContactSet; created: ContactSet }> {
+  async mergeContacts(p: Prospect, incoming: Partial<ContactSet> = {}, now = this.now(), reason = 'Enrichissement automatique'): Promise<{ prospect: Prospect; contacts: ContactSet; created: ContactSet }> {
     const current = await this.contactsFor(p.id);
     const fromFields = contactsFromFields(p, now);
     const created: ContactSet = { phones: [], emails: [], websites: [] };
@@ -1140,7 +1201,26 @@ export class ProspectsApi {
     const synced = applyPrimaryContacts(p, phones, emails, websites);
     const contacts = { phones: synced.phones, emails: synced.emails, websites: synced.websites };
     await this.saveContacts(p.id, contacts);
+    // Historique : une valeur principale remplacée est conservée (ancienne → nouvelle, raison, source)
+    for (const f of ['phone', 'email', 'website'] as const) {
+      if (p[f] && synced.prospect[f] !== p[f]) await this.logChange(p.id, f, p[f], synced.prospect[f], reason, synced.prospect.fieldSources[f]?.provider ?? null, now);
+    }
     return { prospect: finalize(synced.prospect), contacts, created };
+  }
+
+  private async logChange(prospectId: string, field: ContactKind, oldValue: string | null, newValue: string | null, reason: string, source: string | null, now = this.now()) {
+    await this.db.put('contact_history', { id: uid(), workspaceId: this.ctx.workspaceId, prospectId, field, oldValue, newValue, reason, source, changedAt: now });
+  }
+
+  /**
+   * Fraîcheur : toutes les coordonnées de l'entreprise sont « vérifiées » à cette date ; celles qui n'apparaissent
+   * plus sur la page où elles avaient été trouvées deviennent « anciennes » (conservées, confiance −20).
+   */
+  async refreshContactFreshness(prospectId: string, now: string, historicalIds: string[] = []): Promise<void> {
+    const c = await this.contactsFor(prospectId);
+    const old = new Set(historicalIds);
+    const touch = <T extends AnyContact>(l: T[]) => l.map((x) => (old.has(x.id) ? rescore({ ...x, currency: 'historical' as const, lastCheckedAt: now }) : { ...x, lastCheckedAt: now }));
+    await this.saveContacts(prospectId, { phones: touch(c.phones), emails: touch(c.emails), websites: touch(c.websites) });
   }
 
   /** Recalcule le résumé (téléphone principal, confiance) d'une autre fiche après un changement de ses numéros. */
@@ -1174,7 +1254,8 @@ export class ProspectsApi {
     const p = await this.getProspect(c.prospectId);
     if (!p) throw new Error('Prospect introuvable.');
     const now = this.now();
-    const validated = rescore({ ...c, manual: true, status: 'unverified', evidence: addEvidence(c.evidence, { kind: 'manual', provider: `Validé par ${this.ctx.user}`, url: null, at: now, matched: [] }), updatedAt: now } as CompanyPhone);
+    await this.recordContactFeedback(p, kind, c, 'correct', 'définie comme principale');
+    const validated = rescore({ ...c, manual: true, feedback: 'correct', status: 'unverified', evidence: addEvidence(c.evidence, { kind: 'manual', provider: `Validé par ${this.ctx.user}`, url: null, at: now, matched: [] }), updatedAt: now } as CompanyPhone);
     await this.db.put(store, validated as never);
     const value = kind === 'phone' ? nationalPhone((validated as CompanyPhone).e164) : kind === 'email' ? validated.value : validated.display;
     const fiche: Prospect = { ...p, [kind]: value, fieldSources: { ...p.fieldSources, [kind]: originFor('manual', now, `Validé par ${this.ctx.user}`) } };
@@ -1184,7 +1265,33 @@ export class ProspectsApi {
     return prospect;
   }
 
-  /** « Écarter » : la coordonnée ne correspond pas à l'entreprise ; elle ne sera plus proposée. */
+  /**
+   * « ✓ Correct » : l'utilisateur confirme la coordonnée (confiance 100, jamais remplacée automatiquement).
+   * Le retour est enregistré et compte pour la stratégie qui l'avait trouvée.
+   */
+  async confirmContact(kind: ContactKind, contactId: string): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const store = CONTACT_STORE_OF[kind];
+    const c = this.mine(await this.db.get(store, contactId));
+    if (!c) throw new Error('Coordonnée introuvable.');
+    const p = await this.getProspect(c.prospectId);
+    if (!p) throw new Error('Prospect introuvable.');
+    const now = this.now();
+    await this.recordContactFeedback(p, kind, c, 'correct', '✓ sur la fiche');
+    const confirmed = rescore({ ...c, manual: true, feedback: 'correct', status: 'unverified', evidence: addEvidence(c.evidence, { kind: 'manual', provider: `Confirmé par ${this.ctx.user}`, url: null, at: now, matched: [] }), updatedAt: now } as CompanyPhone);
+    await this.db.put(store, confirmed as never);
+    const { prospect } = await this.mergeContacts(p, {}, now);
+    await this.write([prospect], [this.activity(p.id, 'updated', `${CONTACT_LABEL[kind]} confirmé : ${c.display}`, now)]);
+    this.emit();
+    return prospect;
+  }
+
+  /** POST /api/enrichment/feedback — ✓ correct / ✗ incorrect sur une coordonnée trouvée. */
+  async contactFeedback(kind: ContactKind, contactId: string, type: FeedbackType): Promise<Prospect> {
+    return type === 'correct' ? this.confirmContact(kind, contactId) : this.rejectContact(kind, contactId);
+  }
+
+  /** « ✗ Incorrect » : la coordonnée ne correspond pas à l'entreprise ; elle ne sera plus proposée. */
   async rejectContact(kind: ContactKind, contactId: string): Promise<Prospect> {
     assertCan(this.ctx.role, 'prospecting.edit');
     const store = CONTACT_STORE_OF[kind];
@@ -1193,13 +1300,15 @@ export class ProspectsApi {
     const p = await this.getProspect(c.prospectId);
     if (!p) throw new Error('Prospect introuvable.');
     const now = this.now();
-    await this.db.put(store, { ...c, status: 'rejected', manual: false, isPrimary: false, updatedAt: now } as never);
+    await this.recordContactFeedback(p, kind, c, 'incorrect', '✗ sur la fiche');
+    await this.db.put(store, { ...c, status: 'rejected', manual: false, isPrimary: false, feedback: 'incorrect', updatedAt: now } as never);
     let fiche: Prospect = p;
     if (contactKey(kind, p[kind]) === c.value) {
       fiche = { ...p, [kind]: null, fieldSources: { ...p.fieldSources } };
       delete fiche.fieldSources[kind];
     }
     const { prospect } = await this.mergeContacts(fiche, {}, now);
+    if (p[kind] && prospect[kind] !== p[kind]) await this.logChange(p.id, kind, p[kind], prospect[kind], `Coordonnée déclarée incorrecte (${c.display})`, 'Retour utilisateur', now);
     await this.write([prospect], [this.activity(p.id, 'updated', `${CONTACT_LABEL[kind]} écarté : ${c.display}`, now)]);
     this.emit();
     return prospect;
@@ -1265,6 +1374,106 @@ export class ProspectsApi {
     return { phones: phones as CompanyPhone[], emails: emails as CompanyEmail[], websites: websites as CompanyWebsite[] };
   }
 
+  // ─────────────── Moteur auto-apprenant (GET /api/enrichment/strategies, /statistics, /history) ───────────────
+
+  /** GET /api/enrichment/strategies — statistiques par stratégie × champ × segment. */
+  async strategyStats(): Promise<StrategyStat[]> {
+    return this.byWorkspace('enrichment_strategy_stats') as Promise<StrategyStat[]>;
+  }
+
+  async sourcePerformance(): Promise<SourcePerformance[]> {
+    return this.byWorkspace('source_performance') as Promise<SourcePerformance[]>;
+  }
+
+  async feedbackList(): Promise<EnrichmentFeedback[]> {
+    return ((await this.byWorkspace('enrichment_feedback')) as EnrichmentFeedback[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  /** Traces des stratégies exécutées (vue technique), les plus récentes d'abord. */
+  async attemptLogs(prospectId?: string): Promise<EnrichmentAttempt[]> {
+    const list = prospectId ? (await this.db.getAllFromIndex('enrichment_attempts', 'prospectId', prospectId)).filter((a) => a.workspaceId === this.ctx.workspaceId) : ((await this.byWorkspace('enrichment_attempts')) as EnrichmentAttempt[]);
+    return list.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }
+
+  /** GET /api/enrichment/history/:id — changements de valeur principale (ancienne → nouvelle). */
+  async contactHistory(prospectId: string): Promise<ContactChange[]> {
+    return (await this.db.getAllFromIndex('contact_history', 'prospectId', prospectId)).filter((c) => c.workspaceId === this.ctx.workspaceId).sort((a, b) => b.changedAt.localeCompare(a.changedAt));
+  }
+
+  /**
+   * Enregistre le résultat d'un enrichissement dans l'apprentissage (une transaction) : statistiques par stratégie
+   * et par source, pour le segment de l'entreprise, et une trace par stratégie exécutée.
+   */
+  async recordLearning(p: Prospect, runs: RunOutcome[], attempts: Omit<EnrichmentAttempt, 'id' | 'workspaceId' | 'prospectId'>[]): Promise<void> {
+    const seg = segmentOf(p);
+    const now = this.now();
+    const w = this.ctx.workspaceId;
+    const tx = this.db.transaction(['enrichment_strategy_stats', 'source_performance', 'enrichment_attempts'], 'readwrite');
+    const statStore = tx.objectStore('enrichment_strategy_stats');
+    const touched = new Map<string, StrategyStat>();
+    for (const r of runs) {
+      for (const f of r.targeted) {
+        const id = `${w}|${statKey(r.strategyId, f, seg)}`;
+        if (touched.has(id)) continue;
+        const s = await statStore.get(id);
+        if (s) touched.set(id, s);
+      }
+    }
+    for (const r of runs) applyRun(touched, r, seg, w, now);
+    for (const s of touched.values()) await statStore.put(s);
+    const srcStore = tx.objectStore('source_performance');
+    for (const r of runs) {
+      const def = STRATEGY_BY_ID.get(r.strategyId);
+      if (!def) continue;
+      for (const f of r.targeted) {
+        const id = `${w}|${def.source}|${seg.sector}|${f}`;
+        const s: SourcePerformance = (await srcStore.get(id)) ?? { id, workspaceId: w, source: def.source, sector: seg.sector, field: f, attempts: 0, found: 0, verified: 0, falsePositive: 0, lastUpdated: now };
+        const items = r.produced[f] ?? [];
+        await srcStore.put({ ...s, attempts: s.attempts + 1, found: s.found + items.length, verified: s.verified + items.filter((c) => c >= 80).length, lastUpdated: now });
+      }
+    }
+    for (const a of attempts) await tx.objectStore('enrichment_attempts').put({ ...a, id: uid(), workspaceId: w, prospectId: p.id });
+    await tx.done;
+  }
+
+  /**
+   * Retour utilisateur → apprentissage : la stratégie (et la source) qui avait trouvé la coordonnée gagne une
+   * confirmation ou un faux positif, dans le segment de l'entreprise. Un changement d'avis annule l'ancien retour.
+   */
+  private async recordContactFeedback(p: Prospect, kind: ContactKind, c: AnyContact, type: FeedbackType, origin: string, newValue: string | null = null) {
+    const previous = c.feedback ?? null;
+    if (previous === type) return;
+    const now = this.now();
+    const w = this.ctx.workspaceId;
+    const seg = segmentOf(p);
+    const byStrategy = c.evidence.filter((e) => e.strategy);
+    const tx = this.db.transaction(['enrichment_strategy_stats', 'source_performance', 'enrichment_feedback'], 'readwrite');
+    const statStore = tx.objectStore('enrichment_strategy_stats');
+    const srcStore = tx.objectStore('source_performance');
+    for (const e of byStrategy) {
+      const id = `${w}|${statKey(e.strategy!, kind, seg)}`;
+      const s = (await statStore.get(id)) ?? emptyStat(w, e.strategy!, kind, seg, now);
+      await statStore.put(applyFeedback(s, type, e.score ?? c.confidence, previous));
+      const def = STRATEGY_BY_ID.get(e.strategy!);
+      const sp = def ? await srcStore.get(`${w}|${def.source}|${seg.sector}|${kind}`) : undefined;
+      if (sp) await srcStore.put({ ...sp, falsePositive: Math.max(0, sp.falsePositive + (type === 'incorrect' ? 1 : 0) - (previous === 'incorrect' ? 1 : 0)), lastUpdated: now });
+    }
+    await tx.objectStore('enrichment_feedback').put({
+      id: uid(),
+      workspaceId: w,
+      prospectId: p.id,
+      field: kind,
+      oldValue: c.display,
+      newValue,
+      source: c.evidence.find((e) => e.kind !== 'manual')?.provider ?? null,
+      strategy: byStrategy[0]?.strategy ?? null,
+      feedbackType: type,
+      origin,
+      createdAt: now,
+    });
+    await tx.done;
+  }
+
   // ─────────────── Doublons potentiels ───────────────
 
   private candidate(a: string, b: string, rule: DuplicateRule, now: string): DuplicateCandidate {
@@ -1282,8 +1491,8 @@ export class ProspectsApi {
 
   private async detectDuplicatesOf(p: Prospect) {
     const rows = (await this.allRows()).filter((r) => r.id !== p.id);
-    const index = new DedupeIndex(rows.map((r) => ({ id: r.id, siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address })));
-    const m = index.find({ siret: p.siret, siren: p.siren, phone: p.phone, name: p.name, city: p.city, address: p.address });
+    const index = new DedupeIndex(rows.map((r) => ({ id: r.id, siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address, website: r.website, email: r.email })));
+    const m = index.find({ siret: p.siret, siren: p.siren, phone: p.phone, name: p.name, city: p.city, address: p.address, website: p.website, email: p.email });
     if (m && !(await this.pairExists(m.id, p.id))) await this.db.put('duplicate_candidates', this.candidate(m.id, p.id, m.rule, this.now()));
   }
 
@@ -1296,7 +1505,7 @@ export class ProspectsApi {
     const now = this.now();
     const found: DuplicateCandidate[] = [];
     for (const r of rows) {
-      const keys = { siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address };
+      const keys = { siret: r.siret, siren: r.siren, phone: r.phone, name: r.name, city: r.city, address: r.address, website: r.website, email: r.email };
       const m = index.find(keys, r.id);
       if (m && !known.has(`${m.id}|${r.id}`)) {
         found.push(this.candidate(m.id, r.id, m.rule, now));
@@ -1364,8 +1573,8 @@ export class ProspectsApi {
     await this.addSuppressionFor(p, 'Anonymisation (RGPD)');
     const now = this.now();
     const next = anonymize(p, now);
-    const tx = this.db.transaction(['prospect_notes', 'prospect_tasks', ...CONTACT_STORES], 'readwrite');
-    for (const s of ['prospect_notes', 'prospect_tasks', ...CONTACT_STORES] as const) {
+    const tx = this.db.transaction(['prospect_notes', 'prospect_tasks', ...CONTACT_STORES, ...LEARNING_PROSPECT_STORES], 'readwrite');
+    for (const s of ['prospect_notes', 'prospect_tasks', ...CONTACT_STORES, ...LEARNING_PROSPECT_STORES] as const) {
       const keys = await tx.objectStore(s).index('prospectId').getAllKeys(id);
       for (const k of keys) await tx.objectStore(s).delete(k);
     }
@@ -1401,7 +1610,7 @@ export class ProspectsApi {
     const ids = rows.filter((r) => !onlyDemo || r.demo).map((r) => r.id);
     for (let i = 0; i < ids.length; i += 500) await this.deleteProspects(ids.slice(i, i + 500));
     if (!onlyDemo) {
-      for (const s of ['prospect_segments', 'prospect_campaigns', 'prospect_imports', 'suppression_list', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates', ...CONTACT_STORES] as const) {
+      for (const s of ['prospect_segments', 'prospect_campaigns', 'prospect_imports', 'suppression_list', 'enrichment_queue', 'enrichment_logs', 'duplicate_candidates', ...CONTACT_STORES, ...LEARNING_STORES] as const) {
         const list = await this.byWorkspace(s);
         await Promise.all(list.map((x) => this.db.delete(s, x.id)));
       }

@@ -8,7 +8,10 @@ import type {
   CompanyEmail,
   CompanyPhone,
   CompanyWebsite,
+  ContactChange,
   DuplicateCandidate,
+  EnrichmentAttempt,
+  EnrichmentFeedback,
   EnrichmentJob,
   EnrichmentLog,
   ImportReport,
@@ -20,6 +23,8 @@ import type {
   ProspectTask,
   Segment,
   Settings,
+  SourcePerformance,
+  StrategyStat,
   SuppressionEntry,
 } from '../domain/types';
 import { finalize, toRow, upgradeProspect } from '../domain/prospect';
@@ -72,13 +77,22 @@ export interface ProspectingDB extends DBSchema {
   company_phones: { key: string; value: CompanyPhone; indexes: { workspaceId: string; prospectId: string; value: string } };
   company_emails: { key: string; value: CompanyEmail; indexes: { workspaceId: string; prospectId: string; value: string } };
   company_websites: { key: string; value: CompanyWebsite; indexes: { workspaceId: string; prospectId: string; value: string } };
+  // v4 — moteur auto-apprenant (statistiques agrégées sans donnée personnelle, retours, traces, historique)
+  enrichment_strategy_stats: { key: string; value: StrategyStat; indexes: { workspaceId: string } };
+  source_performance: { key: string; value: SourcePerformance; indexes: { workspaceId: string } };
+  enrichment_feedback: { key: string; value: EnrichmentFeedback; indexes: { workspaceId: string; prospectId: string } };
+  enrichment_attempts: { key: string; value: EnrichmentAttempt; indexes: { workspaceId: string; prospectId: string } };
+  contact_history: { key: string; value: ContactChange; indexes: { workspaceId: string; prospectId: string } };
 }
+
+/** Tables rattachées à un prospect (supprimées avec lui : RGPD) */
+export const LEARNING_PROSPECT_STORES = ['enrichment_feedback', 'enrichment_attempts', 'contact_history'] as const;
 
 export const CONTACT_STORES = ['company_phones', 'company_emails', 'company_websites'] as const;
 export type ContactStore = (typeof CONTACT_STORES)[number];
 
 export const DB_NAME = 'paysapro-prospection';
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 
 export type DB = IDBPDatabase<ProspectingDB>;
 
@@ -169,7 +183,16 @@ export function openProspectingDB(name = DB_NAME): Promise<DB> {
             return step(await cursor.continue());
           });
       }
-      // Migration 4 (exemple futur) : if (oldVersion < 4) { … createIndex / createObjectStore … }
+      // Migration 4 — moteur auto-apprenant : nouvelles tables uniquement (aucune donnée existante modifiée)
+      if (oldVersion < 4) {
+        for (const store of ['enrichment_strategy_stats', 'source_performance'] as const) db.createObjectStore(store, { keyPath: 'id' }).createIndex('workspaceId', 'workspaceId');
+        for (const store of LEARNING_PROSPECT_STORES) {
+          const s = db.createObjectStore(store, { keyPath: 'id' });
+          s.createIndex('workspaceId', 'workspaceId');
+          s.createIndex('prospectId', 'prospectId');
+        }
+      }
+      // Migration 5 (exemple futur) : if (oldVersion < 5) { … createIndex / createObjectStore … }
     },
   });
   const p = Promise.race([opening, blocked]);

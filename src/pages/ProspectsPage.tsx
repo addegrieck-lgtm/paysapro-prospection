@@ -7,7 +7,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Button, ButtonLink } from '../components/ui/Button';
 import { EmptyState, Dialog, useToast } from '../components/ui/Feedback';
 import { Checkbox, TextField, TextArea } from '../components/ui/Form';
-import { EnrichmentBadge, QueueProgressCard } from '../components/enrichment';
+import { BatchEnrichDialog, EnrichmentBadge, QueueProgressCard } from '../components/enrichment';
 import { SidePanel, Skeleton } from '../components/ui/Extras';
 import { FilterPanel } from '../components/FilterPanel';
 import { DemoTag, Pagination, ScoreBadge, StatusBadge, formatDateShort, nf, useAction } from '../components/common';
@@ -45,6 +45,7 @@ export function ProspectsPage() {
   const [sort, setSort] = useState<SortKey>('score');
   const [page, setPage] = useState(1);
   const [panel, setPanel] = useState(false);
+  const [batch, setBatch] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saveSeg, setSaveSeg] = useState(false);
   const [action, setAction] = useState<{ kind: RowAction; prospect: Prospect } | null>(null);
@@ -76,9 +77,9 @@ export function ProspectsPage() {
     if (n !== undefined) toast(n ? `${nf.format(n)} prospect(s) ajouté(s) au CRM (À contacter)` : 'Déjà dans le CRM ou exclus', n ? 'success' : 'info');
   };
 
-  const enrichAll = async (maxPhones: boolean) => {
-    const ids = await api.matchingIds(maxPhones ? { ...effective, phoneStatus: undefined } : effective);
-    const n = await run(() => queue.add(ids, maxPhones, maxPhones));
+  const enrichAll = async (maxContact: boolean) => {
+    const ids = await api.matchingIds(maxContact ? { ...effective, phoneStatus: undefined } : effective);
+    const n = await run(() => queue.add(ids, false, maxContact ? 'max' : 'normal'));
     if (n !== undefined) toast(n ? `${nf.format(n)} prospect(s) en cours d’enrichissement` : 'Déjà en cours d’enrichissement', n ? 'success' : 'info');
   };
 
@@ -147,11 +148,14 @@ export function ProspectsPage() {
         </Button>
         {canEdit && data && data.total > 0 && (
           <>
-            <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={() => enrichAll(false)} title="Enrichir les prospects affichés (filtres actuels)">
+            <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={() => setBatch(true)} title="10, 100, 500 ou 1000 entreprises, par priorité, en mode Rapide / Normal / Maximum contact">
+              ⚡ Enrichir un lot…
+            </Button>
+            <Button size="sm" variant="soft" icon={<Sparkles className="h-4 w-4" />} onClick={() => enrichAll(false)} title="Enrichir les prospects affichés (filtres actuels), mode Normal">
               ⚡ Enrichir tous les prospects ({nf.format(data.total)})
             </Button>
-            <Button size="sm" variant="secondary" icon={<PhoneCall className="h-4 w-4" />} onClick={() => enrichAll(true)} title="Recherche toutes les coordonnées professionnelles disponibles dans les sources configurées">
-              📞 Maximiser les téléphones
+            <Button size="sm" variant="secondary" icon={<PhoneCall className="h-4 w-4" />} onClick={() => enrichAll(true)} title="Mode Maximum contact : plus de stratégies, exploration approfondie des sites, plusieurs numéros et e-mails">
+              📞 Maximum contact
             </Button>
           </>
         )}
@@ -410,6 +414,7 @@ export function ProspectsPage() {
 
       <SaveSegmentDialog open={saveSeg} onClose={() => setSaveSeg(false)} filter={effective} />
       {exportTarget && <ExportDialog ids={exportTarget.ids} label={exportTarget.label} onClose={() => setExportTarget(null)} />}
+      {batch && <BatchEnrichDialog filter={effective} onClose={() => setBatch(false)} />}
 
       {action?.kind === 'message' && <MessageDialog open onClose={() => setAction(null)} prospect={action.prospect} />}
       {action?.kind === 'note' && <NoteDialog open onClose={() => setAction(null)} prospectId={action.prospect.id} />}

@@ -45,6 +45,8 @@ function base(p: Pick<Prospect, 'id' | 'workspaceId'>, value: string, display: s
     foundAt: now,
     verifiedAt: null,
     updatedAt: now,
+    lastSeenAt: now,
+    currency: 'current' as const,
   };
 }
 
@@ -82,6 +84,8 @@ export function upsertContact<T extends CompanyPhone | CompanyEmail | CompanyWeb
     ...('type' in prev && (c as CompanyPhone).type === 'fax' ? { type: 'fax' } : {}),
     // Une coordonnée écartée redevient active seulement si l'utilisateur la saisit lui-même
     status: prev.status === 'rejected' && !c.manual ? 'rejected' : prev.status === 'rejected' ? 'unverified' : prev.status,
+    // Revue sur une source (page, annuaire) ou saisie : elle est de nouveau « actuelle »
+    ...(c.manual || c.evidence.some((e) => e.url) ? { currency: 'current', lastSeenAt: now } : {}),
     updatedAt: now,
   } as T);
   const copy = list.slice();

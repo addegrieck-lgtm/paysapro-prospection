@@ -21,13 +21,14 @@ import {
 } from 'lucide-react';
 import { Button, ButtonLink, IconButton } from '../components/ui/Button';
 import { Card, CardTitle } from '../components/ui/Card';
-import { Alert, ConfirmDialog, Dialog, EmptyState } from '../components/ui/Feedback';
+import { Alert, ConfirmDialog, Dialog, EmptyState, useToast } from '../components/ui/Feedback';
 import { Avatar, Skeleton } from '../components/ui/Extras';
 import { Checkbox } from '../components/ui/Form';
 import { InfoRow, ScoreBadge, StatusBadge, Value, formatDateShort, formatDateTime, useAction } from '../components/common';
 import { MessageDialog, NoteDialog, StatusDialog, TaskDialog } from '../components/dialogs';
 import { EnrichmentBadge, LastEnrichment, SourceLine, WebSearchDialog } from '../components/enrichment';
-import { ConfidenceBadge, ContactsPanel, SourcesPanel } from '../components/ContactsPanel';
+import { ConfidenceBadge, ContactHistoryPanel, ContactSummary, ContactsPanel, EnrichProgress, SourcesPanel } from '../components/ContactsPanel';
+import type { EnrichStage } from '../data/enrichmentEngine';
 import { useApp, useCan, useQuery } from '../app/context';
 import { computeScore, priorityOf } from '../domain/scoring';
 import { contactReasons, prospectingAngle } from '../domain/insights';
@@ -37,7 +38,7 @@ import { departmentLabel, regionName } from '../domain/geo';
 import { NAF_LABELS, PRIORITY_LABEL, SERVICE_LABEL, TASK_TYPE_LABEL, headcountLabel } from '../domain/referentials';
 import { formatPhone } from '../domain/normalize';
 import type { Company } from '../providers/company/CompanyDataProvider';
-import type { Prospect, ProspectTask, SourceKind } from '../domain/types';
+import type { EnrichmentMode, Prospect, ProspectTask, SourceKind } from '../domain/types';
 
 const SOURCE_LABEL: Record<SourceKind, string> = {
   sirene: 'SIRENE (INSEE)',
@@ -81,6 +82,10 @@ export function ProspectPage() {
   const [enriching, setEnriching] = useState(false);
   const [found, setFound] = useState<string[] | null>(null);
   const [candidates, setCandidates] = useState<Company[] | null>(null);
+  const [mode, setMode] = useState<EnrichmentMode>('normal');
+  const [stages, setStages] = useState<EnrichStage[]>([]);
+  const [stageDetail, setStageDetail] = useState<string | null>(null);
+  const toast = useToast();
 
   if (loading && !prospect) return <Skeleton className="h-64" />;
   if (!prospect)
@@ -103,12 +108,27 @@ export function ProspectPage() {
   const enrich = async (force: boolean) => {
     setEnriching(true);
     setFound(null);
-    const r = await run(() => engine.enrichCompany(p.id, { force, maxPhones: force }));
+    setStages([]);
+    setStageDetail(null);
+    const r = await run(() =>
+      engine.enrichCompany(p.id, {
+        force,
+        mode,
+        onProgress: (s, d) => {
+          setStages((prev) => (prev.at(-1) === s ? prev : [...prev.filter((x) => x !== s), s]));
+          setStageDetail(d ?? null);
+        },
+      }),
+    );
     setEnriching(false);
     if (!r) return;
     if (r.candidates?.length) setCandidates(r.candidates);
+    // Notification de fin (§107) : ce qui a été trouvé, sans promesse
+    const c = await api.contactsFor(p.id);
+    const has = (l: { status: string }[]) => l.some((x) => x.status !== 'rejected');
+    toast(`✓ Enrichissement terminé — ${[has(c.phones) ? 'Téléphone trouvé' : 'Téléphone non trouvé', has(c.emails) ? 'E-mail trouvé' : 'E-mail non trouvé', has(c.websites) ? 'Site trouvé' : 'Site non trouvé'].join(' · ')}`);
     const lines = [...(r.error ? [r.error] : []), ...r.details];
-    setFound(lines.length ? lines : [`Aucune nouvelle donnée publique trouvée (étapes : ${r.steps.join(', ')}). Utilisez « Forcer » pour réinterroger toutes les sources, ou « Rechercher sur le web ».`]);
+    setFound(lines.length ? lines : [`Aucune nouvelle donnée publique trouvée (étapes : ${r.steps.join(', ')}). Utilisez « Réenrichir » pour réinterroger toutes les sources, ou « Rechercher sur le web ».`]);
   };
 
   return (
@@ -154,23 +174,39 @@ export function ProspectPage() {
             <EnrichmentBadge status={p.enrichmentStatus} />
             {p.city && <span className="text-sm text-muted">· {p.city}</span>}
           </div>
-          {p.phone && (
+          {p.demo && p.phone && (
             <p className="mt-2 flex flex-wrap items-center gap-2 text-lg font-semibold tabular-nums">
-              📞 {blocked ? formatPhone(p.phone) : <a href={tel ?? undefined} className="text-brand hover:underline">{formatPhone(p.phone)}</a>}
+              📞 {formatPhone(p.phone)}
               <ConfidenceBadge value={p.phoneConfidence} status={p.phoneStatus} />
             </p>
           )}
+          {!p.demo && <ContactSummary prospect={p} blocked={blocked} />}
           <p className="mt-1 text-sm">
             <LastEnrichment at={p.enrichedAt} />
           </p>
         </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-wrap items-center gap-2">
         {canEnrich && (
-          <Button icon={<Sparkles className="h-5 w-5" />} onClick={() => enrich(false)} disabled={enriching}>
-            {enriching ? 'Enrichissement…' : '🚀 Enrichir'}
-          </Button>
+          <>
+            <Button size="lg" icon={<Sparkles className="h-5 w-5" />} onClick={() => enrich(false)} disabled={enriching}>
+              {enriching ? 'Enrichissement…' : '🚀 ENRICHIR'}
+            </Button>
+            <label className="flex items-center gap-1 text-sm text-muted">
+              <span className="sr-only">Mode de recherche</span>
+              <select value={mode} onChange={(e) => setMode(e.target.value as EnrichmentMode)} disabled={enriching} className="min-h-11 rounded-xl border border-line bg-surface px-2 text-sm text-ink">
+                <option value="fast">Rapide (site, téléphone, e-mail)</option>
+                <option value="normal">Normal (équilibré)</option>
+                <option value="max">Maximum contact</option>
+              </select>
+            </label>
+            {p.contactsCheckedAt && (
+              <Button variant="secondary" icon={<RefreshCw className="h-5 w-5" />} onClick={() => enrich(true)} disabled={enriching}>
+                Réenrichir
+              </Button>
+            )}
+          </>
         )}
         {tel && !blocked && (
           <a href={tel} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 font-semibold hover:bg-surface-2">
@@ -206,6 +242,7 @@ export function ProspectPage() {
         )}
       </div>
 
+      {enriching && <EnrichProgress stages={stages} detail={stageDetail} />}
       {found && (
         <div className="mb-4">
           <Alert tone={p.enrichmentStatus === 'failed' ? 'warning' : 'success'} title={p.enrichmentStatus === 'failed' ? 'Enrichissement impossible' : 'Résultat de l’enrichissement'}>
@@ -216,7 +253,7 @@ export function ProspectPage() {
             </ul>
             {canEnrich && p.enrichedAt && (
               <button type="button" onClick={() => enrich(true)} className="mt-2 font-semibold underline">
-                Forcer le réenrichissement (ignorer le cache)
+                Réenrichir (vérifier à nouveau toutes les sources)
               </button>
             )}
           </Alert>
@@ -469,6 +506,7 @@ export function ProspectPage() {
         {/* Colonne droite : intelligence, tâches, notes, historique */}
         <div className="space-y-4">
           <SourcesPanel prospect={p} />
+          <ContactHistoryPanel prospectId={p.id} />
 
           <Card>
             <CardTitle icon={<Lightbulb className="h-5 w-5" />}>Pourquoi contacter cette entreprise ?</CardTitle>

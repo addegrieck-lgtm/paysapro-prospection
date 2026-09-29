@@ -9,11 +9,16 @@ import { assertCan } from '../domain/access';
 import { ENRICHMENT_LABEL } from '../domain/enrichment';
 import { STATUS_LABEL as CONTACT_STATUS_LABEL } from '../domain/contacts';
 import { formatPhone } from '../domain/normalize';
-import type { CompanyPhone } from '../domain/types';
+import type { CompanyEmail, CompanyPhone, CompanyWebsite } from '../domain/types';
 
-type Ctx = { phones: CompanyPhone[] };
+type Ctx = { phones: CompanyPhone[]; emails: CompanyEmail[]; websites: CompanyWebsite[] };
 
 const activePhones = (c: Ctx) => c.phones.filter((x) => x.status !== 'rejected');
+const active = <T extends { status: string }>(l: T[]) => l.filter((x) => x.status !== 'rejected');
+const primaryConfidence = (l: { status: string; isPrimary: boolean; confidence: number }[]) => {
+  const p = active(l).find((x) => x.isPrimary);
+  return p ? `${p.confidence} %` : null;
+};
 
 export const EXPORT_COLUMNS: [string, (p: Prospect, c: Ctx) => unknown][] = [
   ['Entreprise', (p) => p.name],
@@ -32,7 +37,12 @@ export const EXPORT_COLUMNS: [string, (p: Prospect, c: Ctx) => unknown][] = [
   ['Statut téléphone', (p) => (p.phoneStatus ? CONTACT_STATUS_LABEL[p.phoneStatus] : null)],
   ['Source téléphone', (p, c) => activePhones(c).find((x) => x.isPrimary)?.evidence.map((e) => e.provider + (e.url ? ` (${e.url})` : '')).join(' ; ') ?? p.fieldSources.phone?.provider ?? null],
   ['E-mail', (p) => p.email],
+  ['Autres e-mails', (_p, c) => active(c.emails).filter((x) => !x.isPrimary).map((x) => `${x.value} (${x.confidence} %)`).join(' | ') || null],
+  ['Confiance e-mail', (_p, c) => primaryConfidence(c.emails)],
   ['Site web', (p) => p.website],
+  ['Confiance site', (_p, c) => primaryConfidence(c.websites)],
+  ['Sources', (_p, c) => [...new Set([...active(c.phones), ...active(c.emails), ...active(c.websites)].flatMap((x) => x.evidence.map((e) => e.provider)))].join(' ; ') || null],
+  ['Date de vérification des coordonnées', (p) => p.contactsCheckedAt?.slice(0, 10)],
   ['Prénom contact', (p) => p.contactFirstName],
   ['Nom contact', (p) => p.contactLastName],
   ['Google URL', (p) => p.googleUrl],
@@ -70,17 +80,24 @@ export const EXPORT_COLUMNS: [string, (p: Prospect, c: Ctx) => unknown][] = [
 ];
 
 /** Colonnes proposées par défaut dans le choix des colonnes. */
-export const DEFAULT_EXPORT_COLUMNS = ['Entreprise', 'SIREN', 'SIRET', 'Adresse', 'Ville', 'Téléphone principal', 'Téléphones secondaires', 'E-mail', 'Site web', 'Effectif', 'Score', 'Confiance téléphone', 'Source téléphone', 'Date de collecte'];
+export const DEFAULT_EXPORT_COLUMNS = ['Entreprise', 'SIREN', 'SIRET', 'Adresse', 'Ville', 'Téléphone principal', 'Téléphones secondaires', 'E-mail', 'Confiance e-mail', 'Site web', 'Confiance site', 'Effectif', 'Score', 'Confiance téléphone', 'Source téléphone', 'Sources', 'Date de vérification des coordonnées', 'Date de collecte'];
 
 export async function exportProspectsCsv(api: ProspectsApi, ids: string[], columns?: string[]): Promise<string> {
   assertCan(api.ctx.role, 'prospecting.export');
   const COLUMNS = columns?.length ? EXPORT_COLUMNS.filter(([h]) => columns.includes(h)) : EXPORT_COLUMNS;
   const rows: unknown[][] = [];
-  const byProspect = new Map<string, CompanyPhone[]>();
-  for (const ph of (await api.allContacts()).phones) byProspect.set(ph.prospectId, [...(byProspect.get(ph.prospectId) ?? []), ph]);
+  const all = await api.allContacts();
+  const group = <T extends { prospectId: string }>(l: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const x of l) m.set(x.prospectId, [...(m.get(x.prospectId) ?? []), x]);
+    return m;
+  };
+  const phones = group(all.phones);
+  const emails = group(all.emails);
+  const websites = group(all.websites);
   for (let i = 0; i < ids.length; i += 1000) {
     const batch = await api.getProspects(ids.slice(i, i + 1000));
-    batch.forEach((p) => rows.push(COLUMNS.map(([, get]) => get(p, { phones: byProspect.get(p.id) ?? [] }) ?? '')));
+    batch.forEach((p) => rows.push(COLUMNS.map(([, get]) => get(p, { phones: phones.get(p.id) ?? [], emails: emails.get(p.id) ?? [], websites: websites.get(p.id) ?? [] }) ?? '')));
   }
   return toCsv(
     COLUMNS.map(([h]) => h),

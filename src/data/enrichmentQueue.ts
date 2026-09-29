@@ -6,7 +6,7 @@
 // • Un prospect à la fois ; chaque source a son propre limiteur de débit (API officielle, OSM, relais web).
 // • États : pending → processing → completed | partial | failed, avec retry_count (attempts), last_error (error)
 //   et next_retry_at (nextRetryAt) : une erreur temporaire est réessayée plus tard (1 min, 2 min, 4 min), 3 fois.
-import type { EnrichmentJob } from '../domain/types';
+import type { EnrichmentJob, EnrichmentMode } from '../domain/types';
 import type { ProspectsApi } from './repository';
 import type { EnrichmentEngine } from './enrichmentEngine';
 import { ProviderError, sleep } from '../providers/http';
@@ -30,6 +30,8 @@ export interface QueueProgress {
   /** Prospects de la file ayant au moins un téléphone après traitement */
   withPhone: number;
   maxPhones: boolean;
+  /** Mode dominant de la file */
+  mode: EnrichmentMode;
 }
 
 const MAX_ATTEMPTS = 3;
@@ -53,7 +55,8 @@ export function summarize(jobs: EnrichmentJob[], running: boolean, current: stri
     emailsFound: sum('emails'),
     websitesFound: sum('websites'),
     withPhone: count((j) => (j.result?.phones ?? 0) > 0),
-    maxPhones: jobs.some((j) => j.maxPhones),
+    maxPhones: jobs.some((j) => j.maxPhones || j.mode === 'max'),
+    mode: jobs.some((j) => (j.mode ?? (j.maxPhones ? 'max' : 'normal')) === 'max') ? 'max' : jobs.some((j) => j.mode === 'fast') ? 'fast' : 'normal',
   };
 }
 
@@ -107,9 +110,9 @@ export class EnrichmentQueue {
     return p;
   }
 
-  /** Ajoute des prospects et démarre le traitement. */
-  async add(ids: string[], force = false, maxPhones = false): Promise<number> {
-    const n = await this.api.enqueueEnrichment(ids, force, maxPhones);
+  /** Ajoute des prospects et démarre le traitement (mode Rapide / Normal / Maximum contact). */
+  async add(ids: string[], force = false, mode: EnrichmentMode | boolean = 'normal'): Promise<number> {
+    const n = await this.api.enqueueEnrichment(ids, force, mode);
     await this.refresh();
     void this.start();
     return n;
@@ -184,7 +187,7 @@ export class EnrichmentQueue {
   private async process(job: EnrichmentJob, signal: AbortSignal): Promise<EnrichmentJob> {
     const attempts = job.attempts + 1;
     try {
-      const r = await this.engine.enrichCompany(job.prospectId, { force: job.force, maxPhones: job.maxPhones, signal });
+      const r = await this.engine.enrichCompany(job.prospectId, { force: job.force, mode: job.mode ?? (job.maxPhones ? 'max' : 'normal'), signal });
       if (r.error && !r.found.phones && !r.found.emails && !r.found.websites && attempts < MAX_ATTEMPTS) {
         // Indisponibilité temporaire : nouvel essai différé
         return { ...job, attempts, status: 'pending', outcome: 'error', error: r.error, nextRetryAt: new Date(Date.now() + this.retryDelayMs(attempts)).toISOString(), result: r.found };

@@ -8,7 +8,105 @@ import { formatDateShort, formatDateTime, nf, useAction } from './common';
 import { useApp, useQueueProgress } from '../app/context';
 import { ENRICHMENT_BADGE, ENRICHMENT_LABEL } from '../domain/enrichment';
 import { webSearchLinks } from '../domain/links';
-import type { EnrichmentStatus, FieldSource, Prospect } from '../domain/types';
+import type { EnrichmentMode, EnrichmentStatus, FieldSource, Prospect, ProspectFilter } from '../domain/types';
+import type { EnrichPriority } from '../data/repository';
+
+const BATCH_SIZES = [10, 100, 500, 1000];
+const PRIORITY_LABEL: Record<EnrichPriority, string> = {
+  all: 'Jamais enrichies d’abord, puis meilleur score',
+  no_phone: 'Entreprises sans téléphone',
+  no_email: 'Entreprises sans e-mail',
+  no_website: 'Entreprises sans site',
+  priority: 'Prospects prioritaires (meilleur score)',
+  new: 'Nouveaux prospects',
+};
+
+/**
+ * Enrichissement par lots (§51–54) : 10, 100, 500 ou 1000 entreprises, par priorité, en mode Rapide / Normal /
+ * Maximum contact. Traitement en arrière-plan : le CRM reste utilisable (progression « 245 / 1000 »).
+ */
+export function BatchEnrichDialog({ filter, onClose }: { filter: ProspectFilter; onClose: () => void }) {
+  const { api, queue } = useApp();
+  const run = useAction();
+  const [size, setSize] = useState(100);
+  const [priority, setPriority] = useState<EnrichPriority>('all');
+  const [mode, setMode] = useState<EnrichmentMode>('normal');
+  const [busy, setBusy] = useState(false);
+  const launch = async () => {
+    setBusy(true);
+    const ids = await api.enrichmentBatch(filter, priority, size);
+    const n = await run(() => queue.add(ids, false, mode));
+    setBusy(false);
+    if (n !== undefined) onClose();
+  };
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="⚡ Enrichir un lot d’entreprises"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button onClick={launch} disabled={busy}>
+            Enrichir {nf.format(size)} entreprise{size > 1 ? 's' : ''}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-semibold">Combien ?</legend>
+          <div className="flex flex-wrap gap-2">
+            {BATCH_SIZES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={size === s}
+                onClick={() => setSize(s)}
+                className={`min-h-11 rounded-xl border px-4 font-semibold tabular-nums ${size === s ? 'border-brand bg-brand text-on-brand' : 'border-line bg-surface hover:border-brand/50'}`}
+              >
+                {nf.format(s)}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-semibold">En priorité</span>
+          <select value={priority} onChange={(e) => setPriority(e.target.value as EnrichPriority)} className="min-h-11 w-full rounded-xl border border-line bg-surface px-3">
+            {Object.entries(PRIORITY_LABEL).map(([k, l]) => (
+              <option key={k} value={k}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-semibold">Mode</legend>
+          {(
+            [
+              ['fast', 'Rapide', 'site, téléphone, e-mail avec un budget réduit'],
+              ['normal', 'Normal', 'équilibre vitesse, couverture et précision'],
+              ['max', 'Maximum contact', 'plus de stratégies et d’exploration du site, plusieurs numéros et e-mails'],
+            ] as const
+          ).map(([k, l, d]) => (
+            <label key={k} className="flex min-h-11 items-center gap-2">
+              <input type="radio" name="mode" checked={mode === k} onChange={() => setMode(k)} />
+              <span>
+                <span className="font-medium">{l}</span> <span className="text-sm text-muted">— {d}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <p className="text-xs text-muted">
+          Traitement en arrière-plan, une entreprise à la fois, dans le respect des limites des sources gratuites. Vous pouvez continuer à utiliser
+          le CRM. Recherche automatique des coordonnées professionnelles disponibles : tous les numéros ne sont pas publics.
+        </p>
+      </div>
+    </Dialog>
+  );
+}
 
 export function EnrichmentBadge({ status, short }: { status: EnrichmentStatus; short?: boolean }) {
   const b = ENRICHMENT_BADGE[status];

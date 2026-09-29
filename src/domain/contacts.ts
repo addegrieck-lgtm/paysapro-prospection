@@ -5,9 +5,10 @@
 //
 //   Base selon la source        Site officiel 55 · Import CSV 50 · Annuaire public (OSM) 45 · Réseau social 35
 //   Éléments concordants        SIRET/SIREN +25 · site officiel vérifié +15 · adresse +10 · nom +10 · ville +10
-//                               code postal +5 · lien « tel: » +5
+//                               code postal +5 · lien « tel: » +5 · contexte d'appel (« Tél », « Appelez-nous ») +5
 //   Sources indépendantes       +10 par source supplémentaire (max +20)
 //   Numéro partagé              −30 (même numéro chez une autre entreprise)
+//   Donnée ancienne             −20 (n'apparaît plus sur la page où elle avait été trouvée)
 //   Saisie / validation manuelle = 100
 //
 //   ≥ 80 🟢 Vérifié (fortement associé) · 50–79 🟠 À vérifier · < 50 ⚪ Non vérifié
@@ -40,6 +41,7 @@ export const MATCH_POINTS: Record<string, [number, string]> = {
   city: [10, 'même ville'],
   postalCode: [5, 'même code postal'],
   tel_link: [5, 'lien d’appel sur le site'],
+  call_context: [5, 'présenté comme numéro à appeler (« Tél », « Appelez-nous »…)'],
 };
 
 export const THRESHOLDS = { verified: 80, toVerify: 50 };
@@ -81,7 +83,7 @@ export interface ConfidenceResult {
 }
 
 /** Confiance d'une coordonnée à partir de toutes ses preuves. */
-export function computeConfidence(evidence: ContactEvidence[], opts: { manual?: boolean; shared?: boolean } = {}): ConfidenceResult {
+export function computeConfidence(evidence: ContactEvidence[], opts: { manual?: boolean; shared?: boolean; historical?: boolean } = {}): ConfidenceResult {
   const providers = new Set(evidence.map((e) => `${e.kind}|${e.provider}`));
   if (opts.manual || evidence.some((e) => e.kind === 'manual')) {
     return { confidence: 100, status: 'verified', reasons: ['Saisi ou validé manuellement (100)'], sources: providers.size };
@@ -95,9 +97,15 @@ export function computeConfidence(evidence: ContactEvidence[], opts: { manual?: 
     confidence += extra * 10;
     reasons.push(`${providers.size} sources concordantes (+${extra * 10})`);
   }
+  // Plafond AVANT les pénalités : un numéro très bien sourcé mais partagé ou ancien doit réellement baisser
+  confidence = Math.min(99, confidence);
   if (opts.shared) {
     confidence -= 30;
     reasons.push('numéro partagé avec une autre entreprise (−30)');
+  }
+  if (opts.historical) {
+    confidence -= 20;
+    reasons.push('n’apparaît plus sur la page où il avait été trouvé : donnée peut-être ancienne (−20)');
   }
   confidence = Math.max(0, Math.min(99, confidence));
   return { confidence, status: statusOf(confidence), reasons, sources: providers.size };
@@ -117,7 +125,7 @@ type AnyContact = CompanyPhone | CompanyEmail | CompanyWebsite;
 /** Recalcule confiance et statut (sauf coordonnée écartée par l'utilisateur). */
 export function rescore<T extends AnyContact>(c: T): T {
   if (c.status === 'rejected') return c;
-  const r = computeConfidence(c.evidence, { manual: c.manual, shared: c.shared });
+  const r = computeConfidence(c.evidence, { manual: c.manual, shared: c.shared, historical: c.currency === 'historical' });
   return { ...c, confidence: r.confidence, status: r.status, confidenceReasons: r.reasons, verifiedAt: r.status === 'verified' ? (c.verifiedAt ?? c.updatedAt) : null };
 }
 
@@ -134,6 +142,7 @@ export function pickPrimary<T extends AnyContact>(list: T[], isFax: (c: T) => bo
         Number(b.manual) - Number(a.manual) ||
         Number(b.isPrimary && b.manual) - Number(a.isPrimary && a.manual) ||
         b.confidence - a.confidence ||
+        Number((a as CompanyPhone).type === 'mobile') - Number((b as CompanyPhone).type === 'mobile') ||
         kindRank(a) - kindRank(b) ||
         a.foundAt.localeCompare(b.foundAt),
     )[0] ?? null

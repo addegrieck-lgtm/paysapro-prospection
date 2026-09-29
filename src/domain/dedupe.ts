@@ -7,7 +7,8 @@
 //    (Fusionner / Ignorer / Conserver les deux).
 // Deux établissements d'une même entreprise (SIRET différents) et deux SIREN différents ne sont jamais fusionnés.
 import type { DuplicateRule } from './types';
-import { normName, normPhone, normText } from './normalize';
+import { normEmail, normName, normPhone, normText } from './normalize';
+import { domainOf } from './webContacts';
 
 export type MatchRule = DuplicateRule;
 
@@ -18,6 +19,8 @@ export const MATCH_LABEL: Record<MatchRule, string> = {
   name_phone: 'même nom, même ville et même téléphone',
   phone: 'même téléphone',
   name_city: 'même nom et même ville',
+  website: 'même site web',
+  email: 'même e-mail',
 };
 
 /** Correspondances assez sûres pour fusionner automatiquement. */
@@ -31,6 +34,8 @@ export interface DedupeKeys {
   name: string;
   city: string | null;
   address: string | null;
+  website?: string | null;
+  email?: string | null;
 }
 
 export interface Match {
@@ -49,6 +54,8 @@ export class DedupeIndex {
   private byNameAddress = new Map<string, string>();
   private sirenOf = new Map<string, string>();
   private details = new Map<string, { phone: string | null; address: string; city: string }>();
+  private byDomain = new Map<string, string>();
+  private byEmail = new Map<string, string>();
 
   constructor(items: DedupeKeys[] = []) {
     items.forEach((i) => this.add(i));
@@ -72,6 +79,10 @@ export class DedupeIndex {
     }
     if (name && k.city) this.byNameCity.set(`${name}|${normText(k.city)}`, k.id);
     if (name && k.address) this.byNameAddress.set(`${name}|${normText(k.address)}`, k.id);
+    const domain = siteKey(k.website);
+    if (domain) this.byDomain.set(domain, k.id);
+    const email = normEmail(k.email);
+    if (email) this.byEmail.set(email, k.id);
   }
 
   find(k: Omit<DedupeKeys, 'id'>, excludeId?: string): Match | null {
@@ -119,6 +130,25 @@ export class DedupeIndex {
         return { id, rule: 'name_city', exact: !conflict };
       }
     }
+    // Même site ou même e-mail : jamais fusionné d'office (agences d'un même groupe, messagerie partagée…)
+    const domain = siteKey(k.website);
+    if (domain) {
+      const id = this.byDomain.get(domain);
+      if (compatible(id)) return { id, rule: 'website', exact: false };
+    }
+    const email = normEmail(k.email);
+    if (email) {
+      const id = this.byEmail.get(email);
+      if (compatible(id)) return { id, rule: 'email', exact: false };
+    }
     return null;
   }
+}
+
+// Domaines partagés par de nombreuses entreprises (plateformes, réseaux sociaux) : pas une clé de doublon
+const SHARED_HOSTS = /(^|\.)(facebook|instagram|linkedin|google|wixsite|wix|jimdo|jimdofree|site123|webnode|blogspot|wordpress|pagesjaunes|business\.site|free|orange|wanadoo)\.[a-z.]+$/i;
+
+function siteKey(url: string | null | undefined): string | null {
+  const d = domainOf(url);
+  return d && !SHARED_HOSTS.test(d) ? d : null;
 }

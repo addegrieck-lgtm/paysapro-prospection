@@ -125,8 +125,27 @@ export function SettingsPage() {
               Site officiel de l'entreprise : accueil, contact, mentions légales {ENRICHMENT_CONFIG.webProxyUrl ? '' : '(relais web non configuré : voir worker/README.md)'}
             </Checkbox>
             <Checkbox checked={s.providers.websiteDiscovery} onChange={(v) => set('providers')({ ...s.providers, websiteDiscovery: v })}>
-              Rechercher le site officiel quand il est inconnu (domaines plausibles, retenus seulement si la page mentionne le SIREN ou le nom + la commune)
+              Rechercher le site officiel quand il est inconnu (domaines plausibles, retenus seulement si le site correspond à l'entreprise : SIREN, ou nom + commune / adresse)
             </Checkbox>
+            <label className="block pt-2">
+              <span className="block font-medium">
+                Exploration du moteur auto-apprenant : {Math.round((s.exploration ?? 0.2) * 100)} %
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={50}
+                step={5}
+                value={Math.round((s.exploration ?? 0.2) * 100)}
+                onChange={(e) => set('exploration')(Number(e.target.value) / 100)}
+                className="w-full max-w-sm"
+                aria-describedby="exploration-hint"
+              />
+              <span id="exploration-hint" className="block text-xs text-muted">
+                Part des recherches qui testent des stratégies moins connues (pour en découvrir de meilleures) ; le reste utilise les stratégies qui marchent le
+                mieux d'après vos résultats et vos retours ✓ / ✗. Conseillé : 20 %.
+              </span>
+            </label>
             <div className="pt-2">
               <Checkbox checked={s.autoQualify} onChange={set('autoQualify')}>
                 <strong>Ajouter automatiquement les prospects qualifiés au CRM</strong> (statut « À contacter ») : entreprise active + téléphone vérifié 🟢

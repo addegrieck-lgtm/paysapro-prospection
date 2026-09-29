@@ -166,6 +166,10 @@ export interface ContactEvidence {
   at: ISODate;
   /** Éléments concordants constatés sur la source (SIRET, nom, ville, adresse, domaine) */
   matched: string[];
+  /** Stratégie de recherche qui a produit la donnée (apprentissage) */
+  strategy?: StrategyId;
+  /** Confiance de la donnée au moment de sa découverte (précision des stratégies) */
+  score?: number;
 }
 
 interface CompanyContact {
@@ -187,6 +191,14 @@ interface CompanyContact {
   foundAt: ISODate;
   verifiedAt: ISODate | null;
   updatedAt: ISODate;
+  /** Fraîcheur : dernière fois que la donnée a été revue sur une source */
+  lastSeenAt?: ISODate;
+  /** Dernière vérification (réenrichissement de l'entreprise) */
+  lastCheckedAt?: ISODate;
+  /** current : actuelle · historical : n'apparaît plus sur la page où elle avait été trouvée */
+  currency?: 'current' | 'historical';
+  /** Retour de l'utilisateur (✓ correct / ✗ incorrect) — alimente l'apprentissage */
+  feedback?: FeedbackType | null;
 }
 
 export interface CompanyPhone extends CompanyContact {
@@ -201,8 +213,10 @@ export interface CompanyEmail extends CompanyContact {
 }
 
 export interface CompanyWebsite extends CompanyContact {
-  /** Le site mentionne le SIREN / SIRET, ou le nom et la commune de l'entreprise */
+  /** Le site correspond à l'entreprise (score de correspondance ≥ seuil « probable ») */
   verified: boolean;
+  /** Score de correspondance du site avec l'entreprise (0–100, voir domain/identity.ts) */
+  matchScore?: number;
 }
 
 /** Version compacte d'un prospect, gardée en mémoire pour filtrer 100 000 lignes instantanément. */
@@ -301,8 +315,10 @@ export interface EnrichmentJob {
   error: string | null;
   /** next_retry_at : erreur temporaire, nouvel essai différé */
   nextRetryAt: ISODate | null;
-  /** Mode « Maximiser les téléphones » : toutes les sources configurées */
+  /** Ancien mode « Maximiser les téléphones » (= mode « max ») */
   maxPhones: boolean;
+  /** Rapide / Normal / Maximum contact (budget de recherche) */
+  mode?: EnrichmentMode;
   result: EnrichmentFound | null;
   createdAt: ISODate;
   updatedAt: ISODate;
@@ -334,9 +350,16 @@ export interface EnrichmentLog {
   found?: EnrichmentFound;
   /** Étapes exécutées (administratif, annuaire, site, contacts…) */
   steps?: string[];
+  mode?: EnrichmentMode;
+  /** Stratégies exécutées, dans l'ordre choisi par le moteur */
+  strategies?: StrategyId[];
+  /** Requêtes consommées */
+  requests?: number;
+  /** complete : coordonnées trouvées · budget : budget atteint · exhausted : plus de piste · fresh : récent */
+  stoppedBy?: 'complete' | 'budget' | 'exhausted' | 'fresh';
 }
 
-export type DuplicateRule = 'siret' | 'siren' | 'name_address' | 'name_phone' | 'phone' | 'name_city';
+export type DuplicateRule = 'siret' | 'siren' | 'name_address' | 'name_phone' | 'phone' | 'name_city' | 'website' | 'email';
 
 export interface DuplicateCandidate {
   id: ID;
@@ -521,4 +544,133 @@ export interface Settings {
   autoQualify: boolean;
   /** Sources activées pour l'enrichissement */
   providers: { official: boolean; directory: boolean; website: boolean; websiteDiscovery: boolean };
+  /** Part d'exploration du moteur auto-apprenant (0,2 = 20 % des choix testent des stratégies moins connues) */
+  exploration?: number;
+}
+
+// ─── Moteur auto-apprenant : stratégies, statistiques, retours ───
+
+export type EnrichmentMode = 'fast' | 'normal' | 'max';
+export type ContactField = 'phone' | 'email' | 'website';
+export type FeedbackType = 'correct' | 'incorrect';
+
+/** Identifiants des stratégies de recherche (catalogue : domain/strategies.ts) */
+export type StrategyId =
+  | 'osm_directory'
+  | 'site_known'
+  | 'site_deep'
+  | 'domain_name'
+  | 'domain_trade'
+  | 'domain_name_city'
+  | 'domain_activity'
+  | `web_${string}`;
+
+/** Segment d'apprentissage : les performances diffèrent selon le secteur, la région et la taille. */
+export interface Segment3 {
+  sector: string;
+  region: string;
+  size: string;
+}
+
+/**
+ * enrichment_strategy_stats — une ligne par stratégie × champ × segment (secteur, région, taille).
+ * Aucune donnée personnelle : uniquement des compteurs.
+ */
+export interface StrategyStat {
+  id: ID;
+  workspaceId: ID;
+  strategyId: StrategyId;
+  field: ContactField;
+  sector: string;
+  region: string;
+  size: string;
+  /** Essais où le champ était recherché */
+  attempts: number;
+  /** Essais ayant produit au moins une donnée nouvelle */
+  successes: number;
+  /** Données nouvelles produites */
+  found: number;
+  /** Dont confiance ≥ 80 à la découverte */
+  verified: number;
+  /** Confirmées par l'utilisateur (✓) alors qu'elles étaient sous 80 */
+  confirmedLow: number;
+  /** Confirmées par l'utilisateur (toutes) */
+  confirmed: number;
+  /** Déclarées incorrectes (✗ ou corrigées à la main) */
+  falsePositive: number;
+  /** Dont faux positifs parmi les données « vérifiées » (≥ 80) */
+  falsePositiveVerified: number;
+  sumConfidence: number;
+  /** Requêtes consommées (coût) */
+  sumCost: number;
+  sumMs: number;
+  lastUsedAt: ISODate;
+}
+
+/** source_performance — performance par source (OpenStreetMap, site officiel…) × secteur × champ. */
+export interface SourcePerformance {
+  id: ID;
+  workspaceId: ID;
+  source: string;
+  sector: string;
+  field: ContactField;
+  attempts: number;
+  found: number;
+  verified: number;
+  falsePositive: number;
+  lastUpdated: ISODate;
+}
+
+/** enrichment_feedback — retour utilisateur sur une coordonnée trouvée. */
+export interface EnrichmentFeedback {
+  id: ID;
+  workspaceId: ID;
+  prospectId: ID;
+  field: ContactField;
+  oldValue: string | null;
+  newValue: string | null;
+  source: string | null;
+  strategy: StrategyId | null;
+  feedbackType: FeedbackType;
+  /** « ✓ / ✗ sur la fiche », « correction manuelle de la fiche »… */
+  origin: string;
+  createdAt: ISODate;
+}
+
+/** enrichment_attempts — trace de chaque stratégie exécutée (vue technique). Pas de contenu de page. */
+export interface EnrichmentAttempt {
+  id: ID;
+  workspaceId: ID;
+  prospectId: ID;
+  strategyId: StrategyId;
+  provider: string;
+  /** Requête ou cible (domaines testés, URL analysée) */
+  query: string;
+  mode: EnrichmentMode;
+  /** true : choisie par exploration (20 %), false : meilleure stratégie connue */
+  explored: boolean;
+  expectedValue: number;
+  targeted: ContactField[];
+  timestamp: ISODate;
+  resultCount: number;
+  phonesFound: number;
+  emailsFound: number;
+  websitesFound: number;
+  verified: number;
+  requests: number;
+  executionMs: number;
+  error: string | null;
+}
+
+/** contact_history — changement de la valeur principale d'une fiche (ancienne → nouvelle, pourquoi). */
+export interface ContactChange {
+  id: ID;
+  workspaceId: ID;
+  prospectId: ID;
+  field: ContactField;
+  oldValue: string | null;
+  newValue: string | null;
+  reason: string;
+  source: string | null;
+  changedAt: ISODate;
 }

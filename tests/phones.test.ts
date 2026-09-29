@@ -200,7 +200,11 @@ describe('Extraction depuis un site web', () => {
     const ctx = (s: string) => ({ text: s, at: s.length });
     expect(isThirdPartyContact(ctx('Hébergeur : OVH, Roubaix. Éditeur : Jardins Test – Tél : '))).toBe(false);
     expect(isThirdPartyContact(ctx('Site réalisé par Agence Pixel – '))).toBe(true);
-    expect(isThirdPartyContact(ctx('Hébergeur : OVH\nJardins Test – Tél : '))).toBe(false);
+    expect(isThirdPartyContact(ctx('Hébergeur : OVH\nJardins Test – Tél : '), ['Jardins Test'])).toBe(false);
+    // Cas réel : nom, adresse et numéro de l'hébergeur sur trois lignes distinctes
+    expect(isThirdPartyContact(ctx('Le site est hébergé par RésiLien, coopérative.\n11 rue Duphot, 69003 Lyon\n'), ['Jardins Test'])).toBe(true);
+    // … mais jamais au-delà d'une autre coordonnée (elle a son propre intitulé)
+    expect(isThirdPartyContact(ctx('Hébergeur : OVH\n09 72 10 10 07\nJardins Test\n'), [])).toBe(false);
     // Aucun morceau d'adresse issu d'un texte encodé (« u00e9@… »)
     expect(extractEmails('<p>t\\u00e9l\\u00e9phone\\u00e9@vertfictif.test</p>').map((e) => e.email)).toEqual([]);
   });
@@ -324,7 +328,8 @@ describe('EnrichmentEngine (parcours complet)', () => {
     await api.saveSettings({ ...s, autoQualify: true });
     const p = await api.createProspect({ name: 'Jardins Fictifs du Val', siret: '90000000100011' });
     const r = await engineFor(api).enrichCompany(p.id);
-    expect(r.steps).toEqual(expect.arrayContaining(['Administratif', 'Annuaire public (OpenStreetMap)', 'Site officiel', 'Normalisation et vérification des coordonnées', 'Score']));
+    expect(r.steps).toEqual(expect.arrayContaining(['Administratif', 'Normalisation et vérification des coordonnées', 'Score']));
+    expect(r.strategies).toEqual(expect.arrayContaining(['osm_directory', 'site_known']));
     const after = (await api.getProspect(p.id))!;
     expect(after).toMatchObject({ phone: '0235000001', phoneStatus: 'verified', email: 'contact@jardins-fictifs.test', website: 'https://jardins-fictifs.test', websiteVerified: true, facebook: 'https://www.facebook.com/jardinsfictifs', status: 'to_contact' });
     expect(after.qualifiedAt).not.toBeNull();
@@ -341,7 +346,7 @@ describe('EnrichmentEngine (parcours complet)', () => {
     expect(logs.find((l) => l.provider === 'moteur')).toMatchObject({ status: 'enriched', found: { phones: 3 } });
     // Cache : pas de nouvelle recherche de coordonnées ; « Maximiser » la force
     expect((await engineFor(api).enrichCompany(p.id)).steps).toContain('Coordonnées (récentes, conservées)');
-    expect((await engineFor(api).enrichCompany(p.id, { maxPhones: true })).steps).toContain('Site officiel');
+    expect((await engineFor(api).enrichCompany(p.id, { maxPhones: true })).strategies).toContain('site_known');
   });
 
   it('sans relais web ni correspondance : rien n’est inventé', async () => {
@@ -353,7 +358,7 @@ describe('EnrichmentEngine (parcours complet)', () => {
     expect(after.email).toBeNull();
     expect(after.website).toBeNull();
     expect(r.found.phones).toBe(0);
-    expect(r.steps).not.toContain('Site officiel');
+    expect(r.strategies ?? []).not.toContain('site_known');
   });
 
   it('une saisie manuelle n’est jamais remplacée par un numéro trouvé', async () => {

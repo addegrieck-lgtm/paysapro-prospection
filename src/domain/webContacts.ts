@@ -89,10 +89,37 @@ export interface PageIdentity {
   name: boolean;
   city: boolean;
   postalCode: boolean;
+  /** Rue de l'adresse (sans le numéro) */
+  street: boolean;
+  /** Activité concordante (paysage, jardin, élagage… ou mots de l'activité déclarée) */
+  activity: boolean;
+}
+
+export const EMPTY_IDENTITY: PageIdentity = { siren: false, siret: false, name: false, city: false, postalCode: false, street: false, activity: false };
+
+const LANDSCAPE_WORDS = /paysag|jardin|espaces? verts|elag|arbori|amenagement (exterieur|paysager|de jardin)|gazon|engazonnement|haies?\b|tonte|debroussaill|arrosage|clotures?|terrasses?/;
+const GENERIC_WORDS = new Set(['services', 'service', 'entreprise', 'activites', 'activite', 'travaux', 'autres', 'societe', 'commerce', 'installation']);
+
+export type PageCompany = {
+  siren: string | null;
+  siret: string | null;
+  name: string;
+  tradeName?: string | null;
+  city: string | null;
+  postalCode: string | null;
+  address?: string | null;
+  activity?: string | null;
+  nafCode?: string | null;
+};
+
+/** Rue normalisée d'une adresse (« 12 bis rue des Lilas » → « rue des lilas »), null si trop courte. */
+export function streetOf(address: string | null | undefined): string | null {
+  const s = normText(address).replace(/^\d+\s*(bis|ter|b)?\s*/, '').trim();
+  return s.length >= 8 ? s : null;
 }
 
 /** Ce qui, dans la page, correspond à l'entreprise (vérification d'un site). */
-export function pageMentions(html: string, c: { siren: string | null; siret: string | null; name: string; tradeName?: string | null; city: string | null; postalCode: string | null }): PageIdentity {
+export function pageMentions(html: string, c: PageCompany): PageIdentity {
   const text = html.replace(/<[^>]+>/g, ' ');
   const digits = text.replace(/[\s.]/g, '');
   const norm = normText(text);
@@ -100,13 +127,30 @@ export function pageMentions(html: string, c: { siren: string | null; siret: str
     const nn = normName(n!);
     return nn.length >= 4 && normName(text).includes(nn);
   });
+  const street = streetOf(c.address);
+  const landscape = c.nafCode === '81.30Z' || /paysag|jardin|espaces verts/.test(normText(c.activity));
+  const activityWords = normText(c.activity)
+    .split(' ')
+    .filter((w) => w.length >= 7 && !GENERIC_WORDS.has(w));
   return {
     siren: !!c.siren && digits.includes(c.siren),
     siret: !!c.siret && digits.includes(c.siret),
     name: nameOk,
     city: !!c.city && norm.includes(normText(c.city)),
     postalCode: !!c.postalCode && text.includes(c.postalCode),
+    street: !!street && norm.includes(street),
+    activity: landscape ? LANDSCAPE_WORDS.test(norm) : activityWords.some((w) => norm.includes(w)),
   };
+}
+
+/**
+ * Contexte d'appel : « Appelez-nous », « Tél : », « Devis gratuit »… juste avant le numéro.
+ * Un numéro présenté ainsi est très probablement celui de l'entreprise (+5 à la confiance).
+ */
+export function isCallContext(ctx: ItemContext): boolean {
+  let before = ctx.text.slice(Math.max(0, ctx.at - 60), ctx.at);
+  before = before.slice(before.lastIndexOf('\n') + 1);
+  return /appel|t[ée]l[ée]phone|t[ée]l\b|t[ée]l\.|tel\s*:|portable|mobile|joindre|contact|devis|standard|accueil|bureau|📞|☎/i.test(before);
 }
 
 /**
@@ -117,7 +161,7 @@ export function placeDistance(ctx: ItemContext, c: { city: string | null; postal
   // Normalisation qui conserve (presque) les positions : minuscules, accents retirés, ponctuation → espace
   const flat = (s: string) => stripAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ' ');
   const text = flat(ctx.text);
-  const needles = [c.postalCode, c.city ? flat(c.city).replace(/s+/g, ' ').trim() : null].filter((n): n is string => !!n && n.length >= 3);
+  const needles = [c.postalCode, c.city ? flat(c.city).replace(/\s+/g, ' ').trim() : null].filter((n): n is string => !!n && n.length >= 3);
   let best = Infinity;
   for (const n of needles) {
     for (let i = text.indexOf(n); i >= 0; i = text.indexOf(n, i + 1)) {
@@ -140,7 +184,7 @@ export function nearestToPlace<T extends { context: ItemContext }>(items: T[], c
 }
 
 // Mentions légales : hébergeur, webmaster, agence… Leurs coordonnées ne sont pas celles de l'entreprise.
-const THIRD_PARTY = /h[ée]berg|webmaster|r[ée]alis[ée]e? par|r[ée]alisation|conception|concepteur|cr[ée]ation (du|de ce) site|cr[ée]{1,2}e? par|d[ée]velopp[ée]e? par|agence (web|digitale|de communication)|prestataire|hosting|host(ed)? by|designed by|powered by/i;
+const THIRD_PARTY = /h[ée]berg|webmaster|transporteur|fournisseur|revendeur|distributeur|partenaire|urgence|samu|pompiers|gendarmerie|mairie|r[ée]alis[ée]e? par|r[ée]alisation|conception|concepteur|cr[ée]ation (du|de ce) site|cr[ée]{1,2}e? par|d[ée]velopp[ée]e? par|agence (web|digitale|de communication)|prestataire|hosting|host(ed)? by|designed by|powered by/i;
 // Intitulés désignant l'entreprise elle-même (éditeur du site, siège…)
 const OWN = /[ée]diteur|propri[ée]taire|directeur de (la )?publication|responsable de (la )?publication|si[èe]ge|raison sociale|siren|siret|nous contacter|contactez-nous/i;
 
@@ -149,12 +193,30 @@ const OWN = /[ée]diteur|propri[ée]taire|directeur de (la )?publication|respons
  * Dans le même bloc de texte, c'est le DERNIER intitulé qui précède la coordonnée qui compte :
  * « Hébergeur : O2 Switch – Tél : 04… » → tiers ; « Hébergeur : OVH. Éditeur : Jardins X – Tél : 05… » → entreprise.
  */
-export function isThirdPartyContact(ctx: ItemContext): boolean {
-  let before = ctx.text.slice(Math.max(0, ctx.at - 200), ctx.at);
-  before = before.slice(before.lastIndexOf('\n') + 1); // même bloc (paragraphe, ligne…)
+export function isThirdPartyContact(ctx: ItemContext, names: (string | null | undefined)[] = []): boolean {
+  // Le bloc de la coordonnée : sa ligne et jusqu'à 3 lignes au-dessus (nom, adresse de l'hébergeur…), sans jamais
+  // remonter au-delà d'une autre coordonnée (elle appartient à un autre intitulé)
+  const lines = ctx.text.slice(Math.max(0, ctx.at - 240), ctx.at).split('\n');
+  const kept = [lines.pop() ?? ''];
+  while (lines.length && kept.length < 4) {
+    const l = lines.pop()!;
+    if (ITEM_IN_TEXT.test(l)) break;
+    kept.unshift(l);
+  }
+  const before = kept.join('\n');
   const last = (re: RegExp) => Math.max(-1, ...Array.from(before.matchAll(new RegExp(re.source, 'gi')), (m) => m.index ?? 0));
-  return last(THIRD_PARTY) > last(OWN);
+  const third = last(THIRD_PARTY);
+  if (third < 0 || third < last(OWN)) return false;
+  // Le nom de l'entreprise APRÈS l'intitulé du tiers : c'est à nouveau l'entreprise (« Hébergeur : OVH \n Jardins X – Tél »)
+  const after = normName(before.slice(third));
+  return !names.some((n) => {
+    const nn = normName(n ?? '');
+    return nn.length >= 4 && after.includes(nn);
+  });
 }
+
+// Une autre coordonnée (numéro ou e-mail) dans une ligne : limite du bloc
+const ITEM_IN_TEXT = /(?:(?:\+|00)33\s?(?:\(0\)\s?)?[1-9]|0[1-9])(?:[\s.-]?\d{2}){4}|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 
 const WEBMAIL = /@(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|orange|wanadoo|free|sfr|neuf|laposte|bbox|numericable|aol|gmx|protonmail|proton)\.[a-z.]+$/i;
 
@@ -189,6 +251,40 @@ export function domainOf(url: string | null | undefined): string | null {
 }
 
 /** Domaines plausibles construits à partir du nom (VÉRIFIÉS ensuite par le contenu de la page, jamais utilisés tels quels). */
+const STOP_WORDS = ['de', 'du', 'des', 'la', 'le', 'les', 'et', 'l', 'd'];
+
+function nameWords(n: string | null | undefined): string[] {
+  return normName(n ?? '')
+    .split(' ')
+    .filter((w) => w.length > 1 && !STOP_WORDS.includes(w));
+}
+
+/** Variantes « mot-mot » et « motmot » en .fr et .com (jamais une adresse inventée : chaque domaine est ensuite VÉRIFIÉ). */
+function variants(words: string[], tlds = ['fr', 'com']): string[] {
+  if (!words.length || words.join('').length < 5) return [];
+  const out: string[] = [];
+  for (const tld of tlds) for (const d of [`${words.join('-')}.${tld}`, `${words.join('')}.${tld}`]) if (!out.includes(d)) out.push(d);
+  return out;
+}
+
+/**
+ * Domaines plausibles par stratégie (« domain_name », « domain_trade », « domain_name_city », « domain_activity »).
+ * Ce ne sont que des PISTES : un domaine n'est retenu que si le contenu du site correspond à l'entreprise.
+ */
+export function domainCandidates(kind: 'name' | 'trade' | 'name_city' | 'activity', c: { name: string; tradeName?: string | null; city?: string | null }): string[] {
+  const base = nameWords(c.tradeName || c.name);
+  if (kind === 'name') return variants(nameWords(c.name)).slice(0, 4);
+  if (kind === 'trade') return c.tradeName ? variants(nameWords(c.tradeName)).slice(0, 4) : [];
+  if (kind === 'name_city') {
+    const city = nameWords(c.city);
+    return city.length ? variants([...base, ...city], ['fr']).slice(0, 2) : [];
+  }
+  // Activité (paysage) : « martin-paysage.fr », « jardins-martin.fr »…
+  if (!base.length || base.some((w) => /paysag|jardin/.test(w))) return [];
+  const joined = base.join('-');
+  return [`${joined}-paysage.fr`, `${joined}-paysagiste.fr`, `jardins-${joined}.fr`, `${joined}-espaces-verts.fr`];
+}
+
 export function candidateDomains(name: string, tradeName?: string | null): string[] {
   const out: string[] = [];
   for (const n of [tradeName, name].filter(Boolean) as string[]) {
