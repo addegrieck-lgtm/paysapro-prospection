@@ -36,23 +36,30 @@ async function setup(ctx: Partial<RepoContext> = {}) {
 
 const settings = { ...defaultSettings('w1'), signature: 'Adrien\nPaysapro' };
 const cfg = defaultSalesConfig();
+/** Configuration sans aucune formule (tarifs non configurés) */
+const bare: SalesConfig = { ...cfg, offers: [] };
 const withLinks: SalesConfig = { ...cfg, links: { ...cfg.links, demo: 'https://exemple.test/demo', video: 'exemple.test/video' }, image: { dataUrl: null, url: 'https://exemple.test/capture.png', clickable: true } };
 
 describe('Contenu commercial : aucune invention', () => {
   it('ne contient ni prix, ni lien, ni promesse irréaliste par défaut', () => {
     const all = JSON.stringify(cfg);
-    expect(cfg.offers).toEqual([]);
+    // Seule formule pré-remplie : la bêta gratuite annoncée par le produit lui-même
+    expect(cfg.offers.map((o) => [o.name, o.price])).toEqual([['Bêta', '0 €']]);
     expect(Object.values(cfg.links).every((l) => l === '')).toBe(true);
     expect(all).not.toMatch(/https?:\/\//);
-    expect(all).not.toMatch(/\d+\s?€/);
+    expect(all.replace('"0 €"', '')).not.toMatch(/\d+\s?€/);
+    expect(cfg.productName).toBe('Paysapro AI');
+    // Le produit vendu est l'application de devis, pas l'outil de prospection
+    expect(cfg.presentation).toMatch(/devis/);
+    expect(all).not.toMatch(/SIRENE|enrichissement|trouver des prospects/i);
     // « garanti » / « 100 % » n'apparaissent que dans les consignes « À éviter »
     const spoken = [cfg.presentation, cfg.pitch30, cfg.pitch60, ...cfg.entries.flatMap((e) => [e.short, e.long]), ...cfg.objections.flatMap((o) => [o.short, o.long, o.followUp]), ...cfg.arguments.map((a) => a.text), ...cfg.emails.map((e) => e.body)].join(' ');
     expect(riskyWording(spoken)).toEqual([]);
   });
 
-  it('couvre les 16 objections, les 15 questions fréquentes, 6 modèles et les 7 besoins', () => {
+  it('couvre 16 objections, au moins 15 questions fréquentes, 6 modèles et 7 besoins', () => {
     expect(cfg.objections).toHaveLength(16);
-    expect(cfg.entries.filter((e) => e.faq)).toHaveLength(15);
+    expect(cfg.entries.filter((e) => e.faq).length).toBeGreaterThanOrEqual(15);
     expect(cfg.emails).toHaveLength(6);
     expect(cfg.arguments).toHaveLength(7);
     expect(cfg.comparison).toHaveLength(4);
@@ -64,7 +71,7 @@ describe('Contenu commercial : aucune invention', () => {
     expect(c.productName).toBe('Mon outil');
     expect(c.links.demo).toBe('https://a.test');
     expect(c.script.intro).toBe(cfg.script.intro);
-    expect(salesConfig({}).productName).toBe('Paysapro');
+    expect(salesConfig({}).productName).toBe('Paysapro AI');
   });
 });
 
@@ -78,7 +85,7 @@ describe('Personnalisation', () => {
     expect(mail.body).toMatch(/^Bonjour Julie,/);
     expect(mail.body).toContain('comme Jardins du Nord');
     expect(mail.body.endsWith('Adrien\nPaysapro')).toBe(true);
-    expect(buildEmail(cfg.emails[5]!, salesVars(per, cfg)).body).toContain('recherche à Lille');
+    expect(buildEmail(cfg.emails[2]!, salesVars(per, cfg)).body).toContain('un sujet pour Jardins du Nord');
   });
 
   it('prénom inconnu : formule générique, jamais de prénom inventé ; variable inconnue : ligne supprimée', () => {
@@ -88,7 +95,7 @@ describe('Personnalisation', () => {
     expect(mail.body).toMatch(/^Bonjour,\n/);
     expect(mail.body).not.toContain('{{');
     expect(buildEmail(cfg.emails[1]!, vars).body).not.toContain('comme');
-    expect(buildEmail(cfg.emails[5]!, vars).body).toContain('dans votre secteur');
+    expect(buildEmail(cfg.emails[2]!, vars).body).toContain('un sujet pour votre entreprise');
     // Sans résumé d'appel, le paragraphe correspondant disparaît
     expect(buildEmail(cfg.emails[4]!, vars).body).not.toMatch(/\n\n\n/);
     expect(buildEmail(cfg.emails[4]!, { ...vars, resume: 'Vous ciblez la Somme.' }).body).toContain('Vous ciblez la Somme.');
@@ -97,23 +104,24 @@ describe('Personnalisation', () => {
   it('script : question posée rapidement, adapté au profil et à la situation constatée', () => {
     const vars = salesVars({ ...personalizationFor(null, settings, cfg), salesperson: 'Adrien' }, cfg);
     const intro = introScript(cfg, 'independent', 'none', vars);
-    expect(intro).toMatch(/^Bonjour, Adrien de Paysapro\./);
+    expect(intro).toMatch(/^Bonjour, Adrien de Paysapro AI\./);
+    expect(intro).toContain('comment faites-vous vos devis ?');
     expect(intro.trim().endsWith('?')).toBe(true);
     expect(intro.length).toBeLessThan(330);
-    expect(introScript(cfg, 'structure', 'none', vars)).toContain('votre équipe');
-    expect(introScript(cfg, 'independent', 'has_crm', vars)).toContain('déjà un outil de suivi');
-    expect(introScript(cfg, 'independent', 'never_prospected', vars)).toContain('bouche-à-oreille');
+    expect(introScript(cfg, 'structure', 'none', vars)).toContain('qui prépare les devis');
+    expect(introScript(cfg, 'independent', 'has_crm', vars)).toContain('déjà un logiciel de devis');
+    expect(introScript(cfg, 'independent', 'never_prospected', vars)).toContain('à la main ou sur un tableur');
     // Sans nom de commercial : pas de « , de Paysapro » bancal
-    expect(introScript(cfg, 'independent', 'none', salesVars(personalizationFor(null, settings, cfg), cfg))).toMatch(/^Bonjour, ici Paysapro\./);
-    expect(say(cfg.messages.sms, salesVars(personalizationFor(null, settings, cfg), cfg))).toMatch(/^Bonjour, ici Paysapro :/);
+    expect(introScript(cfg, 'independent', 'none', salesVars(personalizationFor(null, settings, cfg), cfg))).toMatch(/^Bonjour, ici Paysapro AI\./);
+    expect(say(cfg.messages.sms, salesVars(personalizationFor(null, settings, cfg), cfg))).toMatch(/^Bonjour, ici Paysapro AI :/);
   });
 
   it('arbre de conversation : réponses du prospect puis options suivantes', () => {
     const roots = treeChildren(cfg, null);
     expect(roots.length).toBeGreaterThanOrEqual(5);
-    const word = roots.find((r) => /bouche-à-oreille/.test(r.prospectSays))!;
-    expect(word.next).toBe('Est-ce que vous cherchez actuellement à développer votre clientèle ?');
-    expect(treeChildren(cfg, word.id).map((c) => c.prospectSays)).toEqual(['Oui, on aimerait se développer.', 'Non, on a assez de travail.']);
+    const evening = roots.find((r) => /le soir/.test(r.prospectSays))!;
+    expect(evening.next).toBe('Combien de temps vous prend un devis, une fois rentré ?');
+    expect(treeChildren(cfg, evening.id).map((c) => c.prospectSays)).toEqual(['Ça me prend beaucoup de temps.', 'Ça va, je suis organisé.']);
   });
 });
 
@@ -127,17 +135,17 @@ describe('E-mail : liens et image configurables', () => {
     expect(html).not.toContain('<a ');
     expect(html).not.toContain('<img');
     expect(emailText(mail.body, cfg)).toBe(mail.body);
-    expect(html).toContain('<li style="margin:0 0 6px">Rechercher des entreprises');
+    expect(html).toContain('<li style="margin:0 0 6px">Photos et mesures prises sur place');
   });
 
   it('avec lien, vidéo et image : boutons « Découvrir » et « Voir la démonstration », image cliquable', () => {
     const html = emailHtml(mail.subject, mail.body, withLinks);
     expect(emailLinks(withLinks)).toEqual([
-      { label: 'Découvrir Paysapro', url: 'https://exemple.test/demo' },
+      { label: 'Découvrir Paysapro AI', url: 'https://exemple.test/demo' },
       { label: 'Voir la démonstration', url: 'https://exemple.test/video' },
     ]);
     expect(html).toContain('<a href="https://exemple.test/demo" target="_blank" rel="noopener"><img src="https://exemple.test/capture.png"');
-    expect(html).toContain('>Découvrir Paysapro</a>');
+    expect(html).toContain('>Découvrir Paysapro AI</a>');
     expect(html).toContain('>Voir la démonstration</a>');
     expect(emailHtml(mail.subject, mail.body, { ...withLinks, image: { ...withLinks.image, clickable: false } })).not.toContain('<a href="https://exemple.test/demo" target="_blank" rel="noopener"><img');
     // Version texte : les liens passent avant la signature
@@ -145,7 +153,7 @@ describe('E-mail : liens et image configurables', () => {
     // Sans signature, le dernier paragraphe reste dans le message et les liens passent à la fin
     expect(emailText('Bonjour,\n\nUn paragraphe.', withLinks).endsWith('https://exemple.test/video')).toBe(true);
     expect(emailHtml(mail.subject, mail.body, withLinks, settings.signature)).toContain('color:#5b6660">Adrien<br>Paysapro</p>');
-    expect(text).toContain('Découvrir Paysapro : https://exemple.test/demo');
+    expect(text).toContain('Découvrir Paysapro AI : https://exemple.test/demo');
     expect(text.endsWith('Adrien\nPaysapro')).toBe(true);
   });
 
@@ -168,13 +176,19 @@ describe('E-mail : liens et image configurables', () => {
 });
 
 describe('Tarifs : jamais de prix codé en dur', () => {
+  it('formule par défaut : bêta gratuite, prix définitif non annoncé', () => {
+    expect(dynamicAnswer('price', cfg)).toMatchObject({ short: 'La formule Bêta : 0 € pendant la bêta.', warning: null });
+    expect(dynamicAnswer('price', cfg).long).toContain('Le prix définitif sera annoncé avant la fin de la bêta.');
+    expect(dynamicAnswer('commitment', cfg).short).toContain('Aucun engagement');
+  });
+
   it('sans formule : aucun chiffre annoncé, avertissement pour le commercial', () => {
-    const a = dynamicAnswer('price', cfg);
+    const a = dynamicAnswer('price', bare);
     expect(a.short).not.toMatch(/\d/);
     expect(a.warning).toMatch(/Aucun tarif/);
-    expect(dynamicAnswer('trial', cfg).warning).toMatch(/ne promettez pas/);
+    expect(dynamicAnswer('trial', bare).warning).toMatch(/ne promettez pas/);
     const objection = cfg.objections.find((o) => o.objection === 'Combien ça coûte ?')!;
-    expect(entryAnswer(objection, cfg, {}).warning).toMatch(/Aucun tarif/);
+    expect(entryAnswer(objection, bare, {}).warning).toMatch(/Aucun tarif/);
   });
 
   it('avec formules : la réponse reprend exactement les valeurs configurées', () => {
@@ -189,26 +203,26 @@ describe('Tarifs : jamais de prix codé en dur', () => {
 describe('Base de connaissances : recherche et réponses', () => {
   const kb = new KnowledgeBaseProvider();
   it.each([
-    ['Il me demande comment vous trouvez les emails.', 'e-emails'],
-    ['Comment Paysapro trouve-t-il les téléphones ?', 'e-phones'],
-    ["c'est légal ?", 'r-legal'],
+    ['Il me demande si ça fait aussi les factures.', 'l-invoice'],
+    ['Comment le client signe le devis ?', 'f-sign'],
+    ['ça marche sans réseau ?', 'f-offline'],
     ['combien ça coûte', 'q-price'],
-    ['on peut être plusieurs commerciaux ?', 'q-team'],
-    ["d'où viennent les données", 'd-sources'],
-    ['je peux importer mon fichier excel ?', 'q-import'],
+    ['on peut utiliser sur plusieurs appareils ?', 'l-devices'],
+    ['mes données sont sauvegardées ?', 'd-storage'],
+    ["c'est une IA qui fait le devis ?", 'f-auto'],
   ])('« %s » → %s', (question, id) => {
     const top = searchKb(cfg, question)[0]!;
     // Une question peut aussi bien renvoyer la fiche de la base que l'objection équivalente
-    const twin: Record<string, string> = { 'q-price': 'o-price', 'r-legal': 'o-legal', 'd-sources': 'o-origin', 'e-phones': 'o-phones', 'e-emails': 'o-emails' };
+    const twin: Record<string, string> = { 'q-price': 'o-price', 'l-invoice': 'o-invoice', 'f-offline': 'o-network', 'f-auto': 'o-ai', 'f-sign': 'o-signature', 'd-storage': 'o-data' };
     expect([id, twin[id]]).toContain(top.item.id);
   });
 
-  it('réponse courte, explication et points à éviter ; jamais de promesse « tous les numéros »', () => {
-    const a = kb.answer('Vous trouvez vraiment les téléphones ?', cfg)!;
-    expect(a.short).toMatch(/publiquement disponibles/);
-    expect(`${a.short} ${a.long}`).not.toMatch(/tous les numéros sont/i);
-    const e = kb.answer('Comment trouvez-vous les emails ?', cfg)!;
-    expect(e.avoid).toMatch(/tout le monde/);
+  it('réponse courte, explication et points à éviter ; les limites de la bêta sont dites', () => {
+    const a = kb.answer('Le client peut signer à distance ?', cfg)!;
+    expect(a.short).toMatch(/^Pas encore/);
+    expect(a.avoid).toMatch(/Ne pas promettre/);
+    const e = kb.answer('Comment le client signe-t-il ?', cfg)!;
+    expect(e.long).toMatch(/pas une signature électronique qualifiée/);
     expect(kb.answer('zzzz qqqq', cfg)).toBeNull();
     expect(searchKb(cfg, '')).toEqual([]);
   });
@@ -216,13 +230,14 @@ describe('Base de connaissances : recherche et réponses', () => {
   it('IA facultative : faits officiels seulement, chiffre ou promesse ajoutés signalés, repli si indisponible', async () => {
     expect(new KnowledgeBaseProvider().canRewrite).toBe(false);
     expect((await new ExternalSalesAIProvider('').rewrite({ task: 'rephrase', text: 'Bonjour', cfg })).provider).toBe('knowledge_base');
-    expect(officialFacts(cfg).join(' ')).toContain('Tarifs : non communiqués.');
+    expect(officialFacts(bare).join(' ')).toContain('Tarifs : non communiqués.');
+    expect(officialFacts(cfg).join(' ')).toContain('La formule Bêta : 0 € pendant la bêta.');
     let sent: { facts: string[]; system: string } | null = null;
     const ai = new ExternalSalesAIProvider('https://proxy.test', async (_u, init) => {
       sent = JSON.parse(init.body);
-      return { ok: true, status: 200, json: async () => ({ text: 'Notre outil garanti trouve 95 % des numéros.' }) };
+      return { ok: true, status: 200, json: async () => ({ text: 'Notre outil garanti fait gagner 95 % du temps.' }) };
     });
-    const r = await ai.rewrite({ task: 'rephrase', text: 'Nous recherchons les numéros publics.', cfg });
+    const r = await ai.rewrite({ task: 'rephrase', text: 'Le devis est préparé pendant la visite.', cfg });
     expect(r.provider).toBe('ai');
     expect(r.warnings.join(' ')).toMatch(/95 %/);
     expect(r.warnings.join(' ')).toMatch(/garanti/);
@@ -300,7 +315,7 @@ describe('CRM : résultat d’appel, relance, historique, permissions', () => {
     await owner.saveSalesConfig({ ...cfg, productName: 'Paysapro Pro' });
     expect(salesConfig(await owner.getSettings()).productName).toBe('Paysapro Pro');
     await owner.saveSalesConfig(undefined);
-    expect(salesConfig(await owner.getSettings()).productName).toBe('Paysapro');
+    expect(salesConfig(await owner.getSettings()).productName).toBe('Paysapro AI');
     const sales = await setup({ role: 'sales' });
     await expect(sales.saveSalesConfig(cfg)).rejects.toThrow(/non autorisée/);
     const viewer = await setup({ role: 'viewer' });

@@ -140,8 +140,8 @@ export function AssistantAdminPage() {
         <Section title="Script d’appel et fins d’appel" hint="Une phrase courte, puis une question : pas de monologue.">
           <TextArea label="Introduction (standard)" value={c.script.intro} onChange={script('intro')} rows={4} />
           <TextArea label="Introduction — entreprise structurée" value={c.script.introStructure} onChange={script('introStructure')} rows={4} />
-          <TextArea label="Introduction — le prospect a déjà un CRM" value={c.script.introHasCrm} onChange={script('introHasCrm')} rows={4} />
-          <TextArea label="Introduction — le prospect n’a jamais prospecté" value={c.script.introNeverProspected} onChange={script('introNeverProspected')} rows={4} />
+          <TextArea label="Introduction — le prospect a déjà un logiciel de devis" value={c.script.introHasCrm} onChange={script('introHasCrm')} rows={4} />
+          <TextArea label="Introduction — le prospect fait ses devis à la main" value={c.script.introNeverProspected} onChange={script('introNeverProspected')} rows={4} />
           <TextArea label="Questions à poser (une par ligne)" value={c.script.questions.join('\n')} onChange={script('questions')} rows={6} />
           <TextArea label="Prochaines étapes (une par ligne)" value={c.script.nextSteps.join('\n')} onChange={script('nextSteps')} rows={4} />
           <TextArea label="Aide du mode débutant (une étape par ligne)" value={c.script.beginnerSteps.join('\n')} onChange={script('beginnerSteps')} rows={6} />

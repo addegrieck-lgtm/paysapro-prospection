@@ -64,7 +64,7 @@ function readMode(): Mode {
 }
 
 const GROUPS: Partial<Record<View, KbCategory[]>> = {
-  fonctionnement: ['fonctionnalites', 'prospection', 'enrichissement', 'crm'],
+  fonctionnement: ['fonctionnalites', 'devis', 'chantiers', 'ia', 'prospection', 'enrichissement', 'crm'],
   rgpd: ['donnees', 'sources', 'rgpd', 'securite', 'limites'],
 };
 
@@ -314,10 +314,10 @@ function Assistant({ id }: { id?: string }) {
                 Standard
               </Chip>
               <Chip selected={situation === 'has_crm'} onClick={() => setSituation('has_crm')}>
-                A déjà un CRM
+                A déjà un logiciel de devis
               </Chip>
               <Chip selected={situation === 'never_prospected'} onClick={() => setSituation('never_prospected')}>
-                N’a jamais prospecté
+                Fait ses devis à la main
               </Chip>
             </div>
           </div>
@@ -421,7 +421,7 @@ function Assistant({ id }: { id?: string }) {
       return (
         <div className="space-y-4">
           <Card>
-            <TextField label="🔎 Que voulez-vous savoir ?" value={question} onChange={setQuestion} placeholder="Ex. Il me demande comment vous trouvez les e-mails" autoFocus />
+            <TextField label="🔎 Que voulez-vous savoir ?" value={question} onChange={setQuestion} placeholder="Ex. Il me demande si ça fait aussi les factures" autoFocus />
             {question.trim().length > 1 && hits.length === 0 && <p className="mt-2 text-sm text-muted">Aucune réponse officielle trouvée. Ne répondez pas au hasard : proposez de revenir vers le prospect avec une réponse précise.</p>}
           </Card>
           {hits.map((h, i) => {
@@ -464,7 +464,7 @@ function Assistant({ id }: { id?: string }) {
       const list = cfg.objections.filter((o) => !n || normText(`${o.objection} ${o.short}`).includes(n));
       return (
         <div className="space-y-3">
-          {!expert && <TextField label="Rechercher une objection" value={objectionQuery} onChange={setObjectionQuery} placeholder="Ex. temps, CRM, prix…" />}
+          {!expert && <TextField label="Rechercher une objection" value={objectionQuery} onChange={setObjectionQuery} placeholder="Ex. temps, logiciel, prix…" />}
           {list.map((o) => {
             const a = entryAnswer(o, cfg, vars);
             return <AnswerCard key={o.id} title={`« ${o.objection} »`} short={a.short} long={a.long} followUp={say(o.followUp, vars)} warning={a.warning} {...card} open={false} />;

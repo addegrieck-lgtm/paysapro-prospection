@@ -14,6 +14,9 @@ import { defaultSalesConfig } from './salesContent';
 export type KbCategory =
   | 'produit'
   | 'fonctionnalites'
+  | 'devis'
+  | 'chantiers'
+  | 'ia'
   | 'tarifs'
   | 'avantages'
   | 'limites'
@@ -29,6 +32,9 @@ export type KbCategory =
 export const KB_CATEGORIES: { id: KbCategory; label: string }[] = [
   { id: 'produit', label: 'Produit' },
   { id: 'fonctionnalites', label: 'Fonctionnalités' },
+  { id: 'devis', label: 'Devis' },
+  { id: 'chantiers', label: 'Chantiers et clients' },
+  { id: 'ia', label: 'Assistant IA' },
   { id: 'tarifs', label: 'Tarifs' },
   { id: 'avantages', label: 'Avantages' },
   { id: 'limites', label: 'Limites' },
@@ -185,7 +191,7 @@ export function safeUrl(u: string | null | undefined): string | null {
 
 export type ProspectKind = 'independent' | 'structure';
 
-/** Situation constatée PAR LE COMMERCIAL pendant l'appel (jamais déduite) */
+/** Situation constatée PAR LE COMMERCIAL pendant l'appel (jamais déduite) : a déjà un logiciel de devis / fait ses devis à la main */
 export type CallSituation = 'none' | 'has_crm' | 'never_prospected';
 
 export interface Personalization {
@@ -311,6 +317,15 @@ const SYNONYMS: Record<string, string> = {
   mails: 'email',
   emails: 'email',
   courriel: 'email',
+  factures: 'facture',
+  facturation: 'facture',
+  signer: 'signe',
+  signature: 'signe',
+  internet: 'reseau',
+  connexion: 'reseau',
+  wifi: 'reseau',
+  mobile: 'telephone',
+  smartphone: 'telephone',
   tel: 'telephone',
   telephones: 'telephone',
   numero: 'telephone',

@@ -603,13 +603,17 @@ contacter aujourd'hui »), marketplace de leads et prospection premium via les q
 
 ## Assistant commercial
 
+L'assistant sert à vendre **Paysapro AI** (l'application de devis pour paysagistes) ; Paysapro Prospection n'est que
+l'outil interne de commercialisation. Le contenu par défaut décrit uniquement ce que fait la bêta de Paysapro AI et dit
+ses limites (un seul appareil, pas de facturation, signature simple, pas de signature à distance).
+
 Menu **Assistant commercial** (`/assistant`), ou bouton **Assistant commercial** d'une fiche prospect (`/assistant/:id`) :
 les informations connues du prospect (entreprise, ville, activité, téléphone, e-mail, site, statut, notes, relances,
 historique) sont alors reprises sans ressaisie.
 
 | Bouton du panneau 🎧 | Contenu |
 |---|---|
-| 🎤 Introduction | script en 5 étapes (ouverture, arbre de conversation, pitch, questions, conclusion) ; variante selon le profil (indépendant / entreprise de 10 personnes et plus, d'après l'effectif de la fiche) et la situation cochée par le commercial (a déjà un CRM, n'a jamais prospecté) |
+| 🎤 Introduction | script en 5 étapes (ouverture, arbre de conversation, pitch, questions, conclusion) ; variante selon le profil (indépendant / entreprise de 10 personnes et plus, d'après l'effectif de la fiche) et la situation cochée par le commercial (a déjà un logiciel de devis, fait ses devis à la main) |
 | ⚡ Pitch 30 sec · 📖 Présenter | pitchs 30 s et 1 min, fiche « en 30 secondes » |
 | ❓ Question du prospect | recherche dans la base de connaissances : réponse courte, explication, « à éviter » |
 | 🛑 Objection | 16 objections : réponse courte, réponse développée, relance |
