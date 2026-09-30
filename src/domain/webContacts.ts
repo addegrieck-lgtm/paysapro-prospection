@@ -271,8 +271,19 @@ function variants(words: string[], tlds = ['fr', 'com']): string[] {
  * Domaines plausibles par stratégie (« domain_name », « domain_trade », « domain_name_city », « domain_activity »).
  * Ce ne sont que des PISTES : un domaine n'est retenu que si le contenu du site correspond à l'entreprise.
  */
-export function domainCandidates(kind: 'name' | 'trade' | 'name_city' | 'activity', c: { name: string; tradeName?: string | null; city?: string | null }): string[] {
+export function domainCandidates(
+  kind: 'name' | 'trade' | 'name_city' | 'name_dept' | 'activity',
+  c: { name: string; tradeName?: string | null; city?: string | null; department?: string | null; postalCode?: string | null },
+): string[] {
   const base = nameWords(c.tradeName || c.name);
+  if (kind === 'name_dept') {
+    // Nom + numéro du département : « clementpaysage76.fr », « clement-paysage-76.fr », « clement-paysage76.fr »
+    const dep = (c.department || c.postalCode?.slice(0, 2) || '').toLowerCase();
+    if (!/^(\d{2,3}|2a|2b)$/.test(dep) || !base.length || base.join('').length < 4) return [];
+    const joined = base.join('');
+    const dashed = base.join('-');
+    return [...new Set([`${joined}${dep}.fr`, `${dashed}-${dep}.fr`, `${dashed}${dep}.fr`, `${joined}${dep}.com`])];
+  }
   if (kind === 'name') return variants(nameWords(c.name)).slice(0, 4);
   if (kind === 'trade') return c.tradeName ? variants(nameWords(c.tradeName)).slice(0, 4) : [];
   if (kind === 'name_city') {

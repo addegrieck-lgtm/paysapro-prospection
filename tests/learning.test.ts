@@ -196,6 +196,23 @@ describe('EnrichmentOrchestrator', () => {
     expect((await api2.getProspect(q.id))!.phone).toBeNull(); // rien d'inventé
   });
 
+  it('site « nom + département » (ex. clementpaysage76.fr) trouvé et vérifié par son contenu', async () => {
+    expect(domainCandidates('name_dept', { name: 'Clement Paysage', department: '76' })).toEqual(['clementpaysage76.fr', 'clement-paysage-76.fr', 'clement-paysage76.fr', 'clementpaysage76.com']);
+    expect(domainCandidates('name_dept', { name: 'BTP', department: '76' })).toEqual([]); // nom trop court
+    expect(domainCandidates('name_dept', { name: 'Martin Jardins' })).toEqual([]); // département inconnu
+    expect(domainCandidates('name_dept', { name: 'Martin Jardins', postalCode: '27100' })[0]).toBe('martinjardins27.fr');
+    const home = `<html><h1>Clément Paysage</h1><p>Paysagiste à Dieppe (76200) — création et entretien d'espaces verts</p>
+      <p>Appelez-nous : <a href="tel:0600000076">06 00 00 00 76</a> · <a href="mailto:contact@clementpaysage76.fr">contact@clementpaysage76.fr</a></p></html>`;
+    const api = await setup();
+    const p = await company(api, { name: 'CLEMENT PAYSAGE', siren: '890000000', address: '30 rue Fictive', postalCode: '76200', city: 'Dieppe', department: '76' });
+    const r = await engine(api, { 'https://clementpaysage76.fr': home }).enrichCompany(p.id, { rng: exploit });
+    expect(r.strategies).toContain('domain_name_dept');
+    const c = await api.contactsFor(p.id);
+    expect(c.websites[0]).toMatchObject({ value: 'clementpaysage76.fr', verified: true });
+    expect(c.phones[0]).toMatchObject({ value: '+33600000076', status: 'verified' });
+    expect(c.emails[0]!.value).toBe('contact@clementpaysage76.fr');
+  });
+
   it('homonyme dans une autre ville : site refusé, aucune coordonnée attribuée', async () => {
     const api = await setup();
     const p = await company(api);
@@ -248,6 +265,48 @@ describe('EnrichmentOrchestrator', () => {
     const fb = new FallbackSearchProvider([failing, search]);
     expect(await fb.search('x')).toHaveLength(2);
     expect(new FallbackSearchProvider([]).enabled).toBe(false);
+  });
+});
+
+describe('Coller une fiche Google', () => {
+  const PASTE = `Clément Paysage
+4,9
+(27)
+Paysagiste
+Adresse : 30 Rue Fictive, 76200 Dieppe
+Horaires : Ouvert ⋅ Ferme à 18:00
+Site Web : clementpaysage76.fr
+Téléphone : 06 00 00 00 76
+https://maps.app.goo.gl/AbCdEf123`;
+
+  it('extraction (téléphone, site, note, avis, lien) et contrôle d’homonyme', async () => {
+    const { parseGoogleCard, matchCard } = await import('../src/domain/googleCard');
+    const c = parseGoogleCard(PASTE);
+    expect(c).toMatchObject({ websites: ['clementpaysage76.fr'], emails: [], rating: 4.9, reviews: 27, googleUrl: 'https://maps.app.goo.gl/AbCdEf123' });
+    expect(c.phones).toEqual([{ e164: '+33600000076', mobile: true }]);
+    expect(parseGoogleCard('Jardins X · 4.6 ★★★★★ 1 204 avis · contact@jardins-x.fr · https://www.jardins-x.fr/ · https://facebook.com/jx')).toMatchObject({ rating: 4.6, reviews: 1204, emails: ['contact@jardins-x.fr'], websites: ['jardins-x.fr'], facebook: 'https://facebook.com/jx' });
+    const who = { name: 'CLEMENT PAYSAGE', postalCode: '76200', city: 'Dieppe' };
+    expect(matchCard(PASTE, who).verdict).toBe('match');
+    // Homonyme de Faverolles (28) : jamais pris pour celui de Dieppe
+    expect(matchCard('Paysage Clément\nZAC des Bouleaux, 28210 Faverolles\n02 00 00 00 28', who)).toMatchObject({ verdict: 'mismatch', otherPostalCodes: ['28210'] });
+  });
+
+  it('enregistrement comme saisie (100 %), puis le moteur lit le site pour trouver l’e-mail', async () => {
+    const { parseGoogleCard } = await import('../src/domain/googleCard');
+    const home = `<html><h1>Clément Paysage</h1><p>Paysagiste à Dieppe (76200)</p><p>Tél : <a href="tel:0600000076">06 00 00 00 76</a> · <a href="mailto:contact@clementpaysage76.fr">contact@clementpaysage76.fr</a></p></html>`;
+    const api = await setup();
+    const p = await company(api, { name: 'CLEMENT PAYSAGE', siren: '890000000', postalCode: '76200', city: 'Dieppe', department: '76' });
+    const card = parseGoogleCard(PASTE);
+    const after = await api.applyGoogleCard(p.id, { phones: card.phones.map((x) => x.e164), website: card.websites[0]!, emails: [], googleUrl: card.googleUrl, rating: card.rating, reviews: card.reviews, facebook: null, instagram: null });
+    expect(after).toMatchObject({ phone: '0600000076', phoneConfidence: 100, googleRating: 4.9, googleReviews: 27, googleUrl: 'https://maps.app.goo.gl/AbCdEf123' });
+    expect(after.fieldSources.googleRating?.provider).toBe('Fiche Google (collée par vous)');
+    const r = await engine(api, { 'https://clementpaysage76.fr': home }).enrichCompany(p.id, { force: true, rng: exploit });
+    expect(r.strategies).toEqual(['site_known']);
+    const c = await api.contactsFor(p.id);
+    expect(c.emails[0]).toMatchObject({ value: 'contact@clementpaysage76.fr', status: 'verified' });
+    // Le téléphone collé est confirmé par le site (deux sources) et reste la saisie de l'utilisateur
+    expect(c.phones[0]!.evidence.map((e) => e.provider).sort()).toEqual(['Fiche Google (collée par vous)', 'Site officiel']);
+    expect(c.websites[0]).toMatchObject({ value: 'clementpaysage76.fr', manual: true });
   });
 });
 

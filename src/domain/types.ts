@@ -562,6 +562,7 @@ export type StrategyId =
   | 'domain_name'
   | 'domain_trade'
   | 'domain_name_city'
+  | 'domain_name_dept'
   | 'domain_activity'
   | `web_${string}`;
 

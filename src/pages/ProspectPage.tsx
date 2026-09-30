@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Ban,
   Check,
+  ClipboardPaste,
   Compass,
   EyeOff,
   Globe,
@@ -27,7 +28,7 @@ import { Checkbox } from '../components/ui/Form';
 import { InfoRow, ScoreBadge, StatusBadge, Value, formatDateShort, formatDateTime, useAction } from '../components/common';
 import { MessageDialog, NoteDialog, StatusDialog, TaskDialog } from '../components/dialogs';
 import { EnrichmentBadge, LastEnrichment, SourceLine, WebSearchDialog } from '../components/enrichment';
-import { ConfidenceBadge, ContactHistoryPanel, ContactSummary, ContactsPanel, EnrichProgress, SourcesPanel } from '../components/ContactsPanel';
+import { ConfidenceBadge, ContactHistoryPanel, ContactSummary, ContactsPanel, EnrichProgress, GoogleCardDialog, SourcesPanel } from '../components/ContactsPanel';
 import type { EnrichStage } from '../data/enrichmentEngine';
 import { useApp, useCan, useQuery } from '../app/context';
 import { computeScore, priorityOf } from '../domain/scoring';
@@ -85,6 +86,7 @@ export function ProspectPage() {
   const [mode, setMode] = useState<EnrichmentMode>('normal');
   const [stages, setStages] = useState<EnrichStage[]>([]);
   const [stageDetail, setStageDetail] = useState<string | null>(null);
+  const [googleCard, setGoogleCard] = useState(false);
   const toast = useToast();
 
   if (loading && !prospect) return <Skeleton className="h-64" />;
@@ -206,6 +208,9 @@ export function ProspectPage() {
                 Réenrichir
               </Button>
             )}
+            <Button variant="secondary" icon={<ClipboardPaste className="h-5 w-5" />} onClick={() => setGoogleCard(true)} disabled={enriching}>
+              Coller une fiche Google
+            </Button>
           </>
         )}
         {tel && !blocked && (
@@ -243,6 +248,17 @@ export function ProspectPage() {
       </div>
 
       {enriching && <EnrichProgress stages={stages} detail={stageDetail} />}
+      {googleCard && (
+        <GoogleCardDialog
+          prospect={p}
+          onClose={() => setGoogleCard(false)}
+          onSaved={() => {
+            setGoogleCard(false);
+            // Le site collé est lu et vérifié, l'e-mail et les autres numéros recherchés
+            void enrich(true);
+          }}
+        />
+      )}
       {found && (
         <div className="mb-4">
           <Alert tone={p.enrichmentStatus === 'failed' ? 'warning' : 'success'} title={p.enrichmentStatus === 'failed' ? 'Enrichissement impossible' : 'Résultat de l’enrichissement'}>

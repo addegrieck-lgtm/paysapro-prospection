@@ -16,6 +16,9 @@ import type { CompanyEmail, CompanyPhone, CompanyWebsite, Prospect } from '../do
 import type { ContactKind } from '../domain/contactSync';
 import { OSM_ATTRIBUTION } from '../providers/company/OpenStreetMapProvider';
 import { STAGE_LABEL, type EnrichStage } from '../data/enrichmentEngine';
+import { matchCard, parseGoogleCard } from '../domain/googleCard';
+import { displayPhone } from '../domain/phone';
+import { googleMapsSearchUrl } from '../domain/links';
 
 type AnyContact = CompanyPhone | CompanyEmail | CompanyWebsite;
 
@@ -105,6 +108,131 @@ export function EnrichProgress({ stages, detail }: { stages: EnrichStage[]; deta
         })}
       </ul>
     </div>
+  );
+}
+
+/**
+ * 📋 Coller une fiche Google : l'utilisateur copie lui-même la fiche (l'application ne lit jamais Google),
+ * l'application en extrait téléphone, site, e-mail, note et avis, vérifie qu'elle correspond à l'entreprise,
+ * enregistre les éléments cochés, puis le moteur lit et vérifie le site (onSaved).
+ */
+export function GoogleCardDialog({ prospect, onClose, onSaved }: { prospect: Prospect; onClose: () => void; onSaved: () => void }) {
+  const { api } = useApp();
+  const run = useAction();
+  const [text, setText] = useState('');
+  const [picked, setPicked] = useState<Set<string> | null>(null);
+  const card = text.trim().length > 10 ? parseGoogleCard(text) : null;
+  const match = card ? matchCard(text, prospect) : null;
+  const items = card
+    ? [
+        ...card.phones.map((p) => ({ key: `p:${p.e164}`, label: `📞 ${displayPhone(p.e164)}${p.mobile ? ' (mobile)' : ''}` })),
+        ...card.websites.slice(0, 1).map((w) => ({ key: `w:${w}`, label: `🌐 ${w}` })),
+        ...card.emails.map((m) => ({ key: `e:${m}`, label: `✉ ${m}` })),
+      ]
+    : [];
+  // Par défaut tout est coché, sauf si la fiche ressemble à celle d'un homonyme
+  const selected = picked ?? new Set(match?.verdict === 'mismatch' ? [] : items.map((i) => i.key));
+  const toggle = (k: string) => {
+    const next = new Set(selected);
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    setPicked(next);
+  };
+  const save = async () => {
+    if (!card) return;
+    const r = await run(
+      () =>
+        api.applyGoogleCard(prospect.id, {
+          phones: card.phones.filter((p) => selected.has(`p:${p.e164}`)).map((p) => p.e164),
+          website: card.websites.find((w) => selected.has(`w:${w}`)) ?? null,
+          emails: card.emails.filter((m) => selected.has(`e:${m}`)),
+          googleUrl: card.googleUrl,
+          rating: card.rating,
+          reviews: card.reviews,
+          facebook: card.facebook,
+          instagram: card.instagram,
+        }),
+      'Fiche Google enregistrée : recherche des autres éléments…',
+    );
+    if (r) onSaved();
+  };
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="📋 Coller une fiche Google"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Annuler
+          </Button>
+          <Button onClick={save} disabled={!card || (selected.size === 0 && !card.rating && !card.googleUrl)}>
+            Enregistrer et rechercher le reste
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3 text-sm">
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>
+            <a href={googleMapsSearchUrl(prospect)} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand hover:underline">
+              Ouvrir la recherche Google Maps <ExternalLink className="inline h-3.5 w-3.5" />
+            </a>{' '}
+            et ouvrez la fiche de l'entreprise.
+          </li>
+          <li>Sélectionnez le bloc de la fiche (nom, note, adresse, site, téléphone…), copiez-le et collez-le ci-dessous. Ajoutez le lien de la fiche (« Partager ») si vous le souhaitez.</li>
+        </ol>
+        <label className="block">
+          <span className="sr-only">Texte de la fiche Google</span>
+          <textarea
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              setPicked(null);
+            }}
+            rows={7}
+            autoFocus
+            placeholder={'Clément Paysage\n4,9 (27)\nPaysagiste\n30 Rue …, 76200 Dieppe\nexemple.fr\n06 00 00 00 00'}
+            className="w-full rounded-xl border border-line bg-surface p-3 font-mono text-xs"
+          />
+        </label>
+        {card && match && (
+          <>
+            <p className={`rounded-xl p-2 ${match.verdict === 'match' ? 'bg-success-soft text-success' : match.verdict === 'mismatch' ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'}`}>
+              {match.verdict === 'match'
+                ? `✓ La fiche correspond à l'entreprise (${[match.name && 'nom', match.postalCode && 'code postal', match.city && 'commune'].filter(Boolean).join(', ')}).`
+                : match.verdict === 'mismatch'
+                  ? `⚠ Code postal différent (${match.otherPostalCodes.join(', ')} au lieu de ${prospect.postalCode ?? '?'}) : probablement un homonyme. Rien n'est coché ; vérifiez avant d'enregistrer.`
+                  : '⚠ Correspondance incertaine (nom, code postal ou commune absents du texte collé) : vérifiez les éléments avant d’enregistrer.'}
+            </p>
+            {items.length ? (
+              <fieldset className="space-y-1">
+                <legend className="font-semibold">Éléments trouvés dans le texte collé</legend>
+                {items.map((i) => (
+                  <label key={i.key} className="flex min-h-10 items-center gap-2">
+                    <input type="checkbox" checked={selected.has(i.key)} onChange={() => toggle(i.key)} />
+                    <span className="tabular-nums">{i.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            ) : (
+              <p className="text-muted">Aucun téléphone, site ni e-mail dans le texte collé.</p>
+            )}
+            {(card.rating || card.googleUrl) && (
+              <p className="text-muted">
+                {card.rating ? `⭐ Note ${String(card.rating).replace('.', ',')}${card.reviews ? ` (${card.reviews} avis)` : ''}` : ''}
+                {card.rating && card.googleUrl ? ' · ' : ''}
+                {card.googleUrl ? 'lien de la fiche Google' : ''}
+              </p>
+            )}
+            <p className="text-xs text-muted">
+              Les éléments cochés sont enregistrés comme votre saisie (100 %, jamais remplacés automatiquement). Ensuite, le moteur lit le site pour
+              vérifier qu'il correspond à l'entreprise et chercher l'e-mail et les autres numéros.
+            </p>
+          </>
+        )}
+      </div>
+    </Dialog>
   );
 }
 

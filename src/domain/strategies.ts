@@ -20,7 +20,7 @@ export interface StrategyDef {
   /** Requêtes estimées (coût) */
   cost: number;
   modes: EnrichmentMode[];
-  requires?: 'known_site' | 'verified_site' | 'no_verified_site' | 'trade_name' | 'city' | 'landscape' | 'search_provider';
+  requires?: 'known_site' | 'verified_site' | 'no_verified_site' | 'trade_name' | 'city' | 'department' | 'landscape' | 'search_provider';
   /** Estimation a priori : probabilité de trouver, précision attendue */
   prior: { success: number; precision: number };
   /** Modèle de requête web (stratégies web uniquement) */
@@ -94,6 +94,18 @@ export const STRATEGIES: StrategyDef[] = [
     modes: ['normal', 'max'],
     requires: 'city',
     prior: { success: 0.05, precision: 0.85 },
+  },
+  {
+    // Forme très courante chez les artisans : « clementpaysage76.fr », « jardins-martin-27.fr »
+    id: 'domain_name_dept',
+    label: 'Site : domaine nom + département (ex. clementpaysage76.fr)',
+    kind: 'discovery',
+    source: 'Site officiel',
+    fields: ['website', 'phone', 'email'],
+    cost: 4,
+    modes: ALL,
+    requires: 'department',
+    prior: { success: 0.08, precision: 0.85 },
   },
   {
     id: 'domain_activity',

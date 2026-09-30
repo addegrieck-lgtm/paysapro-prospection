@@ -468,7 +468,7 @@ export class EnrichmentEngine {
   }
 
   private domains(def: StrategyDef, c: Prospect): string[] {
-    const kind = def.id === 'domain_trade' ? 'trade' : def.id === 'domain_name_city' ? 'name_city' : def.id === 'domain_activity' ? 'activity' : 'name';
+    const kind = def.id === 'domain_trade' ? 'trade' : def.id === 'domain_name_city' ? 'name_city' : def.id === 'domain_name_dept' ? 'name_dept' : def.id === 'domain_activity' ? 'activity' : 'name';
     return domainCandidates(kind, c);
   }
 }

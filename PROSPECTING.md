@@ -335,9 +335,18 @@ tests. Les micro-entreprises sans site ni fiche OpenStreetMap restent sans tél�
 ### Stratégies
 Annuaire OpenStreetMap · site connu (accueil, contact, mentions légales) · exploration approfondie (plan du site, devis,
 à propos, services — modes Normal et Maximum) · domaines plausibles : raison sociale, nom commercial, nom + commune,
-nom + activité (« martin-paysage.fr » — Maximum) · 10 requêtes web (« "Nom" "Ville" », « … téléphone », « … email »,
+nom + département (« clementpaysage76.fr », forme très courante chez les artisans — tous modes), nom + activité
+(« martin-paysage.fr » — Maximum) · 10 requêtes web (« "Nom" "Ville" », « … téléphone », « … email »,
 « … contact », « … paysagiste », « "Nom" "Adresse" », « … "mentions légales" », « … devis », « … "06" », « … "0X" ») qui
 ne s'activent que si un fournisseur de recherche **autorisé** est branché (aucun par défaut : pas de récupération de Google).
+
+### Coller une fiche Google
+L'application ne lit jamais Google. Sur la fiche prospect, **Coller une fiche Google** ouvre Google Maps dans un nouvel
+onglet ; vous copiez vous-même le texte de la fiche de l'entreprise et le collez. L'application en extrait téléphone(s),
+site, e-mail, Facebook / Instagram, lien, note et nombre d'avis, puis vérifie que la fiche correspond (nom + code postal ou
+commune) : un autre code postal affiche un avertissement « homonyme probable ». Vous cochez ce qui doit être gardé ; ces
+coordonnées sont enregistrées comme une saisie manuelle (source « Fiche Google (collée par vous) », jamais écrasée) et
+l'enrichissement repart aussitôt pour lire le site collé et y chercher l'e-mail et les autres numéros. Gratuit, sans clé.
 
 ### Budgets par mode
 | Mode | Stratégies max | Requêtes max | Durée max |

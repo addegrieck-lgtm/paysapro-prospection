@@ -1181,9 +1181,11 @@ export class ProspectsApi {
       }
       return l;
     };
-    let phones = merge(current.phones, [...fromFields.phones, ...(incoming.phones ?? [])], created.phones);
-    const emails = merge(current.emails, [...fromFields.emails, ...(incoming.emails ?? [])], created.emails);
-    const websites = merge(current.websites, [...fromFields.websites, ...(incoming.websites ?? [])], created.websites);
+    // Valeur de la fiche déjà connue comme saisie de l'utilisateur : pas de seconde preuve « Saisie manuelle »
+    const fresh = <T extends CompanyPhone | CompanyEmail | CompanyWebsite>(from: T[], known: T[]) => from.filter((c) => !(c.manual && known.some((k) => k.value === c.value && k.manual)));
+    let phones = merge(current.phones, [...fresh(fromFields.phones, current.phones), ...(incoming.phones ?? [])], created.phones);
+    const emails = merge(current.emails, [...fresh(fromFields.emails, current.emails), ...(incoming.emails ?? [])], created.emails);
+    const websites = merge(current.websites, [...fresh(fromFields.websites, current.websites), ...(incoming.websites ?? [])], created.websites);
     // Numéro partagé par plusieurs entreprises : jamais attribué d'office, confiance réduite partout
     phones = await Promise.all(
       phones.map(async (ph) => {
@@ -1328,6 +1330,46 @@ export class ProspectsApi {
     await this.write([prospect], [this.activity(p.id, 'updated', `${CONTACT_LABEL[kind]} ajouté manuellement : ${c.display}`, now)]);
     this.emit();
     return prospect;
+  }
+
+  /**
+   * « Coller une fiche Google » : l'utilisateur a copié lui-même la fiche ; les éléments qu'il a cochés sont
+   * enregistrés comme SA saisie (confiance 100, jamais remplacée automatiquement), avec la provenance
+   * « Fiche Google (collée par vous) ». Note, avis et lien Google complètent la fiche. Le site est ensuite
+   * vérifié et lu par le moteur (appel séparé, pour afficher la progression).
+   */
+  async applyGoogleCard(
+    prospectId: string,
+    card: { phones: string[]; website: string | null; emails: string[]; googleUrl: string | null; rating: number | null; reviews: number | null; facebook: string | null; instagram: string | null },
+  ): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const p = await this.getProspect(prospectId);
+    if (!p) throw new Error('Prospect introuvable.');
+    const now = this.now();
+    const e: ContactEvidence = { kind: 'manual', provider: 'Fiche Google (collée par vous)', url: card.googleUrl, at: now, matched: [] };
+    const incoming: ContactSet = {
+      phones: card.phones.map((x) => newPhone(p, x, e, now)).filter((c): c is CompanyPhone => !!c),
+      emails: card.emails.map((x) => newEmail(p, x, e, now)).filter((c): c is CompanyEmail => !!c),
+      websites: card.website ? [newWebsite(p, card.website, e, now)].filter((c): c is CompanyWebsite => !!c) : [],
+    };
+    const origin = originFor('manual', now, 'Fiche Google (collée par vous)');
+    const extra: Partial<Prospect> = { googleCheckedAt: now };
+    const sources = { ...p.fieldSources };
+    const set = <K extends 'googleUrl' | 'googleRating' | 'googleReviews' | 'facebook' | 'instagram'>(k: K, v: Prospect[K] | null, onlyIfEmpty = false) => {
+      if (v === null || v === undefined || (onlyIfEmpty && p[k])) return;
+      (extra as Record<string, unknown>)[k] = v;
+      sources[k] = origin;
+    };
+    set('googleUrl', card.googleUrl);
+    set('googleRating', card.rating);
+    set('googleReviews', card.reviews);
+    set('facebook', card.facebook, true);
+    set('instagram', card.instagram, true);
+    const { prospect } = await this.mergeContacts({ ...p, ...extra, fieldSources: sources }, incoming, now, 'Fiche Google collée');
+    const n = incoming.phones.length + incoming.emails.length + incoming.websites.length;
+    await this.write([finalize(prospect)], [this.activity(p.id, 'updated', `Fiche Google collée : ${n} coordonnée(s)${card.rating ? `, note ${String(card.rating).replace('.', ',')}` : ''}${card.reviews ? ` (${card.reviews} avis)` : ''}`, now)]);
+    this.emit();
+    return (await this.getProspect(p.id)) ?? prospect;
   }
 
   /**
