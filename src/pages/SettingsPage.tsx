@@ -17,6 +17,8 @@ import { ENRICHMENT_CONFIG } from '../config';
 import { aiProvider } from '../providers/ai';
 import { emailProvider } from '../providers/email';
 import { downloadText, stampedName } from '../data/export';
+import { CloudBackupCard } from '../components/CloudBackupCard';
+import { GmailCard } from '../components/GmailCard';
 import type { Role, Settings, SuppressionKind } from '../domain/types';
 
 export function SettingsPage() {
@@ -192,6 +194,10 @@ export function SettingsPage() {
         </Card>
 
         <SuppressionList />
+
+        <CloudBackupCard />
+
+        <GmailCard />
 
         <Card>
           <CardTitle icon={<Database className="h-5 w-5" />}>Données</CardTitle>

@@ -18,7 +18,7 @@ function cors(origin, allowed) {
   const ok = !allowed || allowed === '*' || allowed.split(',').map((s) => s.trim()).includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin || '*' : 'null',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     Vary: 'Origin',
   };
@@ -49,12 +49,45 @@ async function allowedByRobots(target, fetchImpl) {
   }
 }
 
+const MAX_BACKUP = 24 * 1024 * 1024;
+
+/**
+ * Sauvegarde en ligne (stockage Cloudflare KV, offre gratuite) : PUT / GET /backup/<identifiant>.
+ * Le contenu est CHIFFRÉ dans le navigateur avec la phrase secrète de l'utilisateur : le relais ne reçoit que des
+ * octets illisibles et un identifiant dérivé de cette phrase (64 caractères hexadécimaux, impossible à deviner).
+ * Une seule sauvegarde par identifiant : chaque envoi remplace la précédente.
+ */
+async function backup(request, env, id, headers) {
+  if (!env.BACKUPS) return json({ ok: false, error: 'Sauvegarde en ligne non configurée sur le relais' }, 501, headers);
+  if (!id) return json({ ok: false, error: 'Identifiant invalide' }, 400, headers);
+  if (request.method === 'PUT') {
+    const bytes = await request.arrayBuffer();
+    if (bytes.byteLength < 28) return json({ ok: false, error: 'Sauvegarde vide' }, 400, headers);
+    if (bytes.byteLength > MAX_BACKUP) return json({ ok: false, error: 'Sauvegarde trop volumineuse (24 Mo maximum)' }, 413, headers);
+    const savedAt = new Date().toISOString();
+    await env.BACKUPS.put(id, bytes, { metadata: { savedAt, size: bytes.byteLength } });
+    return json({ ok: true, savedAt, size: bytes.byteLength }, 200, headers);
+  }
+  if (request.method === 'GET') {
+    const { value, metadata } = await env.BACKUPS.getWithMetadata(id, 'arrayBuffer');
+    if (!value) return json({ ok: false, error: 'Aucune sauvegarde pour cette phrase secrète' }, 404, headers);
+    return new Response(value, { status: 200, headers: { ...headers, 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Saved-At': (metadata && metadata.savedAt) || '', 'Access-Control-Expose-Headers': 'X-Saved-At' } });
+  }
+  return json({ ok: false, error: 'Méthode non autorisée' }, 405, headers);
+}
+
 export async function handle(request, env = {}, fetchImpl = fetch) {
   const origin = request.headers.get('Origin') || '';
   const headers = cors(origin, env.ALLOWED_ORIGINS);
   if (request.method === 'OPTIONS') return new Response(null, { headers });
+  const forbidden = env.ALLOWED_ORIGINS && env.ALLOWED_ORIGINS !== '*' && headers['Access-Control-Allow-Origin'] === 'null';
+  const backupId = /^\/backup\/([0-9a-f]{64})$/.exec(new URL(request.url).pathname);
+  if (new URL(request.url).pathname.startsWith('/backup')) {
+    if (forbidden) return json({ ok: false, error: 'Origine non autorisée' }, 403, headers);
+    return backup(request, env, backupId && backupId[1], headers);
+  }
   if (request.method !== 'GET') return json({ ok: false, error: 'Méthode non autorisée' }, 405, headers);
-  if (env.ALLOWED_ORIGINS && env.ALLOWED_ORIGINS !== '*' && headers['Access-Control-Allow-Origin'] === 'null') return json({ ok: false, error: 'Origine non autorisée' }, 403, headers);
+  if (forbidden) return json({ ok: false, error: 'Origine non autorisée' }, 403, headers);
 
   const raw = new URL(request.url).searchParams.get('url');
   let target;

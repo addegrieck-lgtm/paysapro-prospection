@@ -3,11 +3,11 @@
 // fiche prospect (/assistant/:id) : les informations connues du prospect sont alors reprises automatiquement.
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ArrowDown, Download, Mail, Phone, Search, Settings2, Sparkles } from 'lucide-react';
+import { ArrowDown, Download, Mail, Phone, Search, Send, Settings2, Sparkles } from 'lucide-react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, ButtonLink } from '../components/ui/Button';
 import { Card, CardTitle, Badge } from '../components/ui/Card';
-import { Alert, EmptyState, useToast } from '../components/ui/Feedback';
+import { Alert, ConfirmDialog, EmptyState, useToast } from '../components/ui/Feedback';
 import { Checkbox, Chip, Segmented, SelectField, TextArea, TextField } from '../components/ui/Form';
 import { Skeleton } from '../components/ui/Extras';
 import { CopyButton, StatusBadge, copyText, formatDateTime, nf, useAction } from '../components/common';
@@ -18,6 +18,7 @@ import { formatPhone, normText } from '../domain/normalize';
 import { STATUS_LABEL, TASK_TYPES, TASK_TYPE_LABEL } from '../domain/referentials';
 import { downloadText } from '../data/export';
 import { salesAssistant, SALES_AI_TASKS, type SalesAiTask } from '../providers/salesAssistant';
+import { AppsScriptEmailProvider, OPT_OUT_LINE } from '../providers/gmail';
 import {
   CALL_OUTCOMES,
   KB_CATEGORIES,
@@ -177,6 +178,11 @@ function Assistant({ id }: { id?: string }) {
   const [taskType, setTaskType] = useState<TaskType>('call');
   const [reason, setReason] = useState('');
   const [saved, setSaved] = useState<CallOutcome | null>(null);
+
+  // Envoi direct (Gmail), si activé sur cet appareil
+  const [gmail] = useState(() => new AppsScriptEmailProvider());
+  const [confirmSend, setConfirmSend] = useState(false);
+  const [sending, setSending] = useState(false);
   const setOutcome = (o: CallOutcome) => {
     const def = OUTCOME[o];
     setOutcomeState(o);
@@ -807,11 +813,16 @@ function Assistant({ id }: { id?: string }) {
                 )}
                 {!blocked && (
                   <div className="flex flex-wrap items-center gap-2">
+                    {gmail.configured && canEdit && (
+                      <Button icon={<Send className="h-5 w-5" />} disabled={!to || sending} onClick={() => setConfirmSend(true)}>
+                        {sending ? 'Envoi…' : 'Envoyer maintenant'}
+                      </Button>
+                    )}
                     <a
                       href={to ? mailtoUrl(to, email.subject, text) : undefined}
                       aria-disabled={!to}
                       onClick={(e) => !to && e.preventDefault()}
-                      className={`inline-flex min-h-12 items-center gap-2 rounded-xl px-4 font-semibold ${to ? 'bg-brand text-on-brand hover:bg-brand-strong' : 'cursor-not-allowed bg-surface-2 text-muted'}`}
+                      className={`inline-flex min-h-12 items-center gap-2 rounded-xl px-4 font-semibold ${!to ? 'cursor-not-allowed bg-surface-2 text-muted' : gmail.configured ? 'border border-line bg-surface hover:bg-surface-2' : 'bg-brand text-on-brand hover:bg-brand-strong'}`}
                     >
                       <Mail className="h-5 w-5" aria-hidden /> Ouvrir dans mon e-mail
                     </a>
@@ -823,8 +834,37 @@ function Assistant({ id }: { id?: string }) {
                     )}
                   </div>
                 )}
+                <ConfirmDialog
+                  open={confirmSend}
+                  title="Envoyer cet e-mail ?"
+                  message={
+                    <>
+                      <p>
+                        Destinataire : <strong className="text-ink">{to}</strong>
+                        {settings.testMode && ' (mode test : votre propre adresse)'}
+                      </p>
+                      <p>Objet : « {email.subject} »</p>
+                      <p>Le message part immédiatement de votre adresse Gmail, avec l’image, les boutons et la mention permettant de ne plus être contacté.</p>
+                    </>
+                  }
+                  confirmLabel="Envoyer"
+                  onClose={() => setConfirmSend(false)}
+                  onConfirm={async () => {
+                    setConfirmSend(false);
+                    setSending(true);
+                    await run(async () => {
+                      // La limite quotidienne est vérifiée AVANT l'envoi (un message parti ne se rattrape pas)
+                      if (p && !settings.testMode && (await api.contactsToday()) >= settings.dailyContactLimit) throw new Error(`Limite de ${settings.dailyContactLimit} contacts par jour atteinte (Paramètres).`);
+                      const r = await gmail.send({ to, subject: email.subject, text: `${text}\n\n${OPT_OUT_LINE}`, html: emailHtml(email.subject, email.body, cfg, per.signature, OPT_OUT_LINE), name: per.salesperson || undefined });
+                      if (p && !settings.testMode) await api.logContact(p.id, 'email', `E-mail envoyé (Gmail) : « ${email.subject} »`);
+                      toast(r.remaining !== null ? `E-mail envoyé — ${r.remaining} envoi(s) encore possible(s) aujourd’hui` : 'E-mail envoyé');
+                    });
+                    setSending(false);
+                  }}
+                />
                 <p className="text-xs text-muted">
-                  « Ouvrir dans mon e-mail » prépare la version texte avec les liens. Pour la version avec image et boutons, utilisez « Copier l’e-mail mis en forme » puis collez dans votre messagerie. Chaque message est envoyé par vous : aucun envoi automatique.
+                  {gmail.configured ? '« Envoyer maintenant » envoie la version avec image et boutons depuis votre adresse Gmail. ' : 'Pour envoyer directement depuis l’application, activez l’envoi Gmail dans les Paramètres. '}
+                  « Ouvrir dans mon e-mail » prépare la version texte avec les liens. Pour la version avec image et boutons, utilisez « Copier l’e-mail mis en forme » puis collez dans votre messagerie. Chaque message est déclenché par vous : aucun envoi automatique.
                 </p>
               </div>
             </Card>

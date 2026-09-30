@@ -644,3 +644,38 @@ reçoit que les faits de la base de connaissances, et tout chiffre ou promesse a
 
 Code : `src/domain/sales.ts` (logique), `src/domain/salesContent.ts` (contenu par défaut), `src/pages/AssistantPage.tsx`,
 `src/pages/AssistantAdminPage.tsx`, `src/components/sales.tsx`, `tests/sales.test.ts`.
+
+## Sauvegarde automatique en ligne
+
+Paramètres → **Sauvegarde automatique en ligne**. Vous choisissez une phrase secrète (12 caractères au moins) ; la
+sauvegarde complète (même contenu que « Sauvegarder (JSON) ») est compressée puis chiffrée dans le navigateur
+(AES-256-GCM, clé dérivée de la phrase par PBKDF2) et envoyée au relais Cloudflare, qui la range dans un stockage KV
+(offre gratuite). Le relais ne voit que des octets illisibles ; l'adresse de la sauvegarde est elle-même dérivée de la
+phrase. **Une phrase perdue rend la sauvegarde irrécupérable.**
+
+- Automatique : une fois par 24 h, à l'ouverture de l'application puis toutes les heures tant qu'elle reste ouverte ;
+  jamais depuis un appareil sans prospect (pour ne pas écraser une bonne sauvegarde).
+- Une seule sauvegarde par phrase : chaque envoi remplace la précédente. Ce n'est pas une synchronisation : deux
+  appareils actifs avec la même phrase s'écrasent mutuellement.
+- Autre appareil : saisir la même phrase ; l'application propose de restaurer ou de garder les données de l'appareil.
+- Relais : `PUT` / `GET /backup/<identifiant>` (`worker/web-proxy.js`), liaison KV `BACKUPS`, 24 Mo maximum.
+
+Code : `src/data/cloudBackup.ts`, `src/components/CloudBackupCard.tsx`, `tests/backup.test.ts`.
+
+## Envoi direct des e-mails (Gmail, sans nom de domaine)
+
+Solution d'attente tant qu'aucun nom de domaine n'est disponible. Paramètres → **Envoi direct des e-mails (Gmail)** :
+l'application fournit un petit script à coller dans Google Apps Script, sur le compte Gmail expéditeur, puis à déployer
+comme « Application Web » (exécuter en tant que : Moi ; accès : Tout le monde). Une fois l'adresse du script collée et
+vérifiée, l'Assistant commercial affiche **Envoyer maintenant** : l'e-mail part de votre adresse, avec image et boutons.
+
+- Un message à la fois, après confirmation ; la limite quotidienne des Paramètres est vérifiée avant l'envoi ; un
+  prospect « Ne plus contacter » ne peut rien recevoir ; en mode test, l'envoi va à votre propre adresse.
+- Chaque e-mail envoyé ainsi se termine par une mention permettant de ne plus être contacté.
+- Le script n'accepte que les demandes portant le code secret créé par l'application ; l'adresse du script et ce code
+  restent sur l'appareil (ni dans le code publié, ni dans les sauvegardes). À refaire sur chaque appareil.
+- Quota Google : environ 100 destinataires par jour pour un compte Gmail gratuit (affiché après chaque envoi).
+- Une image importée part en pièce intégrée (`cid`), car Gmail n'affiche pas les images `data:`.
+- Plus tard, avec un domaine : implémenter `DirectEmailSender` (`src/providers/gmail.ts`) pour Brevo, Resend, etc.
+
+Code : `src/providers/gmail.ts`, `src/components/GmailCard.tsx`, `tests/gmail.test.ts`.

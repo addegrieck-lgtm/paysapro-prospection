@@ -8,7 +8,7 @@ Ce relais permet à Paysapro Prospection de lire les **coordonnées publiées pa
   moteurs de recherche, annuaires et réseaux sociaux **refusés**, adresses privées refusées, origines limitées.
 
 > **Déjà en place** : `https://paysapro-relais.paysapro-prospection.workers.dev`, déployé avec
-> `npx wrangler deploy worker/web-proxy.js --name paysapro-relais --compatibility-date 2026-09-01 --var ALLOWED_ORIGINS:https://addegrieck-lgtm.github.io`
+> `npx wrangler@4 deploy --config worker/wrangler.toml` (nom, origines autorisées et stockage KV `BACKUPS` des sauvegardes en ligne y sont décrits)
 > (même commande pour une mise à jour) ; adresse renseignée par défaut dans `.github/workflows/deploy.yml`.
 
 ## Déployer (10 minutes)

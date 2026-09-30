@@ -517,7 +517,7 @@ export function emailImage(cfg: SalesConfig): string | null {
  * E-mail HTML compatible avec les principales messageries : tableaux, styles en ligne, largeur 600 px,
  * aucune feuille de style ni script. Structure : nom du produit, titre, texte, avantages, image, boutons, signature.
  */
-export function emailHtml(subject: string, body: string, cfg: SalesConfig, signature = ''): string {
+export function emailHtml(subject: string, body: string, cfg: SalesConfig, signature = '', footer = ''): string {
   const font = 'font-family:Arial,Helvetica,sans-serif';
   const links = emailLinks(cfg);
   const image = emailImage(cfg);
@@ -556,6 +556,7 @@ ${html.join('\n')}</td></tr>
 ${imageBlock}${buttons ? `<tr><td style="padding:0 24px 12px">${buttons}</td></tr>` : ''}
 ${signatureHtml ? `<tr><td style="padding:8px 24px 24px">${signatureHtml}</td></tr>` : '<tr><td style="padding:0 0 16px"></td></tr>'}
 </table>
+${footer ? `<p style="margin:12px 0 0;${font};font-size:12px;line-height:1.5;color:#5b6660">${escapeHtml(footer)}</p>` : ''}
 </td></tr></table>
 </body>
 </html>`;

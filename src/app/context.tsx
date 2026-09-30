@@ -13,6 +13,7 @@ import type { CompanyDataProvider } from '../providers/company/CompanyDataProvid
 import type { Settings } from '../domain/types';
 import { can, type Permission } from '../domain/access';
 import { requestPersistentStorage } from '../pwa';
+import { autoBackup } from '../data/cloudBackup';
 
 /** Espace de travail local (un seul utilisateur). Une version en ligne en créera un par compte. */
 export const LOCAL_WORKSPACE = 'local';
@@ -45,6 +46,7 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
   useEffect(() => {
     let cancelled = false;
     let started: EnrichmentQueue | null = null;
+    let timer: ReturnType<typeof setInterval> | undefined;
     (async () => {
       try {
         const db = await openProspectingDB();
@@ -67,6 +69,10 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
         const progress = await queue.refresh();
         if (progress.pending > 0 && !cancelled) void queue.start();
         void requestPersistentStorage();
+        // Sauvegarde en ligne (si activée) : une fois par jour, à l'ouverture puis toutes les heures tant que l'onglet reste ouvert
+        const backup = () => void autoBackup(api).catch((e) => console.warn('Sauvegarde en ligne :', e));
+        backup();
+        timer = setInterval(backup, 3_600_000);
       } catch (e) {
         console.error(e);
         if (!cancelled)
@@ -76,6 +82,7 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
     return () => {
       cancelled = true;
       started?.stop();
+      clearInterval(timer);
     };
   }, [reloadSettings]);
 

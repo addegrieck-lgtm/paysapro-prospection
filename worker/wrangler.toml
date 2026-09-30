@@ -1,0 +1,13 @@
+# Relais Paysapro Prospection (Cloudflare Worker, offre gratuite).
+# Déploiement / mise à jour :  npx wrangler@4 deploy --config worker/wrangler.toml
+name = "paysapro-relais"
+main = "web-proxy.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+ALLOWED_ORIGINS = "https://addegrieck-lgtm.github.io"
+
+# Sauvegardes en ligne (chiffrées dans le navigateur avant l'envoi). L'identifiant n'est pas un secret.
+[[kv_namespaces]]
+binding = "BACKUPS"
+id = "07fa98868d324cc89bf0251807575b60"
