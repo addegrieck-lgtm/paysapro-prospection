@@ -18,7 +18,7 @@ function cors(origin, allowed) {
   const ok = !allowed || allowed === '*' || allowed.split(',').map((s) => s.trim()).includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin || '*' : 'null',
-    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     Vary: 'Origin',
   };
@@ -76,6 +76,36 @@ async function backup(request, env, id, headers) {
   return json({ ok: false, error: 'Méthode non autorisée' }, 405, headers);
 }
 
+const APPS_SCRIPT = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
+
+/**
+ * Envoi d'e-mail : transmet la demande au script Google Apps Script PERSONNEL de l'utilisateur (POST /gmail).
+ * Appelé directement depuis un navigateur, ce script répond parfois 404 ; de serveur à serveur il répond normalement.
+ * Seules les adresses « script.google.com/macros/s/…/exec » sont acceptées ; rien n'est conservé ni journalisé.
+ */
+async function gmail(request, headers, fetchImpl) {
+  if (request.method !== 'POST') return json({ ok: false, error: 'Méthode non autorisée' }, 405, headers);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: 'Demande illisible' }, 400, headers);
+  }
+  if (!body || typeof body.url !== 'string' || !APPS_SCRIPT.test(body.url) || typeof body.payload !== 'object' || !body.payload) return json({ ok: false, error: 'Adresse de script invalide' }, 400, headers);
+  try {
+    const res = await fetchImpl(body.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body.payload), redirect: 'follow', signal: AbortSignal.timeout(30_000) });
+    const text = await res.text();
+    try {
+      return json(JSON.parse(text), 200, headers);
+    } catch {
+      const title = /<title>([^<]*)/i.exec(text);
+      return json({ ok: false, error: `Réponse inattendue du script Google (${res.status}${title ? ` : ${title[1].trim()}` : ''}). Vérifiez le déploiement : « Exécuter en tant que : Moi », accès « Tout le monde ».` }, 200, headers);
+    }
+  } catch (e) {
+    return json({ ok: false, error: e && e.name === 'TimeoutError' ? 'Le script Google ne répond pas (délai dépassé)' : 'Script Google injoignable' }, 200, headers);
+  }
+}
+
 export async function handle(request, env = {}, fetchImpl = fetch) {
   const origin = request.headers.get('Origin') || '';
   const headers = cors(origin, env.ALLOWED_ORIGINS);
@@ -85,6 +115,10 @@ export async function handle(request, env = {}, fetchImpl = fetch) {
   if (new URL(request.url).pathname.startsWith('/backup')) {
     if (forbidden) return json({ ok: false, error: 'Origine non autorisée' }, 403, headers);
     return backup(request, env, backupId && backupId[1], headers);
+  }
+  if (new URL(request.url).pathname === '/gmail') {
+    if (forbidden) return json({ ok: false, error: 'Origine non autorisée' }, 403, headers);
+    return gmail(request, headers, fetchImpl);
   }
   if (request.method !== 'GET') return json({ ok: false, error: 'Méthode non autorisée' }, 405, headers);
   if (forbidden) return json({ ok: false, error: 'Origine non autorisée' }, 403, headers);

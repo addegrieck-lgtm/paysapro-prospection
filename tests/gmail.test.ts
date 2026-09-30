@@ -92,6 +92,33 @@ describe('Envoi direct par Gmail (script Google personnel)', () => {
     await expect(new AppsScriptEmailProvider(null).send({ to: 'a@b.fr', subject: 'x', text: 'y' })).rejects.toThrow(/non configuré/);
   });
 
+  it('par le relais (serveur à serveur) : seule une adresse Apps Script est transmise, réponse de Google rendue lisible', async () => {
+    const { handle } = await import('../worker/web-proxy.js');
+    const ORIGIN = 'https://addegrieck-lgtm.github.io';
+    const google: { url: string; init: RequestInit }[] = [];
+    let reply = () => new Response(JSON.stringify({ ok: true, from: 'moi@gmail.com', remaining: 96 }));
+    const fakeGoogle = (async (url: string, init: RequestInit) => {
+      google.push({ url, init });
+      return reply();
+    }) as unknown as typeof fetch;
+    const viaRelay = (url: string, init: RequestInit) => handle(new Request(url, { ...init, headers: { ...(init.headers as Record<string, string>), Origin: ORIGIN } }), { ALLOWED_ORIGINS: ORIGIN }, fakeGoogle);
+    const gmail = new AppsScriptEmailProvider({ url: URL_OK, secret: 's3' }, viaRelay, 'https://relais.test/');
+    expect(await gmail.ping()).toEqual({ from: 'moi@gmail.com', remaining: 96 });
+    expect(google[0]!.url).toBe(URL_OK);
+    expect(JSON.parse(String(google[0]!.init.body))).toEqual({ action: 'ping', secret: 's3' });
+    expect((google[0]!.init.headers as Record<string, string>).Origin).toBeUndefined();
+    // Page d'erreur de Google (404, connexion demandée…) : message clair au lieu d'un échec muet
+    reply = () => new Response('<html><title>Page introuvable</title></html>', { status: 404 });
+    await expect(gmail.ping()).rejects.toThrow(/Réponse inattendue du script Google \(404 : Page introuvable\)/);
+    // Le relais ne transmet rien vers une autre adresse, ni depuis une autre origine
+    const post = (body: unknown, origin = ORIGIN) => handle(new Request('https://relais.test/gmail', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), { ALLOWED_ORIGINS: ORIGIN }, fakeGoogle);
+    const before = google.length;
+    expect((await post({ url: 'https://pirate.test/macros/s/abc/exec', payload: {} })).status).toBe(400);
+    expect((await post({ url: URL_OK, payload: {} }, 'https://pirate.test')).status).toBe(403);
+    expect((await handle(new Request('https://relais.test/gmail', { headers: { Origin: ORIGIN } }), { ALLOWED_ORIGINS: ORIGIN }, fakeGoogle)).status).toBe(405);
+    expect(google.length).toBe(before);
+  });
+
   it('réglage conservé sur l’appareil uniquement', () => {
     expect(storedGmailConfig()).toBeNull();
     saveGmailConfig({ url: URL_OK, secret: 's3' });

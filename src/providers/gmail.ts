@@ -11,6 +11,8 @@
 // l'application. L'adresse du script et ce code restent sur cet appareil (jamais dans le code publié ni dans les
 // sauvegardes). Aucun envoi groupé : un message à la fois, déclenché par vous.
 
+import { ENRICHMENT_CONFIG } from '../config';
+
 const STORE = 'paysapro.email.gmail';
 const URL_RE = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
 
@@ -97,9 +99,12 @@ export class AppsScriptEmailProvider implements DirectEmailSender {
   private config: GmailConfig | null;
   private fetchImpl: FetchLike;
 
-  constructor(config: GmailConfig | null = storedGmailConfig(), fetchImpl: FetchLike = (u, i) => fetch(u, i)) {
+  private relay: string;
+
+  constructor(config: GmailConfig | null = storedGmailConfig(), fetchImpl: FetchLike = (u, i) => fetch(u, i), relay: string = ENRICHMENT_CONFIG.webProxyUrl) {
     this.config = config && validScriptUrl(config.url) && config.secret ? { url: config.url.trim(), secret: config.secret } : null;
     this.fetchImpl = fetchImpl;
+    this.relay = relay.replace(/\/$/, '');
   }
 
   get configured(): boolean {
@@ -108,14 +113,18 @@ export class AppsScriptEmailProvider implements DirectEmailSender {
 
   private async call(payload: Record<string, unknown>): Promise<{ from?: string; remaining?: number }> {
     if (!this.config) throw new Error('Envoi direct non configuré (Paramètres → Envoi direct des e-mails).');
+    const signed = { ...payload, secret: this.config.secret };
     let res: Awaited<ReturnType<FetchLike>>;
     try {
-      // « text/plain » : requête simple, acceptée par Google Apps Script sans vérification préalable du navigateur
-      res = await this.fetchImpl(this.config.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...payload, secret: this.config.secret }), redirect: 'follow' });
+      // Par le relais (serveur à serveur) quand il existe : appelé directement depuis un navigateur, le script
+      // Google répond parfois 404. Sans relais : requête simple « text/plain », acceptée sans vérification préalable.
+      res = this.relay
+        ? await this.fetchImpl(`${this.relay}/gmail`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: this.config.url, payload: signed }) })
+        : await this.fetchImpl(this.config.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(signed), redirect: 'follow' });
     } catch {
-      throw new Error('Script Google injoignable : vérifiez votre connexion et l’adresse du script.');
+      throw new Error(this.relay ? 'Relais injoignable : vérifiez votre connexion.' : 'Script Google injoignable : vérifiez votre connexion et l’adresse du script.');
     }
-    if (!res.ok) throw new Error(`Script Google indisponible (${res.status}). Vérifiez qu’il est déployé avec l’accès « Tout le monde ».`);
+    if (!res.ok) throw new Error(this.relay ? `Relais indisponible (${res.status}).` : `Script Google indisponible (${res.status}). Vérifiez qu’il est déployé avec l’accès « Tout le monde ».`);
     let data: { ok?: boolean; error?: string; from?: string; remaining?: number };
     try {
       data = (await res.json()) as typeof data;
