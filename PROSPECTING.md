@@ -600,3 +600,43 @@ file, journaux, doublons), relances, modèles, « Ne plus contacter », anonymis
 Serveur et multi-utilisateur (réimplémenter `ProspectsApi` ; `workspaceId` et RBAC déjà en place), `EmailProvider`
 transactionnel (Resend, Brevo…), téléphonie, CRM externe, Google Places, IA avancée (analyse des réponses, « 20 prospects à
 contacter aujourd'hui »), marketplace de leads et prospection premium via les quotas par plan.
+
+## Assistant commercial
+
+Menu **Assistant commercial** (`/assistant`), ou bouton **Assistant commercial** d'une fiche prospect (`/assistant/:id`) :
+les informations connues du prospect (entreprise, ville, activité, téléphone, e-mail, site, statut, notes, relances,
+historique) sont alors reprises sans ressaisie.
+
+| Bouton du panneau 🎧 | Contenu |
+|---|---|
+| 🎤 Introduction | script en 5 étapes (ouverture, arbre de conversation, pitch, questions, conclusion) ; variante selon le profil (indépendant / entreprise de 10 personnes et plus, d'après l'effectif de la fiche) et la situation cochée par le commercial (a déjà un CRM, n'a jamais prospecté) |
+| ⚡ Pitch 30 sec · 📖 Présenter | pitchs 30 s et 1 min, fiche « en 30 secondes » |
+| ❓ Question du prospect | recherche dans la base de connaissances : réponse courte, explication, « à éviter » |
+| 🛑 Objection | 16 objections : réponse courte, réponse développée, relance |
+| 💰 Tarif | réponse calculée depuis les formules configurées — **aucun prix n'est écrit dans le code** |
+| 🔍 Fonctionnement · 🛡️ Données / RGPD · 🧰 Arguments | fiches par rubrique, comparaison factuelle, arguments par besoin |
+| 📅 Prendre rendez-vous | fins d'appel, **résultat de l'appel** (intéressé, démonstration à prévoir, rappel, e-mail demandé, pas intéressé, mauvais contact, numéro invalide, autre), note et relance créées en une action, inscrites dans l'historique |
+| ✉️ Envoyer la présentation | 6 modèles d'e-mail, version HTML (tableaux, styles en ligne) avec image et boutons, SMS, WhatsApp (mobile uniquement), LinkedIn |
+| 📊 Suivi commercial | contacts, e-mails, réponses, appels, relances, démonstrations, clients — comptés dans l'historique réel |
+
+Règles : une variable inconnue supprime sa ligne (`{{prenom|}}` donne « Bonjour, ») ; un lien non configuré masque son
+bouton ; « garanti », « 100 % », « révolutionnaire » sont signalés ; un prospect « Ne plus contacter » ne peut recevoir
+ni appel enregistré ni message. **Copier** et **Utiliser cette réponse** (ajout à la zone de rédaction) sont présents
+sur chaque réponse. Modes **Commercial débutant** (aide pas à pas) et **Expert** (pitch, objections, tarif, prochaine action).
+
+**Envoi** : comme le reste de l'application, rien n'est envoyé automatiquement. « Ouvrir dans mon e-mail » prépare la
+version texte ; « Copier l'e-mail mis en forme » place la version HTML dans le presse-papiers pour la coller dans la
+messagerie ; « Télécharger le HTML » fournit le fichier. Une image importée est incorporée à l'e-mail : certaines
+messageries ne l'affichent pas, d'où le champ « adresse en ligne de l'image », prioritaire lorsqu'il est renseigné.
+
+**Configuration** (`/assistant/admin`, rôles Propriétaire et Administrateur — permission `assistant.admin`) : produit,
+pitchs, script, arbre, liens (présentation, démonstration, inscription, rendez-vous, vidéo), image (PNG / JPG / WEBP,
+réduite à 1 200 px), coordonnées, signature, tarifs, base de connaissances, objections, arguments, comparaison, modèles.
+Le tout est enregistré dans les paramètres (`settings.sales`), donc inclus dans la sauvegarde JSON.
+
+**IA (facultative)** : `SalesAssistantProvider` (`src/providers/salesAssistant.ts`). Par défaut, les réponses viennent de
+la base de connaissances, sans IA. Si `VITE_AI_ENDPOINT` est défini, une aide à la reformulation apparaît : l'IA ne
+reçoit que les faits de la base de connaissances, et tout chiffre ou promesse absent du texte d'origine est signalé.
+
+Code : `src/domain/sales.ts` (logique), `src/domain/salesContent.ts` (contenu par défaut), `src/pages/AssistantPage.tsx`,
+`src/pages/AssistantAdminPage.tsx`, `src/components/sales.tsx`, `tests/sales.test.ts`.

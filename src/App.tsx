@@ -20,6 +20,8 @@ const DuplicatesPage = lazyPage(() => import('./pages/DuplicatesPage'), 'Duplica
 const TasksPage = lazyPage(() => import('./pages/TasksPage'), 'TasksPage');
 const TemplatesPage = lazyPage(() => import('./pages/TemplatesPage'), 'TemplatesPage');
 const StatsPage = lazyPage(() => import('./pages/StatsPage'), 'StatsPage');
+const AssistantPage = lazyPage(() => import('./pages/AssistantPage'), 'AssistantPage');
+const AssistantAdminPage = lazyPage(() => import('./pages/AssistantAdminPage'), 'AssistantAdminPage');
 const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage');
 
 function Splash({ message }: { message: string | null }) {
@@ -68,6 +70,9 @@ export default function App() {
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="campaigns/:id" element={<CampaignPage />} />
                 <Route path="tasks" element={<TasksPage />} />
+                <Route path="assistant" element={<AssistantPage />} />
+                <Route path="assistant/admin" element={<AssistantAdminPage />} />
+                <Route path="assistant/:id" element={<AssistantPage />} />
                 <Route path="templates" element={<TemplatesPage />} />
                 <Route path="stats" element={<StatsPage />} />
                 <Route path="settings" element={<SettingsPage />} />

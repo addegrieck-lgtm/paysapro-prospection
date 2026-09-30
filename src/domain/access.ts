@@ -11,7 +11,9 @@ export type Permission =
   | 'prospecting.delete'
   | 'prospecting.import'
   | 'prospecting.export'
-  | 'prospecting.campaign';
+  | 'prospecting.campaign'
+  /** Modifier la base de connaissances commerciale (pitchs, tarifs, FAQ, objections, liens, image) */
+  | 'assistant.admin';
 
 const ALL: Permission[] = [
   'prospecting.view',
@@ -21,6 +23,7 @@ const ALL: Permission[] = [
   'prospecting.import',
   'prospecting.export',
   'prospecting.campaign',
+  'assistant.admin',
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {

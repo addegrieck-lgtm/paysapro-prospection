@@ -546,6 +546,8 @@ export interface Settings {
   providers: { official: boolean; directory: boolean; website: boolean; websiteDiscovery: boolean };
   /** Part d'exploration du moteur auto-apprenant (0,2 = 20 % des choix testent des stratégies moins connues) */
   exploration?: number;
+  /** Assistant commercial : base de connaissances, scripts, tarifs, liens, image (absent = contenu par défaut) */
+  sales?: import('./sales').SalesConfig;
 }
 
 // ─── Moteur auto-apprenant : stratégies, statistiques, retours ───

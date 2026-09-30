@@ -61,6 +61,7 @@ import { addEvidence, rescore } from '../domain/contacts';
 import { nationalPhone, phoneType, toE164 } from '../domain/phone';
 import { applyFeedback, applyRun, emptyStat, segmentOf, statKey, type RunOutcome } from '../domain/learning';
 import { STRATEGY_BY_ID } from '../domain/strategies';
+import { OUTCOME, type CallOutcome, type SalesConfig } from '../domain/sales';
 
 type AnyContact = CompanyPhone | CompanyEmail | CompanyWebsite;
 export type EnrichPriority = 'all' | 'no_phone' | 'no_email' | 'no_website' | 'priority' | 'new';
@@ -212,6 +213,38 @@ export class ProspectsApi {
     await this.db.put('settings', { ...s, workspaceId: this.ctx.workspaceId });
     setScoringContext({ targetDepartments: s.targetDepartments });
     this.emit();
+  }
+
+  /** Base de connaissances commerciale : réservée aux rôles Propriétaire / Administrateur. */
+  async saveSalesConfig(sales: SalesConfig | undefined): Promise<void> {
+    assertCan(this.ctx.role, 'assistant.admin');
+    const s = await this.getSettings();
+    await this.saveSettings({ ...s, sales });
+  }
+
+  async allActivities(): Promise<ProspectActivity[]> {
+    return this.db.getAllFromIndex('prospect_activities', 'workspaceId', this.ctx.workspaceId);
+  }
+
+  /**
+   * Résultat d'un appel : historique, statut CRM, note et relance éventuelles — en une seule action.
+   * Un numéro invalide n'est pas compté comme un contact (le prospect ne passe pas à « Contacté »).
+   */
+  async logCallOutcome(id: string, input: { outcome: CallOutcome; note?: string; task?: { type: TaskType; dueAt: string; note: string } | null }): Promise<Prospect> {
+    assertCan(this.ctx.role, 'prospecting.edit');
+    const def = OUTCOME[input.outcome];
+    const label = `Appel : ${def.label.toLowerCase()}`;
+    const before = await this.getProspect(id);
+    if (!before) throw new Error('Prospect introuvable.');
+    if (def.noContact) {
+      if (before.doNotContact) throw new Error('Ce prospect est marqué « Ne plus contacter ».');
+      await this.db.put('prospect_activities', this.activity(id, 'call', label));
+    } else await this.logContact(id, 'call', label);
+    if (def.status) await this.setStatus(id, def.status);
+    if (input.note?.trim()) await this.addNote(id, `${label} — ${input.note.trim()}`);
+    if (input.task) await this.addTask(id, { type: input.task.type, dueAt: input.task.dueAt, priority: 'normal', note: input.task.note });
+    this.emit();
+    return (await this.getProspect(id))!;
   }
 
   // ─────────────── GET /api/prospects ───────────────

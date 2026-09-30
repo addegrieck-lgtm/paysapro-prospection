@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
-import { BarChart3, Gauge, Bell, CalendarClock, Ellipsis, FileText, Filter, LayoutDashboard, Mail, Settings, Upload, Users } from 'lucide-react';
+import { BarChart3, Gauge, Bell, CalendarClock, Ellipsis, FileText, Filter, Headset, LayoutDashboard, Mail, Settings, Upload, Users } from 'lucide-react';
 import { Drawer } from '../components/ui/Extras';
 import { useApp, useQuery } from './context';
 import { today } from '../domain/filters';
@@ -12,6 +12,7 @@ export const NAV = [
   { to: '/segments', label: 'Segments', icon: Filter, end: false },
   { to: '/campaigns', label: 'Campagnes', icon: Mail, end: false },
   { to: '/tasks', label: 'Relances', icon: CalendarClock, end: false },
+  { to: '/assistant', label: 'Assistant commercial', icon: Headset, end: false },
   { to: '/templates', label: 'Templates', icon: FileText, end: false },
   { to: '/stats', label: 'Statistiques', icon: BarChart3, end: false },
   { to: '/performance', label: 'Performance', icon: Gauge, end: false },

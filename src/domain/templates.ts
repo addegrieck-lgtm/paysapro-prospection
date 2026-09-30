@@ -51,7 +51,8 @@ export function renderTemplate(text: string, vars: Record<string, string | null>
       missing = true;
       return '';
     });
-    return missing ? [] : [out.replace(/[ \t]+([,.!?;:])/g, '$1').replace(/[ \t]{2,}/g, ' ')];
+    // Seules la virgule et le point sont recollés (« Bonjour , » → « Bonjour, ») : l'espace avant « ? ! ; : » est conservée
+    return missing ? [] : [out.replace(/[ \t]+([,.])/g, '$1').replace(/[ \t]{2,}/g, ' ')];
   });
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }

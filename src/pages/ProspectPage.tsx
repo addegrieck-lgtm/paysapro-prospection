@@ -9,6 +9,7 @@ import {
   Compass,
   EyeOff,
   Globe,
+  Headset,
   Lightbulb,
   Mail,
   Pencil,
@@ -38,6 +39,8 @@ import { annuaireEntreprisesUrl, telUrl } from '../domain/links';
 import { departmentLabel, regionName } from '../domain/geo';
 import { NAF_LABELS, PRIORITY_LABEL, SERVICE_LABEL, TASK_TYPE_LABEL, headcountLabel } from '../domain/referentials';
 import { formatPhone } from '../domain/normalize';
+import { readiness } from '../domain/sales';
+import { ReadinessBadge } from '../components/sales';
 import type { Company } from '../providers/company/CompanyDataProvider';
 import type { EnrichmentMode, Prospect, ProspectTask, SourceKind } from '../domain/types';
 
@@ -176,6 +179,12 @@ export function ProspectPage() {
             <EnrichmentBadge status={p.enrichmentStatus} />
             {p.city && <span className="text-sm text-muted">· {p.city}</span>}
           </div>
+          {!p.anonymized && (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted">Préparation commerciale :</span>
+              <ReadinessBadge readiness={readiness(p)} />
+            </p>
+          )}
           {p.demo && p.phone && (
             <p className="mt-2 flex flex-wrap items-center gap-2 text-lg font-semibold tabular-nums">
               📞 {formatPhone(p.phone)}
@@ -217,6 +226,11 @@ export function ProspectPage() {
           <a href={tel} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 font-semibold hover:bg-surface-2">
             <Phone className="h-5 w-5" aria-hidden /> Appeler
           </a>
+        )}
+        {!p.anonymized && (
+          <ButtonLink to={`/assistant/${p.id}`} variant="soft" icon={<Headset className="h-5 w-5" />}>
+            Assistant commercial
+          </ButtonLink>
         )}
         <Button variant="secondary" icon={<Mail className="h-5 w-5" />} disabled={blocked} onClick={() => setDialog('message')}>
           E-mail / message
