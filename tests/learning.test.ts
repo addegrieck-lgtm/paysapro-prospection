@@ -300,6 +300,10 @@ https://maps.app.goo.gl/AbCdEf123`;
     const after = await api.applyGoogleCard(p.id, { phones: card.phones.map((x) => x.e164), website: card.websites[0]!, emails: [], googleUrl: card.googleUrl, rating: card.rating, reviews: card.reviews, facebook: null, instagram: null });
     expect(after).toMatchObject({ phone: '0600000076', phoneConfidence: 100, googleRating: 4.9, googleReviews: 27, googleUrl: 'https://maps.app.goo.gl/AbCdEf123' });
     expect(after.fieldSources.googleRating?.provider).toBe('Fiche Google (collée par vous)');
+    // Sans lien collé, la note suffit : la fiche Google n'est plus annoncée « non trouvée »
+    const { knowledgeChecklist } = await import('../src/domain/enrichment');
+    expect(knowledgeChecklist({ ...after, googleUrl: null }).known).toContain('Fiche Google');
+    expect(knowledgeChecklist({ ...after, googleUrl: null, googleRating: null, googleReviews: null }).missing).toContain('Fiche Google');
     const r = await engine(api, { 'https://clementpaysage76.fr': home }).enrichCompany(p.id, { force: true, rng: exploit });
     expect(r.strategies).toEqual(['site_known']);
     const c = await api.contactsFor(p.id);

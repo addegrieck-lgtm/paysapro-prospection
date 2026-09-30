@@ -97,7 +97,8 @@ export function knowledgeChecklist(p: Prospect): { known: string[]; missing: str
   const known: string[] = [];
   const missing: string[] = [];
   for (const k of [...admin, ...commercial]) {
-    const v = k === 'headcountBand' ? (p.headcountBand ?? p.headcount) : p[k];
+    // Fiche Google : connue dès qu'on a le lien, la note ou les avis (même règle que le score et les filtres)
+    const v = k === 'headcountBand' ? (p.headcountBand ?? p.headcount) : k === 'googleUrl' ? (p.googleUrl ?? p.googleRating ?? p.googleReviews) : p[k];
     (v === null || v === undefined || v === '' ? missing : known).push(fieldLabel(k === 'headcountBand' ? 'headcount' : k));
   }
   return { known, missing };
