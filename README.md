@@ -37,3 +37,8 @@ Pensez à **sauvegarder** (Paramètres → Données) : les données restent sur 
 | `npm run osm:update` | met à jour l'instantané OpenStreetMap (entreprises du paysage, ODbL) |
 
 Documentation complète : [PROSPECTING.md](PROSPECTING.md).
+
+---
+
+**Projet distinct dans ce dépôt :** [`agence/`](agence/README.md) — site et back-office de l’agence web & communication
+(serveur Hono + SQLite/Cloudflare D1). Aucune donnée ni infrastructure n’est partagée avec Paysapro Prospection.

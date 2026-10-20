@@ -30,6 +30,8 @@
   --accent: #c2410c;
   --accent-strong: color-mix(in oklab, var(--accent) 82%, black);
   --accent-soft: color-mix(in oklab, var(--accent) 10%, white);
+  /* Petits textes colorés : accent assombri pour garantir un contraste ≥ 4,5:1 sur fond clair, quelle que soit la couleur choisie. */
+  --accent-text: color-mix(in oklab, var(--accent) 72%, black);
   --paper: #f6f3ee;
   --paper-2: #efe9df;
   --card: #ffffff;
@@ -572,7 +574,7 @@ a:hover .link-arrow::after {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 1rem;
 }
 .eyebrow::before {
@@ -1771,7 +1773,7 @@ html:not(.js) .wizard-progress {
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 0.5rem;
 }
 html.js .wizard .step:not(.is-active) {
@@ -1955,7 +1957,7 @@ html:not(.js) .dropzone {
   margin: 0;
 }
 .post-meta span {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .prose {
   font-size: 1.08rem;

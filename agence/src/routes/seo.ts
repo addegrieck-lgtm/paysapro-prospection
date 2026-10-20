@@ -55,6 +55,8 @@ seoRoutes.get('/favicon.svg', (c) => {
   return c.body(svg, 200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' });
 });
 
+seoRoutes.get('/favicon.ico', (c) => c.redirect('/favicon.svg', 301));
+
 /** Redirections administrables (anciennes URL → nouvelles). */
 export const redirects: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (c.req.method === 'GET') {

@@ -1,0 +1,26 @@
+# Agence — Cloudflare Workers (offre gratuite). Projet DISTINCT du relais Paysapro (aucune ressource partagée).
+# Première installation : voir docs/DEPLOIEMENT.md (création de la base D1 et du bucket R2, secrets).
+name = "agence-web"
+main = "src/server/worker.ts"
+compatibility_date = "2026-09-01"
+
+# Fichiers statiques (CSS, JS, polices) servis directement par Cloudflare.
+[assets]
+directory = "./public"
+
+[vars]
+ENVIRONMENT = "production"
+MAIL_PROVIDER = "log"   # « brevo » ou « resend » une fois le service configuré
+
+# Base de données (remplacer database_id par l'identifiant affiché par « wrangler d1 create agence-web »)
+[[d1_databases]]
+binding = "DB"
+database_name = "agence-web"
+database_id = "A_REMPLACER"
+
+# Fichiers privés (pièces jointes, BAT) — bucket NON public
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "agence-web-fichiers"
+
+# Secrets (jamais dans ce fichier) : wrangler secret put APP_SECRET / ADMIN_SETUP_TOKEN / BREVO_API_KEY …

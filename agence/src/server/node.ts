@@ -7,15 +7,16 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { Hono } from 'hono';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { openNodeDb } from '../db/sqlite-node';
 import { diskStorage } from '../lib/storage-node';
 import { createMailer, type MailConfig } from '../lib/mail';
 import { createApp, prepareDatabase } from '../app';
-import type { AppEnv } from '../app/context';
 
+// Chargement du fichier .env s'il existe (les variables déjà définies par l'hébergeur restent prioritaires).
+if (existsSync('.env')) process.loadEnvFile('.env');
 const env = process.env;
 const production = env.NODE_ENV === 'production';
 
@@ -61,7 +62,7 @@ const app = createApp({
   },
 });
 
-const root = new Hono<AppEnv>();
+const root = new Hono();
 root.use(
   '/assets/*',
   serveStatic({
@@ -72,7 +73,8 @@ root.use(
     },
   }),
 );
-root.route('/', app);
+// Toute autre requête est confiée à l'application (y compris sa page 404 et sa gestion d'erreurs).
+root.all('*', (c) => app.fetch(c.req.raw, c.env));
 
 const port = Number(env.PORT ?? 3000);
 serve({ fetch: root.fetch, port, hostname: env.HOST ?? '0.0.0.0' }, (info) => {

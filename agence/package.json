@@ -26,6 +26,7 @@
     "@fontsource-variable/fraunces": "^5.2.0",
     "@fontsource-variable/inter-tight": "^5.2.0",
     "@types/node": "^22.10.0",
+    "axe-core": "^4.14.0",
     "esbuild": "^0.28.2",
     "playwright": "^1.50.0",
     "tsx": "^4.19.0",

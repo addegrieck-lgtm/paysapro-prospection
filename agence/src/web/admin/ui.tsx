@@ -288,6 +288,7 @@ export function LoginShell({ title, children }: { title: string; children: Child
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
         <title>{title}</title>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/assets/css/admin.css" />
       </head>
       <body class="admin login-page">
