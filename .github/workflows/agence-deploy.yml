@@ -1,0 +1,41 @@
+# Mise en ligne de l'agence sur Cloudflare Workers (offre gratuite) — lancement manuel uniquement.
+# GitHub → onglet Actions → « Agence — mise en ligne Cloudflare » → Run workflow.
+# Secrets du dépôt requis (Settings → Secrets and variables → Actions) :
+#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID ; facultatif : AGENCE_SETUP_TOKEN (création du 1er administrateur).
+name: Agence — mise en ligne Cloudflare
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agence-deploy
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: agence/package-lock.json
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - run: npm test
+      - run: npm run build
+      - run: npm run check:public
+      - name: Déployer sur Cloudflare
+        run: node scripts/cf-deploy.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_SETUP_TOKEN: ${{ secrets.AGENCE_SETUP_TOKEN }}
