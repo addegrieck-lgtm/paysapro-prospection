@@ -175,6 +175,17 @@ export const UNPRICED_LABELS: Record<UnpricedReason, string> = {
   cost_changed: 'Le tarif de cette combinaison est en cours de mise à jour.',
 };
 
+/** Raison INTERNE de l'absence de prix (administration, tests). Ne jamais l'exposer telle quelle au public. */
+export function unpricedReason(v: VariantRow | undefined, now: Date, validityDays: number): UnpricedReason | null {
+  if (!v) return 'no_variant';
+  const st = effectiveStatus(v, now, validityDays);
+  if (st === 'expire') return 'expired';
+  if (st !== 'verifie' || v.supplier_price_ht == null) return 'unverified';
+  if (v.sale_print_ht == null || !v.sale_validated_at) return 'no_sale_price';
+  if (costChangedSinceValidation(v)) return 'cost_changed';
+  return null;
+}
+
 export interface DesignOffer {
   name: string;
   priceHt: number | null;
@@ -184,7 +195,8 @@ export interface DesignOffer {
 /** Estimation PUBLIQUE : uniquement des prix de vente, jamais de coûts fournisseur ni de marge. */
 export interface PublicEstimate {
   status: 'priced' | 'on_request';
-  reason: UnpricedReason | null;
+  /** Raison publique volontairement générique (aucune information sur les coûts). */
+  reason: 'no_variant' | 'pending' | null;
   message: string;
   design: { wanted: boolean; name: string; priceHt: number | null; fromPrice: boolean } | null;
   printHt: number | null;
@@ -213,12 +225,7 @@ export function publicEstimate(args: {
   const { variants, config, wantDesign, design, vatMode, validityDays, now } = args;
   const vatRate = vatMode === 'franchise' ? 0 : args.vatRate;
   const v = findExactVariant(variants, config, args.options);
-  let reason: UnpricedReason | null = null;
-  if (!v) reason = 'no_variant';
-  else if (effectiveStatus(v, now, validityDays) === 'expire') reason = 'expired';
-  else if (effectiveStatus(v, now, validityDays) !== 'verifie' || v.supplier_price_ht == null) reason = 'unverified';
-  else if (v.sale_print_ht == null || !v.sale_validated_at) reason = 'no_sale_price';
-  else if (costChangedSinceValidation(v)) reason = 'cost_changed';
+  const reason = unpricedReason(v, now, validityDays);
 
   const designPart = wantDesign && design
     ? { wanted: true, name: design.name, priceHt: design.priceMode === 'quote' ? null : design.priceHt, fromPrice: design.priceMode === 'from' }
@@ -239,8 +246,8 @@ export function publicEstimate(args: {
   if (reason || !v) {
     return {
       status: 'on_request',
-      reason,
-      message: UNPRICED_LABELS[reason ?? 'no_variant'] + ' Nous vous envoyons un devis précis sous 48 h ouvrées.',
+      reason: reason === 'no_variant' || !reason ? 'no_variant' : 'pending',
+      message: UNPRICED_LABELS[reason === 'no_variant' || !reason ? 'no_variant' : 'unverified'] + ' Nous vous envoyons un devis précis sous 48 h ouvrées.',
       design: designPart,
       printHt: null,
       shippingHt: null,

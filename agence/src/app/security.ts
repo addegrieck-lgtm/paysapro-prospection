@@ -130,7 +130,8 @@ export const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
       const ct = c.req.header('content-type') ?? '';
       if (ct.includes('form')) {
         const body = await c.req.parseBody({ all: true });
-        sent = typeof body._csrf === 'string' ? body._csrf : '';
+        const v = body._csrf;
+        sent = typeof v === 'string' ? v : Array.isArray(v) && typeof v[0] === 'string' ? v[0] : '';
       }
     }
     if (!sent || !safeEqual(sent, c.get('csrf'))) return c.text('Jeton de sécurité invalide : rechargez la page.', 403);
