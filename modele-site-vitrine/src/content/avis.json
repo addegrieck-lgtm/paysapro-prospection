@@ -1,0 +1,22 @@
+{
+  "titre": "Ils nous font confiance",
+  "note_globale": "4,9/5 sur Google",
+  "lien_avis": "",
+  "liste": [
+    {
+      "nom": "Sophie M.",
+      "note": 5,
+      "texte": "Intervention le jour même pour une fuite, travail propre et prix annoncé respecté. Je recommande !"
+    },
+    {
+      "nom": "Karim B.",
+      "note": 5,
+      "texte": "Très bons conseils pour notre nouvelle salle de bain. Délais tenus, chantier laissé impeccable."
+    },
+    {
+      "nom": "Claire L.",
+      "note": 4,
+      "texte": "Ponctuel et efficace pour le remplacement du chauffe-eau."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# Hébergement Netlify : chaque modification faite dans l'interface relance la construction du site.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

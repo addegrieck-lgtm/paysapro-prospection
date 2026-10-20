@@ -1,0 +1,38 @@
+---
+import Base from '../layouts/Base.astro';
+import { entreprise, adresseComplete } from '../lib/contenu';
+
+const l = entreprise.legal;
+---
+<Base titre={`Mentions légales – ${entreprise.nom}`} description={`Mentions légales du site ${entreprise.nom}.`}>
+  <section class="section">
+    <div class="conteneur conteneur--etroit texte-legal">
+      <h1>Mentions légales</h1>
+
+      <h2>Éditeur du site</h2>
+      <p>
+        {l.raison_sociale || entreprise.nom}{l.forme_capital && <>, {l.forme_capital}</>}<br />
+        {adresseComplete && <>{adresseComplete}<br /></>}
+        {l.siret && <>SIRET : {l.siret}<br /></>}
+        {l.rcs_rm && <>{l.rcs_rm}<br /></>}
+        {l.tva && <>TVA intracommunautaire : {l.tva}<br /></>}
+        {entreprise.telephone && <>Téléphone : {entreprise.telephone}<br /></>}
+        {entreprise.email && <>E-mail : {entreprise.email}</>}
+      </p>
+      {l.responsable_publication && <p>Responsable de la publication : {l.responsable_publication}</p>}
+
+      <h2>Hébergement</h2>
+      <p>{l.hebergeur}</p>
+
+      <h2>Données personnelles</h2>
+      <p>
+        Les informations envoyées via le formulaire de contact servent uniquement à répondre à votre demande et ne sont
+        jamais cédées à des tiers. Conformément au RGPD, vous pouvez demander leur consultation, rectification ou
+        suppression {entreprise.email ? <>en écrivant à <a href={`mailto:${entreprise.email}`}>{entreprise.email}</a></> : 'en nous contactant'}.
+      </p>
+
+      <h2>Cookies</h2>
+      <p>Ce site ne dépose aucun cookie publicitaire. La carte Google Maps intégrée peut déposer des cookies propres à Google.</p>
+    </div>
+  </section>
+</Base>

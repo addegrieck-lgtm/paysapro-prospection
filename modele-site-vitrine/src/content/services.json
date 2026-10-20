@@ -1,0 +1,24 @@
+{
+  "titre": "Nos services",
+  "intro": "Des prestations complètes, du simple dépannage à la rénovation.",
+  "liste": [
+    {
+      "titre": "Dépannage & fuites",
+      "description": "Recherche de fuite, débouchage, réparation de robinetterie et de canalisations.",
+      "prix": "À partir de 80 €",
+      "image": ""
+    },
+    {
+      "titre": "Chauffe-eau & chaudière",
+      "description": "Installation, remplacement et entretien de chauffe-eau électriques, thermodynamiques et chaudières gaz.",
+      "prix": "",
+      "image": ""
+    },
+    {
+      "titre": "Salle de bain",
+      "description": "Rénovation complète : douche à l'italienne, meubles, carrelage, accessibilité PMR.",
+      "prix": "Sur devis",
+      "image": ""
+    }
+  ]
+}

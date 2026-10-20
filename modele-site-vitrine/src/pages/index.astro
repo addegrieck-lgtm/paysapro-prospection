@@ -1,0 +1,178 @@
+---
+import Base from '../layouts/Base.astro';
+import {
+  entreprise, apparence, accueil, services, galerie, avis, faq,
+  adresseComplete, lienTelephone, paragraphes, photos, visible,
+} from '../lib/contenu';
+
+const hero = accueil.hero;
+const apropos = accueil.apropos;
+const formulaire = apparence.formulaire;
+// Sans adresse d'envoi (Formspree, Getform…), le formulaire est géré par Netlify Forms.
+const netlifyForms = formulaire.actif && !formulaire.adresse_envoi;
+const etoiles = (note: number) => '★'.repeat(Math.round(note)) + '☆'.repeat(5 - Math.round(note));
+---
+<Base>
+  <section class="hero" style={hero.image ? `--hero-image:url('${hero.image}')` : undefined}>
+    <div class="conteneur hero__contenu">
+      <p class="hero__metier">{entreprise.metier}{entreprise.ville && ` · ${entreprise.ville}`}</p>
+      <h1>{hero.titre}</h1>
+      {hero.sous_titre && <p class="hero__texte">{hero.sous_titre}</p>}
+      <div class="hero__boutons">
+        {visible.contact && hero.bouton_principal && <a class="bouton bouton--accent" href="#contact">{hero.bouton_principal}</a>}
+        {visible.services && hero.bouton_secondaire && <a class="bouton bouton--clair" href="#services">{hero.bouton_secondaire}</a>}
+      </div>
+    </div>
+  </section>
+
+  {visible.points_forts && (
+    <section class="points-forts">
+      <div class="conteneur grille grille--3">
+        {accueil.points_forts.map((p) => (
+          <div class="point-fort">
+            <strong>{p.titre}</strong>
+            <span>{p.texte}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+
+  {visible.services && (
+    <section id="services" class="section">
+      <div class="conteneur">
+        <h2>{services.titre}</h2>
+        {services.intro && <p class="section__intro">{services.intro}</p>}
+        <div class="grille grille--3">
+          {services.liste.map((s) => (
+            <article class="carte">
+              {s.image && <img src={s.image} alt={s.titre} class="carte__image" loading="lazy" />}
+              <div class="carte__corps">
+                <h3>{s.titre}</h3>
+                <p>{s.description}</p>
+                {s.prix && <p class="carte__prix">{s.prix}</p>}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {visible.apropos && (
+    <section id="apropos" class="section">
+      <div class={`conteneur apropos ${apropos.image ? 'apropos--image' : ''}`}>
+        <div>
+          <h2>{apropos.titre}</h2>
+          {paragraphes(apropos.texte).map((p) => <p>{p}</p>)}
+          {apropos.chiffres.length > 0 && (
+            <div class="chiffres">
+              {apropos.chiffres.map((c) => (
+                <div><strong>{c.valeur}</strong><span>{c.libelle}</span></div>
+              ))}
+            </div>
+          )}
+        </div>
+        {apropos.image && <img src={apropos.image} alt={apropos.titre} class="apropos__image" loading="lazy" />}
+      </div>
+    </section>
+  )}
+
+  {visible.galerie && (
+    <section id="galerie" class="section">
+      <div class="conteneur">
+        <h2>{galerie.titre}</h2>
+        <div class="galerie">
+          {photos.map((p) => (
+            <figure>
+              <img src={p.image} alt={p.legende || galerie.titre} loading="lazy" />
+              {p.legende && <figcaption>{p.legende}</figcaption>}
+            </figure>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {visible.avis && (
+    <section id="avis" class="section">
+      <div class="conteneur">
+        <h2>{avis.titre}</h2>
+        {avis.note_globale && <p class="section__intro">{avis.note_globale}</p>}
+        <div class="grille grille--3">
+          {avis.liste.map((a) => (
+            <blockquote class="avis">
+              <span class="avis__etoiles" aria-label={`${a.note} sur 5`}>{etoiles(a.note)}</span>
+              <p>« {a.texte} »</p>
+              <cite>{a.nom}</cite>
+            </blockquote>
+          ))}
+        </div>
+        {avis.lien_avis && <p class="centre"><a class="bouton bouton--contour" href={avis.lien_avis}>Voir tous les avis</a></p>}
+      </div>
+    </section>
+  )}
+
+  {visible.faq && (
+    <section id="faq" class="section">
+      <div class="conteneur conteneur--etroit">
+        <h2>{faq.titre}</h2>
+        {faq.questions.map((q) => (
+          <details class="faq">
+            <summary>{q.question}</summary>
+            {paragraphes(q.reponse).map((p) => <p>{p}</p>)}
+          </details>
+        ))}
+      </div>
+    </section>
+  )}
+
+  {visible.contact && (
+    <section id="contact" class="section">
+      <div class="conteneur contact">
+        <div>
+          <h2>Contact</h2>
+          {entreprise.telephone && <p><a class="bouton" href={lienTelephone(entreprise.telephone)}>📞 {entreprise.telephone}</a></p>}
+          {entreprise.email && <p><a href={`mailto:${entreprise.email}`}>✉️ {entreprise.email}</a></p>}
+          {adresseComplete && <p>📍 {adresseComplete}</p>}
+          {entreprise.zone_intervention && <p>🚗 {entreprise.zone_intervention}</p>}
+          {entreprise.horaires.length > 0 && (
+            <table class="horaires">
+              <caption>Horaires</caption>
+              {entreprise.horaires.map((h) => <tr><th scope="row">{h.jours}</th><td>{h.heures}</td></tr>)}
+            </table>
+          )}
+        </div>
+        {formulaire.actif && (
+          <form
+            class="formulaire"
+            name="contact"
+            method="POST"
+            action={formulaire.adresse_envoi || '/merci'}
+            data-netlify={netlifyForms ? 'true' : undefined}
+            netlify-honeypot={netlifyForms ? 'site-web' : undefined}
+          >
+            {netlifyForms && <input type="hidden" name="form-name" value="contact" />}
+            <p hidden><label>Ne pas remplir : <input name="site-web" /></label></p>
+            <label>Nom<input name="nom" required autocomplete="name" /></label>
+            <label>Téléphone<input name="telephone" type="tel" autocomplete="tel" /></label>
+            <label>E-mail<input name="email" type="email" required autocomplete="email" /></label>
+            <label>Votre demande<textarea name="message" rows="5" required></textarea></label>
+            <button class="bouton bouton--accent" type="submit">Envoyer</button>
+          </form>
+        )}
+      </div>
+      {apparence.carte && adresseComplete && (
+        <div class="conteneur">
+          <iframe
+            class="carte-google"
+            title={`Plan d'accès – ${entreprise.nom}`}
+            src={`https://www.google.com/maps?q=${encodeURIComponent(`${entreprise.nom}, ${adresseComplete}`)}&output=embed`}
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+          ></iframe>
+        </div>
+      )}
+    </section>
+  )}
+</Base>

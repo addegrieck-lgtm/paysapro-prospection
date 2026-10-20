@@ -1,0 +1,17 @@
+{
+  "titre": "Questions fréquentes",
+  "questions": [
+    {
+      "question": "Le devis est-il gratuit ?",
+      "reponse": "Oui, le déplacement et le devis sont gratuits dans notre zone d'intervention."
+    },
+    {
+      "question": "Intervenez-vous en urgence ?",
+      "reponse": "Oui, 7j/7 pour les fuites et les pannes importantes. Appelez-nous directement."
+    },
+    {
+      "question": "Quels moyens de paiement acceptez-vous ?",
+      "reponse": "Carte bancaire, virement, chèque et espèces."
+    }
+  ]
+}

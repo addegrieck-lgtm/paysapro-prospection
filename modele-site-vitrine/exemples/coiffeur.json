@@ -1,0 +1,159 @@
+{
+  "entreprise": {
+    "nom": "Atelier Léa Coiffure",
+    "metier": "Salon de coiffure",
+    "slogan": "Coupe, couleur et soins sur mesure",
+    "logo": "",
+    "categorie": "HealthAndBeautyBusiness",
+    "telephone": "05 56 00 00 00",
+    "email": "contact@atelier-lea.fr",
+    "adresse": "25 cours Victor Hugo",
+    "code_postal": "33000",
+    "ville": "Bordeaux",
+    "zone_intervention": "",
+    "horaires": [
+      {
+        "jours": "Mardi – Vendredi",
+        "heures": "9h30 – 19h"
+      },
+      {
+        "jours": "Samedi",
+        "heures": "9h – 17h"
+      },
+      {
+        "jours": "Dimanche – Lundi",
+        "heures": "Fermé"
+      }
+    ],
+    "reseaux": {
+      "facebook": "",
+      "instagram": "",
+      "linkedin": "",
+      "google": ""
+    },
+    "seo": {
+      "titre": "Atelier Léa – Coiffeur à Bordeaux",
+      "description": "Salon de coiffure à Bordeaux : coupes femme, homme et enfant, couleurs, balayages et soins. Prenez rendez-vous."
+    },
+    "legal": {
+      "raison_sociale": "Léa Martin",
+      "forme_capital": "Entrepreneur individuel",
+      "siret": "111 222 333 00018",
+      "rcs_rm": "",
+      "tva": "",
+      "responsable_publication": "Léa Martin",
+      "hebergeur": "Netlify, Inc. – 512 2nd Street, Suite 200, San Francisco, CA 94107, États-Unis"
+    }
+  },
+  "apparence": {
+    "theme": "rose",
+    "police": "arrondie"
+  },
+  "accueil": {
+    "hero": {
+      "titre": "Une coiffure qui vous ressemble",
+      "sous_titre": "Un salon chaleureux où l'on prend le temps de vous écouter et de vous conseiller.",
+      "image": "",
+      "bouton_principal": "Prendre rendez-vous",
+      "bouton_secondaire": "Nos tarifs"
+    },
+    "points_forts": [
+      {
+        "titre": "Produits naturels",
+        "texte": "Colorations sans ammoniaque."
+      },
+      {
+        "titre": "Sur rendez-vous",
+        "texte": "Sans attente."
+      },
+      {
+        "titre": "Conseil personnalisé",
+        "texte": "Diagnostic offert."
+      }
+    ],
+    "apropos": {
+      "titre": "L'atelier",
+      "texte": "Coiffeuse depuis 12 ans, Léa a créé un salon à taille humaine, pensé comme une parenthèse de détente.\n\nSpécialités : balayages, couleurs végétales et coupes courtes.",
+      "image": "",
+      "chiffres": [
+        {
+          "valeur": "12 ans",
+          "libelle": "d'expérience"
+        },
+        {
+          "valeur": "100 %",
+          "libelle": "sur rendez-vous"
+        }
+      ]
+    }
+  },
+  "services": {
+    "titre": "Prestations & tarifs",
+    "intro": "Shampoing et coiffage compris.",
+    "liste": [
+      {
+        "titre": "Coupe femme",
+        "description": "Shampoing, coupe, brushing.",
+        "prix": "À partir de 45 €",
+        "image": ""
+      },
+      {
+        "titre": "Coupe homme",
+        "description": "Shampoing, coupe, coiffage.",
+        "prix": "25 €",
+        "image": ""
+      },
+      {
+        "titre": "Couleur & balayage",
+        "description": "Couleur végétale, balayage, ombré.",
+        "prix": "À partir de 60 €",
+        "image": ""
+      },
+      {
+        "titre": "Soins",
+        "description": "Soin profond, lissage, rituel détente.",
+        "prix": "À partir de 20 €",
+        "image": ""
+      }
+    ]
+  },
+  "galerie": {
+    "titre": "Nos réalisations",
+    "photos": []
+  },
+  "avis": {
+    "titre": "Avis clientes",
+    "note_globale": "5/5 sur Google",
+    "lien_avis": "",
+    "liste": [
+      {
+        "nom": "Camille D.",
+        "note": 5,
+        "texte": "Enfin un balayage naturel comme je le voulais !"
+      },
+      {
+        "nom": "Marc P.",
+        "note": 5,
+        "texte": "Accueil top et coupe impeccable."
+      },
+      {
+        "nom": "Inès A.",
+        "note": 5,
+        "texte": "Salon très agréable, de vrais conseils."
+      }
+    ]
+  },
+  "faq": {
+    "titre": "Questions fréquentes",
+    "questions": [
+      {
+        "question": "Comment prendre rendez-vous ?",
+        "reponse": "Par téléphone ou via le formulaire de contact."
+      },
+      {
+        "question": "Coiffez-vous les enfants ?",
+        "reponse": "Oui, coupe enfant (moins de 12 ans) à 18 €."
+      }
+    ]
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "entreprise": {
+    "nom": "Dupont Plomberie",
+    "metier": "Plombier chauffagiste",
+    "slogan": "Dépannage, installation et rénovation de salle de bain",
+    "logo": "",
+    "categorie": "HomeAndConstructionBusiness",
+    "telephone": "06 12 34 56 78",
+    "email": "contact@dupont-plomberie.fr",
+    "adresse": "12 rue des Lilas",
+    "code_postal": "69003",
+    "ville": "Lyon",
+    "zone_intervention": "Lyon et 30 km autour",
+    "horaires": [
+      {
+        "jours": "Lundi – Vendredi",
+        "heures": "8h – 18h30"
+      },
+      {
+        "jours": "Samedi",
+        "heures": "9h – 12h"
+      },
+      {
+        "jours": "Urgences",
+        "heures": "7j/7"
+      }
+    ],
+    "reseaux": {
+      "facebook": "",
+      "instagram": "",
+      "linkedin": "",
+      "google": ""
+    },
+    "seo": {
+      "titre": "Dupont Plomberie – Plombier à Lyon",
+      "description": "Plombier chauffagiste à Lyon : dépannage rapide, installation de chauffe-eau, rénovation de salle de bain. Devis gratuit."
+    },
+    "legal": {
+      "raison_sociale": "Dupont Plomberie EURL",
+      "forme_capital": "EURL au capital de 5 000 €",
+      "siret": "123 456 789 00012",
+      "rcs_rm": "",
+      "tva": "",
+      "responsable_publication": "Jean Dupont",
+      "hebergeur": "Netlify, Inc. – 512 2nd Street, Suite 200, San Francisco, CA 94107, États-Unis"
+    }
+  },
+  "apparence": {
+    "theme": "bleu",
+    "police": "moderne"
+  },
+  "accueil": {
+    "hero": {
+      "titre": "Votre plombier à Lyon, rapide et soigneux",
+      "sous_titre": "Fuite, panne de chauffe-eau, nouvelle salle de bain : on intervient vite, avec un devis clair avant chaque chantier.",
+      "image": "",
+      "bouton_principal": "Demander un devis gratuit",
+      "bouton_secondaire": "Nos services"
+    },
+    "points_forts": [
+      {
+        "titre": "Devis gratuit",
+        "texte": "Un prix clair, sans surprise."
+      },
+      {
+        "titre": "Intervention rapide",
+        "texte": "Sous 24 h, urgences 7j/7."
+      },
+      {
+        "titre": "Travail garanti",
+        "texte": "Garantie décennale et assurance."
+      }
+    ],
+    "apropos": {
+      "titre": "Qui sommes-nous ?",
+      "texte": "Artisan plombier depuis 15 ans, j'interviens chez les particuliers et les professionnels de Lyon et de ses environs.\n\nMon engagement : un travail propre, des délais tenus et des conseils honnêtes pour que vos installations durent.",
+      "image": "",
+      "chiffres": [
+        {
+          "valeur": "15 ans",
+          "libelle": "d'expérience"
+        },
+        {
+          "valeur": "1 200+",
+          "libelle": "chantiers réalisés"
+        },
+        {
+          "valeur": "4,9/5",
+          "libelle": "note moyenne"
+        }
+      ]
+    }
+  },
+  "services": {
+    "titre": "Nos services",
+    "intro": "Des prestations complètes, du simple dépannage à la rénovation.",
+    "liste": [
+      {
+        "titre": "Dépannage & fuites",
+        "description": "Recherche de fuite, débouchage, réparation de robinetterie et de canalisations.",
+        "prix": "À partir de 80 €",
+        "image": ""
+      },
+      {
+        "titre": "Chauffe-eau & chaudière",
+        "description": "Installation, remplacement et entretien de chauffe-eau électriques, thermodynamiques et chaudières gaz.",
+        "prix": "",
+        "image": ""
+      },
+      {
+        "titre": "Salle de bain",
+        "description": "Rénovation complète : douche à l'italienne, meubles, carrelage, accessibilité PMR.",
+        "prix": "Sur devis",
+        "image": ""
+      }
+    ]
+  },
+  "galerie": {
+    "titre": "Nos réalisations",
+    "photos": []
+  },
+  "avis": {
+    "titre": "Ils nous font confiance",
+    "note_globale": "4,9/5 sur Google",
+    "lien_avis": "",
+    "liste": [
+      {
+        "nom": "Sophie M.",
+        "note": 5,
+        "texte": "Intervention le jour même pour une fuite, travail propre et prix annoncé respecté. Je recommande !"
+      },
+      {
+        "nom": "Karim B.",
+        "note": 5,
+        "texte": "Très bons conseils pour notre nouvelle salle de bain. Délais tenus, chantier laissé impeccable."
+      },
+      {
+        "nom": "Claire L.",
+        "note": 4,
+        "texte": "Ponctuel et efficace pour le remplacement du chauffe-eau."
+      }
+    ]
+  },
+  "faq": {
+    "titre": "Questions fréquentes",
+    "questions": [
+      {
+        "question": "Le devis est-il gratuit ?",
+        "reponse": "Oui, le déplacement et le devis sont gratuits dans notre zone d'intervention."
+      },
+      {
+        "question": "Intervenez-vous en urgence ?",
+        "reponse": "Oui, 7j/7 pour les fuites et les pannes importantes. Appelez-nous directement."
+      },
+      {
+        "question": "Quels moyens de paiement acceptez-vous ?",
+        "reponse": "Carte bancaire, virement, chèque et espèces."
+      }
+    ]
+  }
+}

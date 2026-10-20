@@ -1,0 +1,13 @@
+---
+import Base from '../layouts/Base.astro';
+import { entreprise } from '../lib/contenu';
+---
+<Base titre={`Page introuvable – ${entreprise.nom}`}>
+  <section class="section">
+    <div class="conteneur conteneur--etroit centre">
+      <h1>Page introuvable</h1>
+      <p>Cette page n'existe pas ou a été déplacée.</p>
+      <p><a class="bouton" href="/">Retour à l'accueil</a></p>
+    </div>
+  </section>
+</Base>

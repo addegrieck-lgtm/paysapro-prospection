@@ -1,0 +1,160 @@
+/* Les couleurs et polices viennent de l'onglet « Apparence » de l'interface (variables posées sur <body>). */
+:root {
+  --primaire: #1f5f99;
+  --accent: #f2a541;
+  --texte: #1d2129;
+  --texte-doux: #555c68;
+  --fond: #ffffff;
+  --bord: #e3e6eb;
+  --rayon: 12px;
+  --ombre: 0 6px 24px rgb(0 0 0 / 0.07);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+body {
+  margin: 0;
+  font-family: var(--police-texte, system-ui, sans-serif);
+  color: var(--texte);
+  background: var(--fond);
+  line-height: 1.6;
+  font-size: 17px;
+  /* Calculées ici car --primaire est redéfinie sur <body>. */
+  --primaire-fonce: color-mix(in oklab, var(--primaire) 75%, black);
+  --teinte: color-mix(in oklab, var(--primaire) 7%, white);
+}
+h1, h2, h3 { font-family: var(--police-titres, inherit); line-height: 1.2; margin: 0 0 0.6em; }
+h1 { font-size: clamp(2rem, 5vw, 3.2rem); }
+h2 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); }
+h3 { font-size: 1.2rem; }
+img { max-width: 100%; display: block; }
+a { color: var(--primaire); }
+
+.conteneur { width: min(1120px, 100% - 32px); margin-inline: auto; }
+.conteneur--etroit { width: min(760px, 100% - 32px); }
+.centre { text-align: center; }
+
+/* Boutons */
+.bouton {
+  display: inline-block;
+  padding: 0.8em 1.4em;
+  border-radius: 999px;
+  background: var(--primaire);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border: 2px solid transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: transform 0.15s, background 0.15s;
+}
+.bouton:hover { background: var(--primaire-fonce); transform: translateY(-1px); }
+.bouton--accent { background: var(--accent); color: #1d2129; }
+.bouton--accent:hover { background: color-mix(in oklab, var(--accent) 85%, black); }
+.bouton--clair { background: rgb(255 255 255 / 0.15); border-color: #fff; }
+.bouton--contour { background: transparent; color: var(--primaire); border-color: var(--primaire); }
+.bouton--contour:hover { color: #fff; }
+.bouton--petit { padding: 0.5em 1em; font-size: 0.95rem; white-space: nowrap; }
+
+/* En-tête */
+.entete { position: sticky; top: 0; z-index: 10; background: rgb(255 255 255 / 0.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--bord); }
+.entete__ligne { display: flex; align-items: center; gap: 24px; min-height: 68px; }
+.marque { text-decoration: none; color: var(--texte); margin-right: auto; }
+.marque__nom { font-family: var(--police-titres); font-weight: 700; font-size: 1.25rem; }
+.marque__logo { max-height: 48px; width: auto; }
+.menu { display: flex; gap: 20px; }
+.menu a { color: var(--texte); text-decoration: none; font-weight: 500; }
+.menu a:hover { color: var(--primaire); }
+
+/* Bandeau principal */
+.hero {
+  color: #fff;
+  background:
+    linear-gradient(120deg, color-mix(in oklab, var(--primaire-fonce) 92%, transparent), color-mix(in oklab, var(--primaire) 70%, transparent)),
+    var(--hero-image, none) center / cover,
+    var(--primaire);
+  padding: clamp(64px, 12vw, 140px) 0;
+}
+.hero__contenu { max-width: 760px; margin-left: max(16px, (100% - 1120px) / 2); }
+.hero__metier { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; opacity: 0.85; margin: 0 0 12px; }
+.hero__texte { font-size: 1.2rem; opacity: 0.95; }
+.hero__boutons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+
+/* Points forts */
+.points-forts { background: var(--teinte); padding: 28px 0; border-bottom: 1px solid var(--bord); }
+.point-fort { display: flex; flex-direction: column; text-align: center; }
+.point-fort strong { color: var(--primaire-fonce); font-size: 1.1rem; }
+.point-fort span { color: var(--texte-doux); }
+
+/* Sections */
+.section { padding: clamp(56px, 8vw, 96px) 0; }
+/* Une section sur deux est teintée, quelles que soient les sections masquées. */
+main > .section:nth-child(even of .section) { background: var(--teinte); }
+.section h2 { text-align: center; }
+.section__intro { text-align: center; color: var(--texte-doux); max-width: 640px; margin: -0.3em auto 2.2em; }
+.grille { display: grid; gap: 24px; }
+.grille--3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+.carte { background: #fff; border-radius: var(--rayon); box-shadow: var(--ombre); overflow: hidden; border-top: 4px solid var(--primaire); }
+.carte__image { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.carte__corps { padding: 24px; }
+.carte__corps p { margin: 0 0 0.6em; color: var(--texte-doux); }
+.carte__prix { font-weight: 700; color: var(--primaire) !important; }
+
+.apropos { display: grid; gap: 40px; align-items: center; }
+.apropos--image { grid-template-columns: 1.2fr 1fr; }
+.apropos h2 { text-align: left; }
+.apropos__image { border-radius: var(--rayon); box-shadow: var(--ombre); width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.chiffres { display: flex; flex-wrap: wrap; gap: 32px; margin-top: 24px; }
+.chiffres div { display: flex; flex-direction: column; }
+.chiffres strong { font-size: 1.8rem; color: var(--primaire); font-family: var(--police-titres); }
+.chiffres span { color: var(--texte-doux); }
+
+.galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.galerie figure { margin: 0; }
+.galerie img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--rayon); }
+.galerie figcaption { font-size: 0.9rem; color: var(--texte-doux); margin-top: 6px; }
+
+.avis { margin: 0; background: #fff; padding: 24px; border-radius: var(--rayon); box-shadow: var(--ombre); }
+.avis__etoiles { color: #f5a623; font-size: 1.2rem; letter-spacing: 2px; }
+.avis cite { font-style: normal; font-weight: 600; }
+
+.faq { background: #fff; border: 1px solid var(--bord); border-radius: var(--rayon); padding: 16px 20px; margin-bottom: 12px; }
+.faq summary { font-weight: 600; cursor: pointer; }
+.faq p { margin: 0.8em 0 0; color: var(--texte-doux); }
+
+.contact { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+.contact h2 { text-align: left; }
+.horaires { border-collapse: collapse; margin-top: 16px; }
+.horaires caption { text-align: left; font-weight: 700; margin-bottom: 6px; }
+.horaires th { text-align: left; font-weight: 500; padding: 4px 24px 4px 0; }
+.formulaire { background: #fff; padding: 28px; border-radius: var(--rayon); box-shadow: var(--ombre); display: grid; gap: 14px; }
+.formulaire label { display: grid; gap: 4px; font-weight: 500; }
+.formulaire input, .formulaire textarea { font: inherit; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 8px; width: 100%; }
+.formulaire input:focus, .formulaire textarea:focus { outline: 2px solid var(--primaire); border-color: transparent; }
+.carte-google { width: 100%; height: 340px; border: 0; border-radius: var(--rayon); margin-top: 40px; }
+
+.texte-legal h2 { margin-top: 1.6em; font-size: 1.3rem; }
+
+/* Pied de page */
+.pied { background: #1d2129; color: #c9ced6; padding: 48px 0; font-size: 0.95rem; }
+.pied a { color: #fff; }
+.pied p { margin: 0.3em 0; }
+.pied strong { color: #fff; font-size: 1.1rem; }
+.pied__grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+.pied__reseaux { display: flex; gap: 14px; flex-wrap: wrap; }
+
+.barre-appel { display: none; }
+
+@media (max-width: 800px) {
+  .entete__ligne { flex-wrap: wrap; gap: 8px 16px; padding-top: 10px; }
+  .menu { order: 3; width: 100%; overflow-x: auto; padding-bottom: 10px; gap: 18px; white-space: nowrap; }
+  .apropos--image, .contact { grid-template-columns: 1fr; }
+  .barre-appel {
+    display: block; position: fixed; inset: auto 0 0 0; z-index: 20;
+    background: var(--accent); color: #1d2129; text-align: center; font-weight: 700;
+    padding: 14px; text-decoration: none; box-shadow: 0 -4px 16px rgb(0 0 0 / 0.15);
+  }
+  body:has(.barre-appel) { padding-bottom: 52px; }
+  body:has(.barre-appel) .entete .bouton--petit { display: none; }
+}

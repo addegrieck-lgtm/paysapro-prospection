@@ -1,0 +1,13 @@
+---
+import Base from '../layouts/Base.astro';
+import { entreprise } from '../lib/contenu';
+---
+<Base titre={`Message envoyé – ${entreprise.nom}`}>
+  <section class="section">
+    <div class="conteneur conteneur--etroit centre">
+      <h1>Merci, votre message est bien envoyé !</h1>
+      <p>Nous vous répondons au plus vite.</p>
+      <p><a class="bouton" href="/">Retour à l'accueil</a></p>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,20 @@
+{
+  "theme": "bleu",
+  "couleur_perso": "",
+  "police": "moderne",
+  "sections": {
+    "points_forts": true,
+    "services": true,
+    "apropos": true,
+    "galerie": true,
+    "avis": true,
+    "faq": true,
+    "contact": true
+  },
+  "formulaire": {
+    "actif": true,
+    "adresse_envoi": ""
+  },
+  "carte": true,
+  "barre_appel_mobile": true
+}

@@ -1,0 +1,228 @@
+# Interface d'administration du client (Pages CMS : https://pagescms.org).
+# Chaque entrée ci-dessous devient un onglet de l'interface et modifie un fichier de src/content.
+# Après chaque enregistrement, le site se reconstruit et se met en ligne tout seul (Netlify, Vercel, Cloudflare…).
+
+media:
+  input: public/images
+  output: /images
+  categories: [image]
+
+content:
+  - name: accueil
+    label: Page d'accueil
+    type: file
+    path: src/content/accueil.json
+    format: json
+    fields:
+      - name: hero
+        label: Bandeau du haut
+        type: object
+        fields:
+          - { name: titre, label: Grand titre, type: string, required: true }
+          - { name: sous_titre, label: Texte sous le titre, type: text }
+          - { name: image, label: Photo de fond (facultatif), type: image }
+          - { name: bouton_principal, label: Texte du bouton principal, type: string, description: "Mène au formulaire de contact." }
+          - { name: bouton_secondaire, label: Texte du second bouton, type: string, description: "Mène à la liste des services." }
+      - name: points_forts
+        label: Points forts (bandeau sous le titre)
+        type: object
+        list: { max: 4, collapsible: false }
+        fields:
+          - { name: titre, label: Titre, type: string, required: true }
+          - { name: texte, label: Détail, type: string }
+      - name: apropos
+        label: À propos
+        type: object
+        fields:
+          - { name: titre, label: Titre, type: string }
+          - { name: texte, label: Texte, type: text, description: "Laissez une ligne vide entre deux paragraphes." }
+          - { name: image, label: Photo (facultatif), type: image }
+          - name: chiffres
+            label: Chiffres clés
+            type: object
+            list: { max: 4, collapsible: false }
+            fields:
+              - { name: valeur, label: Chiffre, type: string, description: "Ex. : 15 ans, 1 200+, 4,9/5" }
+              - { name: libelle, label: Légende, type: string }
+
+  - name: services
+    label: Services / Prestations
+    type: file
+    path: src/content/services.json
+    format: json
+    fields:
+      - { name: titre, label: Titre de la section, type: string }
+      - { name: intro, label: Phrase d'introduction, type: text }
+      - name: liste
+        label: Services
+        type: object
+        list: true
+        fields:
+          - { name: titre, label: Nom du service, type: string, required: true }
+          - { name: description, label: Description, type: text }
+          - { name: prix, label: Prix (facultatif), type: string, description: "Ex. : À partir de 80 €, Sur devis" }
+          - { name: image, label: Photo (facultatif), type: image }
+
+  - name: galerie
+    label: Galerie photos
+    type: file
+    path: src/content/galerie.json
+    format: json
+    fields:
+      - { name: titre, label: Titre de la section, type: string }
+      - name: photos
+        label: Photos
+        type: object
+        list: true
+        fields:
+          - { name: image, label: Photo, type: image, required: true }
+          - { name: legende, label: Légende (facultatif), type: string }
+
+  - name: avis
+    label: Avis clients
+    type: file
+    path: src/content/avis.json
+    format: json
+    fields:
+      - { name: titre, label: Titre de la section, type: string }
+      - { name: note_globale, label: Note globale, type: string, description: "Ex. : 4,9/5 sur Google (laisser vide pour ne rien afficher)" }
+      - { name: lien_avis, label: Lien vers tous vos avis (Google…), type: string }
+      - name: liste
+        label: Avis
+        type: object
+        list: true
+        fields:
+          - { name: nom, label: Prénom et initiale, type: string, required: true }
+          - { name: note, label: Note sur 5, type: number, default: 5, options: { min: 1, max: 5 } }
+          - { name: texte, label: Avis, type: text, required: true }
+
+  - name: faq
+    label: Questions fréquentes
+    type: file
+    path: src/content/faq.json
+    format: json
+    fields:
+      - { name: titre, label: Titre de la section, type: string }
+      - name: questions
+        label: Questions
+        type: object
+        list: true
+        fields:
+          - { name: question, label: Question, type: string, required: true }
+          - { name: reponse, label: Réponse, type: text, required: true }
+
+  - name: entreprise
+    label: Mon entreprise & coordonnées
+    type: file
+    path: src/content/entreprise.json
+    format: json
+    fields:
+      - { name: nom, label: Nom de l'entreprise, type: string, required: true }
+      - { name: metier, label: Métier / activité, type: string, description: "Ex. : Plombier chauffagiste, Restaurant italien, Cabinet d'avocats" }
+      - { name: slogan, label: Slogan, type: string }
+      - { name: logo, label: Logo (facultatif), type: image }
+      - name: categorie
+        label: Catégorie (pour Google)
+        type: select
+        options:
+          values:
+            - { value: LocalBusiness, label: Commerce / entreprise locale }
+            - { value: HomeAndConstructionBusiness, label: "Artisan du bâtiment (plombier, électricien, maçon…)" }
+            - { value: AutomotiveBusiness, label: Garage / automobile }
+            - { value: FoodEstablishment, label: Restaurant / bar / boulangerie }
+            - { value: HealthAndBeautyBusiness, label: "Beauté / bien-être (coiffeur, esthéticienne…)" }
+            - { value: MedicalBusiness, label: Santé (kiné, ostéopathe…) }
+            - { value: LegalService, label: "Juridique (avocat, notaire…)" }
+            - { value: ProfessionalService, label: "Services aux entreprises (comptable, conseil…)" }
+            - { value: Store, label: Boutique }
+            - { value: SportsActivityLocation, label: Sport / loisirs }
+      - { name: telephone, label: Téléphone, type: string }
+      - { name: email, label: E-mail, type: string }
+      - { name: adresse, label: Adresse, type: string }
+      - { name: code_postal, label: Code postal, type: string }
+      - { name: ville, label: Ville, type: string }
+      - { name: zone_intervention, label: Zone d'intervention (facultatif), type: string }
+      - name: horaires
+        label: Horaires
+        type: object
+        list: true
+        fields:
+          - { name: jours, label: Jours, type: string, description: "Ex. : Lundi – Vendredi" }
+          - { name: heures, label: Heures, type: string, description: "Ex. : 9h – 12h / 14h – 18h, ou Fermé" }
+      - name: reseaux
+        label: Réseaux sociaux (liens complets)
+        type: object
+        fields:
+          - { name: facebook, label: Facebook, type: string }
+          - { name: instagram, label: Instagram, type: string }
+          - { name: linkedin, label: LinkedIn, type: string }
+          - { name: google, label: Fiche Google, type: string }
+      - name: seo
+        label: Référencement Google
+        type: object
+        fields:
+          - { name: titre, label: Titre dans Google, type: string, description: "Idéalement : Nom – Métier à Ville (60 caractères max.)" }
+          - { name: description, label: Description dans Google, type: text, description: "150 caractères environ." }
+      - name: legal
+        label: Mentions légales
+        type: object
+        fields:
+          - { name: raison_sociale, label: Raison sociale, type: string }
+          - { name: forme_capital, label: Forme juridique et capital, type: string, description: "Ex. : SARL au capital de 10 000 € (vide pour un micro-entrepreneur)" }
+          - { name: siret, label: SIRET, type: string }
+          - { name: rcs_rm, label: Immatriculation RCS / RM, type: string }
+          - { name: tva, label: N° de TVA intracommunautaire, type: string }
+          - { name: responsable_publication, label: Responsable de la publication, type: string }
+          - { name: hebergeur, label: Hébergeur du site, type: text }
+
+  - name: apparence
+    label: Apparence & options
+    type: file
+    path: src/content/apparence.json
+    format: json
+    fields:
+      - name: theme
+        label: Couleurs
+        type: select
+        options:
+          values:
+            - { value: bleu, label: Bleu confiance }
+            - { value: vert, label: Vert nature }
+            - { value: terre, label: Terre / bois }
+            - { value: bordeaux, label: Bordeaux élégant }
+            - { value: anthracite, label: Anthracite moderne }
+            - { value: rose, label: Rose poudré }
+            - { value: orange, label: Orange dynamique }
+      - name: couleur_perso
+        label: Couleur principale personnalisée (facultatif)
+        type: string
+        description: "Code couleur, ex. #1f5f99. Remplace la couleur du thème."
+        pattern: { regex: "^(#[0-9a-fA-F]{6})?$", message: "Format attendu : # suivi de 6 caractères, ex. #1f5f99" }
+      - name: police
+        label: Style d'écriture
+        type: select
+        options:
+          values:
+            - { value: moderne, label: Moderne }
+            - { value: classique, label: Classique (titres à empattement) }
+            - { value: elegante, label: Élégante }
+            - { value: arrondie, label: Arrondie / chaleureuse }
+      - name: sections
+        label: Sections affichées
+        type: object
+        fields:
+          - { name: points_forts, label: Points forts, type: boolean }
+          - { name: services, label: Services, type: boolean }
+          - { name: apropos, label: À propos, type: boolean }
+          - { name: galerie, label: Galerie photos, type: boolean }
+          - { name: avis, label: Avis clients, type: boolean }
+          - { name: faq, label: Questions fréquentes, type: boolean }
+          - { name: contact, label: Contact, type: boolean }
+      - name: formulaire
+        label: Formulaire de contact
+        type: object
+        fields:
+          - { name: actif, label: Afficher le formulaire, type: boolean }
+          - { name: adresse_envoi, label: Adresse d'envoi (facultatif), type: string, description: "Vide = formulaires Netlify. Sinon, adresse Formspree / Getform." }
+      - { name: carte, label: Afficher la carte Google Maps, type: boolean }
+      - { name: barre_appel_mobile, label: Bouton « Appeler » fixe sur mobile, type: boolean }

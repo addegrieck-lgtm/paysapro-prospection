@@ -1,0 +1,46 @@
+{
+  "nom": "Dupont Plomberie",
+  "metier": "Plombier chauffagiste",
+  "slogan": "Dépannage, installation et rénovation de salle de bain",
+  "logo": "",
+  "categorie": "HomeAndConstructionBusiness",
+  "telephone": "06 12 34 56 78",
+  "email": "contact@dupont-plomberie.fr",
+  "adresse": "12 rue des Lilas",
+  "code_postal": "69003",
+  "ville": "Lyon",
+  "zone_intervention": "Lyon et 30 km autour",
+  "horaires": [
+    {
+      "jours": "Lundi – Vendredi",
+      "heures": "8h – 18h30"
+    },
+    {
+      "jours": "Samedi",
+      "heures": "9h – 12h"
+    },
+    {
+      "jours": "Urgences",
+      "heures": "7j/7"
+    }
+  ],
+  "reseaux": {
+    "facebook": "",
+    "instagram": "",
+    "linkedin": "",
+    "google": ""
+  },
+  "seo": {
+    "titre": "Dupont Plomberie – Plombier à Lyon",
+    "description": "Plombier chauffagiste à Lyon : dépannage rapide, installation de chauffe-eau, rénovation de salle de bain. Devis gratuit."
+  },
+  "legal": {
+    "raison_sociale": "Dupont Plomberie EURL",
+    "forme_capital": "EURL au capital de 5 000 €",
+    "siret": "123 456 789 00012",
+    "rcs_rm": "",
+    "tva": "",
+    "responsable_publication": "Jean Dupont",
+    "hebergeur": "Netlify, Inc. – 512 2nd Street, Suite 200, San Francisco, CA 94107, États-Unis"
+  }
+}

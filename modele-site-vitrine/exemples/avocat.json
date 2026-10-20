@@ -1,0 +1,129 @@
+{
+  "entreprise": {
+    "nom": "Cabinet Bernard Avocats",
+    "metier": "Cabinet d'avocats",
+    "slogan": "Droit de la famille, droit du travail, droit immobilier",
+    "logo": "",
+    "categorie": "LegalService",
+    "telephone": "01 40 00 00 00",
+    "email": "cabinet@bernard-avocats.fr",
+    "adresse": "40 boulevard Haussmann",
+    "code_postal": "75009",
+    "ville": "Paris",
+    "zone_intervention": "Paris et Île-de-France",
+    "horaires": [
+      {
+        "jours": "Lundi – Vendredi",
+        "heures": "9h – 19h, sur rendez-vous"
+      }
+    ],
+    "reseaux": {
+      "facebook": "",
+      "instagram": "",
+      "linkedin": "",
+      "google": ""
+    },
+    "seo": {
+      "titre": "Cabinet Bernard – Avocats à Paris 9e",
+      "description": "Cabinet d'avocats à Paris : droit de la famille, droit du travail et droit immobilier. Premier rendez-vous d'information."
+    },
+    "legal": {
+      "raison_sociale": "SELARL Bernard Avocats",
+      "forme_capital": "SELARL au capital de 20 000 €",
+      "siret": "444 555 666 00011",
+      "rcs_rm": "",
+      "tva": "",
+      "responsable_publication": "Me Claire Bernard",
+      "hebergeur": "Netlify, Inc. – 512 2nd Street, Suite 200, San Francisco, CA 94107, États-Unis"
+    }
+  },
+  "apparence": {
+    "theme": "anthracite",
+    "police": "classique"
+  },
+  "accueil": {
+    "hero": {
+      "titre": "Vous conseiller, vous défendre",
+      "sous_titre": "Un accompagnement juridique clair et humain, à chaque étape de votre dossier.",
+      "image": "",
+      "bouton_principal": "Prendre rendez-vous",
+      "bouton_secondaire": "Domaines d'intervention"
+    },
+    "points_forts": [
+      {
+        "titre": "Écoute",
+        "texte": "Un avocat dédié à votre dossier."
+      },
+      {
+        "titre": "Transparence",
+        "texte": "Convention d'honoraires dès le départ."
+      },
+      {
+        "titre": "Réactivité",
+        "texte": "Réponse sous 48 h."
+      }
+    ],
+    "apropos": {
+      "titre": "Le cabinet",
+      "texte": "Fondé par Me Claire Bernard, inscrite au Barreau de Paris depuis 2008, le cabinet intervient en conseil comme en contentieux.\n\nNous privilégions la recherche de solutions amiables, sans renoncer à défendre fermement vos intérêts devant les tribunaux.",
+      "image": "",
+      "chiffres": [
+        {
+          "valeur": "2008",
+          "libelle": "inscription au Barreau"
+        },
+        {
+          "valeur": "3",
+          "libelle": "avocats"
+        }
+      ]
+    }
+  },
+  "services": {
+    "titre": "Domaines d'intervention",
+    "intro": "",
+    "liste": [
+      {
+        "titre": "Droit de la famille",
+        "description": "Divorce, garde des enfants, pension alimentaire, succession.",
+        "prix": "",
+        "image": ""
+      },
+      {
+        "titre": "Droit du travail",
+        "description": "Licenciement, rupture conventionnelle, prud'hommes, pour salariés et employeurs.",
+        "prix": "",
+        "image": ""
+      },
+      {
+        "titre": "Droit immobilier",
+        "description": "Litiges locatifs, copropriété, vente immobilière.",
+        "prix": "",
+        "image": ""
+      }
+    ]
+  },
+  "galerie": {
+    "titre": "Le cabinet",
+    "photos": []
+  },
+  "avis": {
+    "titre": "Témoignages",
+    "note_globale": "",
+    "lien_avis": "",
+    "liste": []
+  },
+  "faq": {
+    "titre": "Questions fréquentes",
+    "questions": [
+      {
+        "question": "Combien coûte un premier rendez-vous ?",
+        "reponse": "Le premier rendez-vous d'information est facturé 90 € TTC. Une convention d'honoraires est ensuite proposée."
+      },
+      {
+        "question": "Acceptez-vous l'aide juridictionnelle ?",
+        "reponse": "Oui, selon le domaine et le dossier."
+      }
+    ]
+  }
+}

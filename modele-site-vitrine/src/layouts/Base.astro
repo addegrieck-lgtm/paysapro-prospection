@@ -1,0 +1,92 @@
+---
+import '../styles/global.css';
+import { entreprise, apparence, adresseComplete, lienTelephone, menu, variablesTheme } from '../lib/contenu';
+
+interface Props {
+  titre?: string;
+  description?: string;
+}
+const { titre = entreprise.seo.titre || entreprise.nom, description = entreprise.seo.description } = Astro.props;
+
+const reseaux = Object.values(entreprise.reseaux).filter(Boolean);
+// Fiche « entreprise locale » lue par Google (nom, téléphone, adresse, horaires…).
+const donneesStructurees = {
+  '@context': 'https://schema.org',
+  '@type': entreprise.categorie || 'LocalBusiness',
+  name: entreprise.nom,
+  description,
+  url: Astro.site?.href,
+  telephone: entreprise.telephone || undefined,
+  email: entreprise.email || undefined,
+  image: entreprise.logo ? new URL(entreprise.logo, Astro.site).href : undefined,
+  address: adresseComplete
+    ? { '@type': 'PostalAddress', streetAddress: entreprise.adresse, postalCode: entreprise.code_postal, addressLocality: entreprise.ville, addressCountry: 'FR' }
+    : undefined,
+  areaServed: entreprise.zone_intervention || undefined,
+  sameAs: reseaux.length ? reseaux : undefined,
+};
+const annee = new Date().getFullYear();
+---
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titre}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href={entreprise.logo || '/favicon.svg'} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site).href} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={titre} />
+    <meta property="og:description" content={description} />
+    <meta property="og:locale" content="fr_FR" />
+    <script type="application/ld+json" set:html={JSON.stringify(donneesStructurees)} />
+  </head>
+  <body style={variablesTheme()}>
+    <header class="entete">
+      <div class="conteneur entete__ligne">
+        <a href="/" class="marque">
+          {entreprise.logo ? <img src={entreprise.logo} alt={entreprise.nom} class="marque__logo" /> : <span class="marque__nom">{entreprise.nom}</span>}
+        </a>
+        <nav class="menu" aria-label="Menu principal">
+          {menu.map((lien) => <a href={lien.href}>{lien.libelle}</a>)}
+        </nav>
+        {entreprise.telephone && <a class="bouton bouton--petit" href={lienTelephone(entreprise.telephone)}>📞 {entreprise.telephone}</a>}
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="pied">
+      <div class="conteneur pied__grille">
+        <div>
+          <strong>{entreprise.nom}</strong>
+          <p>{entreprise.metier}</p>
+          {adresseComplete && <p>{adresseComplete}</p>}
+        </div>
+        <div>
+          {entreprise.telephone && <p><a href={lienTelephone(entreprise.telephone)}>{entreprise.telephone}</a></p>}
+          {entreprise.email && <p><a href={`mailto:${entreprise.email}`}>{entreprise.email}</a></p>}
+          {reseaux.length > 0 && (
+            <p class="pied__reseaux">
+              {entreprise.reseaux.facebook && <a href={entreprise.reseaux.facebook}>Facebook</a>}
+              {entreprise.reseaux.instagram && <a href={entreprise.reseaux.instagram}>Instagram</a>}
+              {entreprise.reseaux.linkedin && <a href={entreprise.reseaux.linkedin}>LinkedIn</a>}
+              {entreprise.reseaux.google && <a href={entreprise.reseaux.google}>Google</a>}
+            </p>
+          )}
+        </div>
+        <div class="pied__legal">
+          <p>© {annee} {entreprise.nom}</p>
+          <p><a href="/mentions-legales">Mentions légales</a></p>
+        </div>
+      </div>
+    </footer>
+
+    {apparence.barre_appel_mobile && entreprise.telephone && (
+      <a class="barre-appel" href={lienTelephone(entreprise.telephone)}>📞 Appeler {entreprise.nom}</a>
+    )}
+  </body>
+</html>

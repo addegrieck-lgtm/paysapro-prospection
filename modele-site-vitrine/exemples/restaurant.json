@@ -1,0 +1,163 @@
+{
+  "entreprise": {
+    "nom": "La Table de Marco",
+    "metier": "Restaurant italien",
+    "slogan": "Cuisine maison et produits frais",
+    "logo": "",
+    "categorie": "FoodEstablishment",
+    "telephone": "04 78 00 00 00",
+    "email": "bonjour@latabledemarco.fr",
+    "adresse": "8 place du Marché",
+    "code_postal": "69002",
+    "ville": "Lyon",
+    "zone_intervention": "",
+    "horaires": [
+      {
+        "jours": "Mardi – Samedi",
+        "heures": "12h – 14h / 19h – 22h30"
+      },
+      {
+        "jours": "Dimanche",
+        "heures": "12h – 15h"
+      },
+      {
+        "jours": "Lundi",
+        "heures": "Fermé"
+      }
+    ],
+    "reseaux": {
+      "facebook": "",
+      "instagram": "",
+      "linkedin": "",
+      "google": ""
+    },
+    "seo": {
+      "titre": "La Table de Marco – Restaurant italien à Lyon",
+      "description": "Restaurant italien au cœur de Lyon : pâtes fraîches, pizzas au feu de bois et desserts maison. Réservation par téléphone."
+    },
+    "legal": {
+      "raison_sociale": "La Table de Marco SARL",
+      "forme_capital": "SARL au capital de 10 000 €",
+      "siret": "987 654 321 00015",
+      "rcs_rm": "",
+      "tva": "",
+      "responsable_publication": "Marco Rossi",
+      "hebergeur": "Netlify, Inc. – 512 2nd Street, Suite 200, San Francisco, CA 94107, États-Unis"
+    }
+  },
+  "apparence": {
+    "theme": "bordeaux",
+    "police": "elegante"
+  },
+  "accueil": {
+    "hero": {
+      "titre": "L'Italie à votre table",
+      "sous_titre": "Pâtes fraîches, pizzas au feu de bois et vins italiens, dans une ambiance chaleureuse.",
+      "image": "",
+      "bouton_principal": "Réserver une table",
+      "bouton_secondaire": "Voir la carte"
+    },
+    "points_forts": [
+      {
+        "titre": "Fait maison",
+        "texte": "Pâtes et desserts préparés chaque jour."
+      },
+      {
+        "titre": "Produits frais",
+        "texte": "Producteurs locaux et importations italiennes."
+      },
+      {
+        "titre": "Terrasse",
+        "texte": "40 places au soleil."
+      }
+    ],
+    "apropos": {
+      "titre": "Notre histoire",
+      "texte": "Originaire de Naples, Marco a ouvert La Table en 2012 pour partager la cuisine de sa grand-mère.\n\nChaque plat est préparé sur place, avec des produits de saison.",
+      "image": "",
+      "chiffres": [
+        {
+          "valeur": "Depuis 2012",
+          "libelle": "au cœur de Lyon"
+        },
+        {
+          "valeur": "60",
+          "libelle": "couverts"
+        }
+      ]
+    }
+  },
+  "services": {
+    "titre": "La carte",
+    "intro": "Une carte courte qui change au fil des saisons.",
+    "liste": [
+      {
+        "titre": "Antipasti",
+        "description": "Burrata, vitello tonnato, planche de charcuterie italienne.",
+        "prix": "De 8 à 16 €",
+        "image": ""
+      },
+      {
+        "titre": "Pâtes fraîches",
+        "description": "Carbonara traditionnelle, ravioli ricotta-épinards, linguine aux palourdes.",
+        "prix": "De 15 à 22 €",
+        "image": ""
+      },
+      {
+        "titre": "Pizzas au feu de bois",
+        "description": "Pâte maturée 48 h, mozzarella fior di latte.",
+        "prix": "De 12 à 18 €",
+        "image": ""
+      },
+      {
+        "titre": "Menu du midi",
+        "description": "Entrée + plat ou plat + dessert, du mardi au vendredi.",
+        "prix": "19,50 €",
+        "image": ""
+      }
+    ]
+  },
+  "galerie": {
+    "titre": "En images",
+    "photos": []
+  },
+  "avis": {
+    "titre": "Ce que disent nos clients",
+    "note_globale": "4,7/5 sur Google",
+    "lien_avis": "",
+    "liste": [
+      {
+        "nom": "Julie R.",
+        "note": 5,
+        "texte": "Les meilleures pâtes de Lyon, service adorable."
+      },
+      {
+        "nom": "Thomas G.",
+        "note": 5,
+        "texte": "Pizza parfaite et tiramisu à tomber."
+      },
+      {
+        "nom": "Nadia K.",
+        "note": 4,
+        "texte": "Très bon rapport qualité-prix le midi."
+      }
+    ]
+  },
+  "faq": {
+    "titre": "Infos pratiques",
+    "questions": [
+      {
+        "question": "Faut-il réserver ?",
+        "reponse": "Conseillé le week-end. Réservation par téléphone."
+      },
+      {
+        "question": "Avez-vous des plats végétariens ?",
+        "reponse": "Oui, plusieurs pâtes et pizzas sont végétariennes, et nous pouvons adapter certains plats."
+      },
+      {
+        "question": "Faites-vous la vente à emporter ?",
+        "reponse": "Oui, pizzas et pâtes à emporter aux heures de service."
+      }
+    ]
+  }
+}

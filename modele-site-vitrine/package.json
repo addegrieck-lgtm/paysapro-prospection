@@ -1,0 +1,21 @@
+{
+  "name": "modele-site-vitrine",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Modèle de site vitrine multi-métiers, modifiable par le client via Pages CMS.",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host",
+    "build": "astro build",
+    "preview": "astro preview --host",
+    "exemple": "node scripts/appliquer-exemple.mjs",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "astro": "^7.4.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.11",
+    "typescript": "^6.0.3"
+  }
+}
