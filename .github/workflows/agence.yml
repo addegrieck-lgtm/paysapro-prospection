@@ -1,0 +1,32 @@
+# Agence web (dossier agence/) — vérifications à chaque modification. Aucun déploiement ni secret ici.
+name: Agence
+
+on:
+  push:
+    paths: ['agence/**', '.github/workflows/agence.yml']
+  pull_request:
+    paths: ['agence/**', '.github/workflows/agence.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: agence/package-lock.json
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run check:public

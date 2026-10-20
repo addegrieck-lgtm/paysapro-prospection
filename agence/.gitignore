@@ -1,0 +1,12 @@
+node_modules
+dist
+data
+uploads
+.env
+.env.*
+!.env.example
+.dev.vars
+.wrangler
+public/assets/js/*.js
+test-results
+*.log

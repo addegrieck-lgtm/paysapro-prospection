@@ -1,0 +1,36 @@
+{
+  "name": "agence-web",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Agence web & communication : site public, catalogue, configurateur d'impression, devis, CRM, BAT, commandes et facturation.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "node scripts/build-client.mjs && tsx watch src/server/node.ts",
+    "start": "node --disable-warning=ExperimentalWarning dist/server/node.js",
+    "build": "tsc --noEmit && node scripts/build-client.mjs && node scripts/build-server.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "node scripts/e2e.mjs",
+    "admin:create": "tsx scripts/create-admin.ts",
+    "check:public": "node scripts/check-public.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "hono": "^4.10.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/fraunces": "^5.2.0",
+    "@fontsource-variable/inter-tight": "^5.2.0",
+    "@types/node": "^22.10.0",
+    "axe-core": "^4.14.0",
+    "esbuild": "^0.28.2",
+    "playwright": "^1.50.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.0",
+    "vitest": "^5.0.5"
+  }
+}
