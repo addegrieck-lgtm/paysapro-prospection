@@ -1,7 +1,7 @@
 import type { Settings } from '../../domain/settings';
 import type { FaqRow, PortfolioRow, ProductRow, ServiceRow } from '../../repo/types';
 import { Layout } from '../layout';
-import { businessJsonLd, websiteJsonLd } from '../seo';
+import { businessJsonLd, telHref, websiteJsonLd } from '../seo';
 import { ConceptBadge, ContactForm, FaqList, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
 import { PACKS } from '../packs';
 import { PackCard } from './packs';
@@ -40,6 +40,7 @@ export function HomePage(p: {
         description: `Agence web et print${s.city ? ` à ${s.city} (Pays de Caux)` : ''} : sites internet, logos, flyers, cartes de visite et vitrines pour artisans et TPE. Devis gratuit.`,
         path: '/',
         jsonLd: [businessJsonLd(s), websiteJsonLd(s), ...(p.faqs.length ? [faqJsonLd(p.faqs)] : [])],
+        hideFooterCta: true,
       }}
     >
       <section class="hero">
@@ -275,7 +276,7 @@ export function HomePage(p: {
               {s.contactPhone && (
                 <li>
                   <span>Téléphone</span>
-                  <a href={`tel:${s.contactPhone.replace(/\s/g, '')}`}>{s.contactPhone}</a>
+                  <a href={telHref(s.contactPhone)}>{s.contactPhone}</a>
                 </li>
               )}
               <li>

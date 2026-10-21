@@ -21,6 +21,8 @@ export interface PageMeta {
   ogType?: string;
   /** Image de partage propre à la page (chemin), sinon l'image par défaut. */
   ogImage?: string;
+  /** Masque le bandeau « Un projet, une question ? » du pied de page (page qui finit déjà par un formulaire). */
+  hideFooterCta?: boolean;
 }
 
 const OG_IMAGE = '/assets/img/og-default.png';
@@ -184,19 +186,21 @@ function Header({ s, path }: { s: Settings; path: string }) {
   );
 }
 
-function Footer({ s }: { s: Settings }) {
+function Footer({ s, hideCta }: { s: Settings; hideCta?: boolean }) {
   const year = new Date().getFullYear();
   return (
     <footer class="site-footer">
       <div class="container">
-        <div class="footer-cta">
-          <p class="footer-cta-title">Un projet, une question ?</p>
-          <p>Réponse sous 48 h ouvrées, devis gratuit et sans engagement.</p>
-          <div class="btn-row">
-            <a href="/devis" class="btn btn-light">Obtenir mon devis gratuit</a>
-            <a href="/contact" class="btn btn-ghost-light">Nous écrire</a>
+        {!hideCta && (
+          <div class="footer-cta">
+            <p class="footer-cta-title">Un projet, une question ?</p>
+            <p>Réponse sous 48 h ouvrées, devis gratuit et sans engagement.</p>
+            <div class="btn-row">
+              <a href="/devis" class="btn btn-light">Obtenir mon devis gratuit</a>
+              <a href="/contact" class="btn btn-ghost-light">Nous écrire</a>
+            </div>
           </div>
-        </div>
+        )}
         <div class="footer-grid">
           <div class="footer-brand">
             <Logo s={s} />
@@ -386,7 +390,7 @@ export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) 
         <Header s={s} path={meta.path} />
         {meta.breadcrumbs?.length ? <Breadcrumbs items={meta.breadcrumbs} /> : null}
         <main id="contenu">{props.children}</main>
-        <Footer s={s} />
+        <Footer s={s} hideCta={meta.hideFooterCta} />
         <ConsentBanner s={s} />
       </body>
     </html>

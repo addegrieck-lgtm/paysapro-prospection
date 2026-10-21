@@ -2338,6 +2338,10 @@ html.js [data-reveal].is-visible {
   .tile-num {
     padding-bottom: 0.75rem;
   }
+  /* Illustration d'accueil réduite : la section suivante remonte sans perdre l'aperçu des réalisations. */
+  .hero-visual {
+    max-width: 300px;
+  }
   .pack {
     grid-template-columns: 1fr;
   }
