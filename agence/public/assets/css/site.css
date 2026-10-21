@@ -2443,3 +2443,78 @@ html.js [data-reveal].is-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Bouton d'appel (en-tête) et carte ─── */
+.header-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.header-call:hover {
+  color: var(--accent-text);
+}
+@media (max-width: 1180px) {
+  .header-call span {
+    display: none;
+  }
+  .header-call {
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--line-2);
+  }
+}
+.map-card {
+  margin: 1.5rem 0;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in oklab, var(--accent) 22%, transparent) 0 10px, transparent 11px),
+    repeating-linear-gradient(35deg, #ece6da 0 2px, transparent 2px 26px),
+    #f3eee5;
+  min-height: 260px;
+}
+.map-placeholder {
+  display: grid;
+  align-content: end;
+  gap: 0.25rem;
+  min-height: 260px;
+  padding: 1.25rem;
+  background: linear-gradient(to top, rgb(255 255 255 / 0.95) 45%, transparent);
+}
+.map-placeholder p {
+  margin: 0;
+}
+.map-placeholder .btn-row {
+  margin-top: 0.75rem;
+  align-items: center;
+}
+.map-card iframe {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 0;
+}
+@media (max-width: 640px) {
+  .header-actions .btn-sm {
+    white-space: nowrap;
+  }
+  .header-call {
+    width: 40px;
+    height: 40px;
+  }
+}
+@media (max-width: 400px) {
+  .logo-name {
+    font-size: 1rem;
+  }
+  .header-actions {
+    gap: 0.4rem;
+  }
+}

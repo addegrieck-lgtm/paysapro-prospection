@@ -2,6 +2,7 @@ import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
 import type { Settings } from '../domain/settings';
 import { initials } from '../domain/settings';
+import { localityLabel, telHref } from './seo';
 
 export interface Crumb {
   name: string;
@@ -18,13 +19,18 @@ export interface PageMeta {
   scripts?: string[];
   bodyClass?: string;
   ogType?: string;
+  /** Image de partage propre à la page (chemin), sinon l'image par défaut. */
+  ogImage?: string;
 }
+
+const OG_IMAGE = '/assets/img/og-default.png';
 
 /** JSON pour <script type="application/ld+json"> : « < » échappé pour empêcher toute sortie de balise. */
 export function jsonForScript(data: unknown): string {
   return JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
 }
 
+/** URL absolue. L'adresse du site vient des paramètres, sinon de l'origine de la requête (voir app.tsx). */
 export function absoluteUrl(s: Settings, path: string): string {
   const base = s.siteUrl.replace(/\/+$/, '');
   return base ? `${base}${path}` : path;
@@ -35,7 +41,7 @@ export function Logo({ s, size = 34 }: { s: Settings; size?: number }) {
     <span class="logo">
       <svg class="logo-mark" width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
         <rect x="1" y="1" width="38" height="38" rx="11" fill="var(--ink)" />
-        <path d="M11 31.5c6-2.2 12-2.2 18 0" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" />
+        <path d="M10 31c3.3-2.4 6.7-2.4 10 0s6.7 2.4 10 0" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" />
         <text x="20" y="24" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="14" font-weight="500" fill="#fff">
           {initials(s.agencyName)}
         </text>
@@ -111,6 +117,14 @@ function Header({ s, path }: { s: Settings; path: string }) {
           <a href="/blog" aria-current={current('/blog')}>Blog</a>
         </nav>
         <div class="header-actions">
+          {s.contactPhone && (
+            <a href={telHref(s.contactPhone)} class="header-call" aria-label={`Appeler le ${s.contactPhone}`}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z" fill="currentColor" />
+              </svg>
+              <span>{s.contactPhone}</span>
+            </a>
+          )}
           <a href="/contact" class="link-quiet hide-sm">Contact</a>
           <a href="/devis" class="btn btn-primary btn-sm">Devis gratuit</a>
           <details class="mobile-nav">
@@ -171,7 +185,14 @@ function Footer({ s }: { s: Settings }) {
               )}
               {s.contactPhone && (
                 <li>
-                  <a href={`tel:${s.contactPhone.replace(/\s/g, '')}`}>{s.contactPhone}</a>
+                  <a href={telHref(s.contactPhone)}>{s.contactPhone}</a>
+                </li>
+              )}
+              {s.city && (
+                <li>
+                  {s.streetAddress ? `${s.streetAddress}, ` : ''}
+                  {localityLabel(s)}
+                  {s.department ? `, ${s.department}` : ''}
                 </li>
               )}
               <li>{s.serviceArea}</li>
@@ -288,12 +309,19 @@ export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) 
         <meta property="og:description" content={meta.description} />
         <meta property="og:locale" content="fr_FR" />
         <meta property="og:site_name" content={s.agencyName} />
-        {s.siteUrl && <meta property="og:url" content={canonical} />}
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={absoluteUrl(s, meta.ogImage ?? OG_IMAGE)} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={`${s.agencyName} — ${s.tagline}`} />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="theme-color" content="#F6F3EE" />
         {s.searchConsoleToken && <meta name="google-site-verification" content={s.searchConsoleToken} />}
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="preload" href="/assets/fonts/inter-tight-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
         <link rel="preload" href="/assets/fonts/fraunces-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+        <link rel="preload" href="/assets/fonts/fraunces-latin-wght-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+        <link rel="apple-touch-icon" href="/assets/img/logo-512.png" />
         <link rel="stylesheet" href="/assets/css/site.css" />
         <style>{raw(`:root{--accent:${s.accentColor}}`)}</style>
         {jsonLd.map((d) => (

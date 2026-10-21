@@ -29,6 +29,31 @@ function SettingsForm({ s, c }: { s: Settings; c: Ctx }) {
           <F label="E-mail des notifications internes" name="notifyEmail" type="email" value={s.notifyEmail} max={200} help="Reçoit les nouvelles demandes, acceptations de devis et de BAT." />
         </div>
       </div>
+      <div class="panel" id="localisation">
+        <h2>Localisation et zone desservie (référencement local)</h2>
+        <p class="muted">
+          Affiché sur le site (contact, pied de page) et dans les données structurées lues par Google. Laissez la rue vide si vous ne recevez pas de
+          public à votre adresse : seule la commune sera publiée.
+        </p>
+        <div class="form-grid">
+          <F label="Rue (facultatif)" name="streetAddress" value={s.streetAddress} max={200} />
+          <F label="Code postal" name="postalCode" value={s.postalCode} max={10} />
+          <F label="Commune" name="city" value={s.city} max={80} />
+          <F label="Département" name="department" value={s.department} max={80} />
+          <F label="Région" name="region" value={s.region} max={80} />
+          <F label="Latitude" name="latitude" value={s.latitude == null ? '' : String(s.latitude)} max={20} help="Ex. 49.5473 (point décimal)." />
+          <F label="Longitude" name="longitude" value={s.longitude == null ? '' : String(s.longitude)} max={20} />
+          <F label="Ouverture (HH:MM)" name="opensAt" value={s.opensAt} max={5} />
+          <F label="Fermeture (HH:MM)" name="closesAt" value={s.closesAt} max={5} />
+          {DAYS.map(([code, label]) => (
+            <Check label={`Ouvert le ${label}`} name={`day.${code}`} checked={s.openingDays.includes(code)} />
+          ))}
+          <TA label="Zone principale (une commune par ligne)" name="serviceAreasPrimary" value={s.serviceAreasPrimary.join('\n')} rows={6} max={2000} />
+          <TA label="Zone secondaire (une par ligne)" name="serviceAreasSecondary" value={s.serviceAreasSecondary.join('\n')} rows={4} max={1000} />
+          <F label="Fiche Google Business Profile (URL)" name="googleBusinessUrl" type="url" value={s.googleBusinessUrl} max={300} />
+          <TA label="Réseaux sociaux (une URL par ligne)" name="socialUrls" value={s.socialUrls.join('\n')} rows={3} max={3000} />
+        </div>
+      </div>
       <div class="panel" id="legal">
         <h2>Informations légales</h2>
         {missing.length > 0 ? (
@@ -99,6 +124,19 @@ function SettingsForm({ s, c }: { s: Settings; c: Ctx }) {
   );
 }
 
+const DAYS = [
+  ['Monday', 'lundi'],
+  ['Tuesday', 'mardi'],
+  ['Wednesday', 'mercredi'],
+  ['Thursday', 'jeudi'],
+  ['Friday', 'vendredi'],
+  ['Saturday', 'samedi'],
+  ['Sunday', 'dimanche'],
+] as const;
+
+const lines = (v: string) => v.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+const coord = (v: string) => (v.trim() === '' ? null : Number(v.trim().replace(',', '.')));
+
 settingsRoutes.get('/parametres', (c) => page(c, 'Paramètres', <SettingsForm s={c.get('settings')} c={c} />));
 
 settingsRoutes.post('/parametres', async (c) => {
@@ -119,6 +157,20 @@ settingsRoutes.post('/parametres', async (c) => {
     serviceArea: f.get('serviceArea'),
     openingHours: f.get('openingHours'),
     notifyEmail: f.get('notifyEmail'),
+    streetAddress: f.get('streetAddress'),
+    postalCode: f.get('postalCode'),
+    city: f.get('city'),
+    department: f.get('department'),
+    region: f.get('region'),
+    latitude: coord(f.get('latitude')),
+    longitude: coord(f.get('longitude')),
+    serviceAreasPrimary: lines(f.get('serviceAreasPrimary')),
+    serviceAreasSecondary: lines(f.get('serviceAreasSecondary')),
+    openingDays: DAYS.filter(([code]) => f.bool(`day.${code}`)).map(([code]) => code),
+    opensAt: f.get('opensAt'),
+    closesAt: f.get('closesAt'),
+    googleBusinessUrl: f.get('googleBusinessUrl'),
+    socialUrls: lines(f.get('socialUrls')),
     legal,
     vatMode: f.get('vatMode'),
     vatRate: dec('vatRate'),
@@ -139,6 +191,7 @@ settingsRoutes.post('/parametres', async (c) => {
   const emailOk = (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   if (!emailOk(candidate.contactEmail) || !emailOk(candidate.notifyEmail)) errors.push('Adresse e-mail invalide.');
   if (candidate.siteUrl && !/^https?:\/\/[^\s/]+$/.test(candidate.siteUrl)) errors.push('Adresse du site invalide (ex. https://www.exemple.fr, sans chemin).');
+  if (candidate.googleBusinessUrl && !/^https:\/\/\S+$/.test(candidate.googleBusinessUrl)) errors.push('Lien Google Business invalide (https://…).');
   if (legal.siren && !/^\d{9}$/.test(legal.siren)) errors.push('SIREN : 9 chiffres.');
   if (legal.siret && !/^\d{14}$/.test(legal.siret)) errors.push('SIRET : 14 chiffres.');
   if (candidate.ga4Id && !/^G-[A-Z0-9]+$/.test(candidate.ga4Id)) errors.push('ID Google Analytics invalide (G-XXXXXXX).');

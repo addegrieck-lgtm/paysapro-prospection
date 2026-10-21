@@ -20,8 +20,18 @@ export function createApp(deps: Deps) {
   const app = new Hono<AppEnv>();
 
   app.use('*', async (c, next) => {
+    const url = new URL(c.req.url);
+    // HTTPS obligatoire en production (Cloudflare) : redirection permanente des requêtes HTTP.
+    if (deps.config.forceHttps && url.protocol === 'http:') {
+      url.protocol = 'https:';
+      return c.redirect(url.toString(), 301);
+    }
     c.set('deps', deps);
-    c.set('settings', await getSettings(deps.db));
+    const settings = await getSettings(deps.db);
+    // Pages publiques : sans adresse de site configurée, les URL absolues (canonical, sitemap, données structurées,
+    // Open Graph) utilisent l'origine de la requête. L'administration conserve la valeur réellement enregistrée.
+    const publicPage = !url.pathname.startsWith('/admin');
+    c.set('settings', publicPage && !settings.siteUrl ? { ...settings, siteUrl: url.origin } : settings);
     await next();
   });
   app.use('*', securityHeaders);

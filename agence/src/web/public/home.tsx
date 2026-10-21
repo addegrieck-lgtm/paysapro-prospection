@@ -1,25 +1,9 @@
 import type { Settings } from '../../domain/settings';
 import type { FaqRow, PortfolioRow, ProductRow, ServiceRow } from '../../repo/types';
-import { Layout, absoluteUrl } from '../layout';
+import { Layout } from '../layout';
+import { businessJsonLd, websiteJsonLd } from '../seo';
 import { ConceptBadge, ContactForm, FaqList, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
 import { HeroComposition, PortfolioVisual, ProductVisual, SeoMock } from '../illustrations';
-
-export function organizationJsonLd(s: Settings) {
-  const org: Record<string, unknown> = {
-    '@context': 'https://schema.org',
-    '@type': 'ProfessionalService',
-    name: s.agencyName,
-    description: s.tagline,
-    areaServed: { '@type': 'Country', name: 'France' },
-    knowsAbout: ['Création de sites internet', 'Identité visuelle', 'Impression', 'Référencement naturel'],
-  };
-  if (s.siteUrl) org.url = absoluteUrl(s, '/');
-  if (s.contactEmail) org.email = s.contactEmail;
-  if (s.contactPhone) org.telephone = s.contactPhone;
-  // L'adresse n'est publiée que si elle a été renseignée (jamais inventée).
-  if (s.legal.address) org.address = { '@type': 'PostalAddress', streetAddress: s.legal.address, addressCountry: 'FR' };
-  return org;
-}
 
 const SERVICE_TILES: [string, string, string, string][] = [
   ['/creation-site-internet', 'Création de site', 'Des sites vitrines rapides, clairs et pensés pour le mobile.', '01'],
@@ -47,22 +31,23 @@ export function HomePage(p: {
     <Layout
       s={s}
       meta={{
-        title: 'Sites internet, identité visuelle et impression pour TPE',
-        description: `${s.agencyName} conçoit des sites internet, logos, flyers, cartes de visite et supports imprimés pour les indépendants, artisans, commerçants et petites entreprises. Devis gratuit.`,
+        title: s.city ? `Agence web & print à ${s.city}` : 'Agence web et print pour TPE',
+        description: `${s.agencyName}${s.city ? `, agence web et print à ${s.city} (Pays de Caux)` : ''} : sites internet, logos, flyers, cartes de visite et vitrines pour artisans et TPE. Devis gratuit.`,
         path: '/',
-        jsonLd: [organizationJsonLd(s), ...(p.faqs.length ? [faqJsonLd(p.faqs)] : [])],
+        jsonLd: [businessJsonLd(s), websiteJsonLd(s), ...(p.faqs.length ? [faqJsonLd(p.faqs)] : [])],
       }}
     >
       <section class="hero">
         <div class="container hero-grid">
           <div class="hero-copy">
-            <p class="eyebrow">Agence web & communication · Indépendants, artisans, TPE</p>
+            <p class="eyebrow">Agence web & communication{s.city ? ` · ${s.city}, Pays de Caux` : ''}</p>
             <h1>
-              Des sites et des imprimés qui font <em>venir des clients.</em>
+              Sites internet et imprimés qui font <em>venir des clients.</em>
             </h1>
             <p class="hero-lead">
-              Site internet, logo, flyers, cartes de visite, visibilité locale : nous créons une communication claire et cohérente, avec des prix
-              affichés et un interlocuteur unique, du premier échange à la livraison.
+              Site internet, logo, flyers, cartes de visite, visibilité locale : nous créons une communication claire et cohérente pour les artisans,
+              commerçants et TPE, avec des prix affichés et un interlocuteur unique.
+              {s.city ? ` Basés à ${s.city}, nous nous déplaçons dans le Pays de Caux et travaillons à distance partout en France.` : ''}
             </p>
             <div class="btn-row">
               <a href="/devis" class="btn btn-primary btn-lg">Obtenir mon devis gratuit</a>

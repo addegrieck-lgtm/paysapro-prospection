@@ -214,3 +214,27 @@ export function ContactForm({ token, compact = false, subjectDefault = '' }: { t
     </form>
   );
 }
+
+/**
+ * Carte de localisation sans traceur : la carte OpenStreetMap n'est chargée qu'au clic du visiteur
+ * (aucune requête vers un tiers avant son action). Sans JavaScript, un lien ouvre la carte.
+ */
+export function MapEmbed({ s }: { s: Settings }) {
+  const lat = s.latitude!;
+  const lon = s.longitude!;
+  const bbox = [lon - 0.13, lat - 0.06, lon + 0.13, lat + 0.06].map((n) => n.toFixed(4)).join(',');
+  const embed = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lon}`;
+  const link = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`;
+  return (
+    <div class="map-card" data-map={embed} data-map-title={`Carte : ${s.agencyName}, ${s.city}`}>
+      <div class="map-placeholder">
+        <p class="strong">{s.city}{s.department ? `, ${s.department}` : ''}</p>
+        <p class="muted small">La carte est fournie par OpenStreetMap et ne se charge qu’à votre demande.</p>
+        <div class="btn-row">
+          <button type="button" class="btn btn-outline btn-sm" data-map-load>Afficher la carte</button>
+          <a href={link} class="link-arrow" rel="noopener" target="_blank">Ouvrir dans OpenStreetMap</a>
+        </div>
+      </div>
+    </div>
+  );
+}

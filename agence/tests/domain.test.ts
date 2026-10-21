@@ -235,6 +235,7 @@ describe('textes', () => {
     expect(slugify('Création de Site — Été 2026 !')).toBe('creation-de-site-ete-2026');
     expect(wordCount('## Un titre\nDeux mots')).toBe(4);
     expect(initials('Atelier Sillage')).toBe('AS');
+    expect(initials('Signe & Seine')).toBe('SS');
   });
   it('dates', () => {
     expect(addDays('2026-10-20', 30)).toBe('2026-11-19');

@@ -17,6 +17,24 @@ export const settingsSchema = z.object({
   openingHours: z.string().trim().max(200),
   notifyEmail: z.string().trim().max(200),
 
+  /** Localisation publique (NAP) : affichée sur le site et dans les données structurées. */
+  streetAddress: z.string().trim().max(200),
+  postalCode: z.string().trim().max(10),
+  city: z.string().trim().max(80),
+  department: z.string().trim().max(80),
+  region: z.string().trim().max(80),
+  latitude: z.number().min(-90).max(90).nullable(),
+  longitude: z.number().min(-180).max(180).nullable(),
+  /** Communes de la zone principale (déplacements, pose) puis zone secondaire. */
+  serviceAreasPrimary: z.array(z.string().trim().min(1).max(80)).max(40),
+  serviceAreasSecondary: z.array(z.string().trim().min(1).max(80)).max(20),
+  /** Horaires structurés (données structurées) ; « openingHours » reste le texte affiché. */
+  openingDays: z.array(z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])),
+  opensAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^$/),
+  closesAt: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^$/),
+  googleBusinessUrl: z.string().trim().max(300),
+  socialUrls: z.array(z.string().trim().url().max(300)).max(10),
+
   legal: z.object({
     companyName: z.string().trim().max(200),
     legalForm: z.string().trim().max(120),
@@ -56,16 +74,31 @@ export const settingsSchema = z.object({
 export type Settings = z.infer<typeof settingsSchema>;
 
 export const DEFAULT_SETTINGS: Settings = {
-  agencyName: 'Atelier Sillage',
-  tagline: 'Sites internet, identité visuelle et impression pour les entreprises qui veulent être vues.',
+  agencyName: 'Signe & Seine',
+  tagline: 'Sites internet, identité visuelle, impression et vitrines pour les entreprises du Pays de Caux et d’ailleurs.',
   nameConfirmed: false,
   accentColor: '#C2410C',
   siteUrl: '',
-  contactEmail: '',
-  contactPhone: '',
-  serviceArea: 'Partout en France, à distance',
-  openingHours: 'Du lundi au vendredi, 9 h – 18 h',
-  notifyEmail: '',
+  contactEmail: 'contact@signeetseine.fr',
+  contactPhone: '06 47 41 42 24',
+  serviceArea: 'Pays de Caux et Seine-Maritime — partout en France à distance',
+  openingHours: 'Du lundi au samedi, 8 h 30 – 20 h',
+  notifyEmail: 'contact@signeetseine.fr',
+  streetAddress: '',
+  postalCode: '76210',
+  city: 'Gruchet-le-Valasse',
+  department: 'Seine-Maritime',
+  region: 'Normandie',
+  // Centre de la commune (geo.api.gouv.fr) : à remplacer par la position exacte si une adresse est publiée.
+  latitude: 49.5473,
+  longitude: 0.5149,
+  serviceAreasPrimary: ['Gruchet-le-Valasse', 'Bolbec', 'Lillebonne', 'Port-Jérôme-sur-Seine', 'Saint-Romain-de-Colbosc', 'Goderville', 'Fécamp', 'Yvetot', 'Rives-en-Seine', 'Montivilliers', 'Le Havre'],
+  serviceAreasSecondary: ['Rouen', 'Seine-Maritime', 'Eure', 'Normandie'],
+  openingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  opensAt: '08:30',
+  closesAt: '20:00',
+  googleBusinessUrl: '',
+  socialUrls: [],
   legal: {
     companyName: '',
     legalForm: '',

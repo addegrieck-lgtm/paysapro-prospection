@@ -49,7 +49,7 @@ export default {
         from: env.MAIL_FROM,
         fromName: env.MAIL_FROM_NAME,
       }),
-      config: { appSecret: env.APP_SECRET, production: env.ENVIRONMENT !== 'development', setupToken: env.ADMIN_SETUP_TOKEN ?? '' },
+      config: { appSecret: env.APP_SECRET, production: env.ENVIRONMENT !== 'development', setupToken: env.ADMIN_SETUP_TOKEN ?? '', forceHttps: env.ENVIRONMENT !== 'development' },
       clientIp: (c) => c.req.header('cf-connecting-ip') ?? 'inconnu',
     });
     return app.fetch(request, env, ctx as never);

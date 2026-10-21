@@ -434,6 +434,21 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       )`,
     ],
   },
+  {
+    version: 2,
+    name: 'coordonnées de Signe & Seine (Gruchet-le-Valasse)',
+    // Données fournies par l'exploitant le 21/10/2026. Chaque valeur n'est écrite que si le champ est vide
+    // ou encore à sa valeur provisoire : une modification faite dans l'administration n'est jamais écrasée.
+    statements: [
+      `UPDATE settings SET value = json_set(value, '$.agencyName', 'Signe & Seine') WHERE key = 'site' AND json_extract(value, '$.agencyName') = 'Atelier Sillage'`,
+      `UPDATE settings SET value = json_set(value, '$.tagline', 'Sites internet, identité visuelle, impression et vitrines pour les entreprises du Pays de Caux et d’ailleurs.') WHERE key = 'site' AND json_extract(value, '$.tagline') = 'Sites internet, identité visuelle et impression pour les entreprises qui veulent être vues.'`,
+      `UPDATE settings SET value = json_set(value, '$.contactEmail', 'contact@signeetseine.fr') WHERE key = 'site' AND COALESCE(json_extract(value, '$.contactEmail'), '') = ''`,
+      `UPDATE settings SET value = json_set(value, '$.notifyEmail', 'contact@signeetseine.fr') WHERE key = 'site' AND COALESCE(json_extract(value, '$.notifyEmail'), '') = ''`,
+      `UPDATE settings SET value = json_set(value, '$.contactPhone', '06 47 41 42 24') WHERE key = 'site' AND COALESCE(json_extract(value, '$.contactPhone'), '') = ''`,
+      `UPDATE settings SET value = json_set(value, '$.openingHours', 'Du lundi au samedi, 8 h 30 – 20 h') WHERE key = 'site' AND json_extract(value, '$.openingHours') IN ('Du lundi au vendredi, 9 h – 18 h', '')`,
+      `UPDATE settings SET value = json_set(value, '$.serviceArea', 'Pays de Caux et Seine-Maritime — partout en France à distance') WHERE key = 'site' AND json_extract(value, '$.serviceArea') IN ('Partout en France, à distance', '')`,
+    ],
+  },
 ];
 
 /** Applique les migrations manquantes, dans l'ordre. Idempotent. */

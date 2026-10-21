@@ -2,8 +2,9 @@ import { raw } from 'hono/html';
 import type { Settings } from '../../domain/settings';
 import type { FaqRow, LocalPageRow, PortfolioRow, PostRow, ProductRow, ServiceRow } from '../../repo/types';
 import { Layout, absoluteUrl } from '../layout';
+import { areaServed, businessJsonLd, localityLabel, providerRef, telHref } from '../seo';
 import { CATEGORY_LABELS, SERVICE_PAGES, type ServicePageDef, type VisualKind } from '../content';
-import { ConceptBadge, ContactForm, CtaBand, FaqList, Notice, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
+import { ConceptBadge, ContactForm, CtaBand, FaqList, MapEmbed, Notice, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
 import { BrochureMock, BrowserMock, HeroComposition, IdentityBoard, MaintenanceMock, PortfolioVisual, PrintComposition, ProductVisual, SeoMock, SocialMock } from '../illustrations';
 import { formatEuros, ttcOf } from '../../domain/money';
 import { formatDate } from '../../domain/dates';
@@ -82,8 +83,9 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
             '@type': 'Service',
             name: def.name,
             description: def.metaDescription,
-            provider: { '@type': 'Organization', name: s.agencyName, ...(s.siteUrl ? { url: absoluteUrl(s, '/') } : {}) },
-            areaServed: { '@type': 'Country', name: 'France' },
+            provider: providerRef(s),
+            areaServed: areaServed(s),
+            url: absoluteUrl(s, def.path),
             ...(offers.length ? { offers } : {}),
           },
           ...(pageFaqs.length ? [faqJsonLd(pageFaqs)] : []),
@@ -219,8 +221,8 @@ export function PricingPage(p: { s: Settings; services: ServiceRow[] }) {
     <Layout
       s={s}
       meta={{
-        title: 'Tarifs : sites internet, création graphique, maintenance et SEO',
-        description: 'Tous nos tarifs de départ : sites internet, identité visuelle, flyers, cartes de visite, maintenance et référencement. Prix HT, ce qui est inclus et ce qui ne l’est pas.',
+        title: 'Tarifs : site internet, logo, print et SEO',
+        description: 'Prix de départ HT des sites internet, logos, flyers, cartes de visite, maintenance et référencement : ce qui est inclus, les délais et les options.',
         path: '/tarifs',
         breadcrumbs: [{ name: 'Tarifs', path: '/tarifs' }],
       }}
@@ -326,7 +328,7 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
     <Layout
       s={s}
       meta={{
-        title: cs ? 'Études de cas' : 'Réalisations et portfolio',
+        title: cs ? 'Études de cas : démarche et livrables' : 'Réalisations : sites, logos et print',
         description: cs
           ? 'Études de cas détaillées : problématique, démarche et livrables. Projets de démonstration clairement identifiés.'
           : 'Sites internet, identités visuelles, flyers, cartes de visite et brochures : découvrez notre travail à travers des projets de démonstration.',
@@ -354,7 +356,7 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
           ) : (
             <div class="work-grid work-grid-2">
               {p.items.map((w) => (
-                <a href={`/${cs ? 'etudes-de-cas' : 'realisations'}/${w.slug}`} class="work-card" data-reveal>
+                <a href={`/realisations/${w.slug}`} class="work-card" data-reveal>
                   <div class="work-visual">
                     <PortfolioVisual visual={w.visual} accent={w.accent || s.accentColor} title={w.title} />
                   </div>
@@ -388,8 +390,8 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
     <Layout
       s={s}
       meta={{
-        title: `${item.title} — ${item.category}${item.is_concept ? ' (concept)' : ''}`,
-        description: item.summary,
+        title: `${item.title} : ${item.category.toLowerCase()}${item.is_concept ? ' (concept)' : ''}`,
+        description: item.summary.length >= 110 ? item.summary : `${item.summary} ${item.is_concept ? 'Projet de démonstration' : 'Réalisation'} ${s.agencyName}, agence web et print en Pays de Caux.`,
         path: `/${p.base}/${item.slug}`,
         breadcrumbs: [
           { name: label, path: `/${p.base}` },
@@ -479,8 +481,8 @@ export function AboutPage({ s }: { s: Settings }) {
     <Layout
       s={s}
       meta={{
-        title: 'À propos de l’agence',
-        description: `${s.agencyName} accompagne les indépendants, artisans, commerçants et TPE dans leur communication : site internet, identité visuelle, impression et visibilité locale.`,
+        title: s.city ? `L’agence web et print à ${s.city}` : 'À propos de l’agence',
+        description: `${s.agencyName}${s.city ? `, agence installée à ${s.city},` : ''} accompagne artisans, commerçants et TPE : site internet, identité visuelle, impression et visibilité locale.`,
         path: '/a-propos',
         breadcrumbs: [{ name: 'À propos', path: '/a-propos' }],
       }}
@@ -538,13 +540,19 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
     <Layout
       s={s}
       meta={{
-        title: 'Contact',
-        description: `Contactez ${s.agencyName} pour votre site internet, votre identité visuelle ou vos impressions. Réponse sous 48 h ouvrées.`,
+        title: s.city ? `Contact : agence web à ${s.city}` : 'Contact',
+        description: `Contactez ${s.agencyName}${s.city ? ` à ${s.city} (${s.department})` : ''} par téléphone, e-mail ou formulaire pour votre site, votre logo ou vos impressions. Réponse sous 48 h.`,
         path: '/contact',
         breadcrumbs: [{ name: 'Contact', path: '/contact' }],
+        jsonLd: [businessJsonLd(s)],
       }}
     >
-      <PageHero eyebrow="Contact" h1="Parlons de" h1em="votre projet." intro="Une question, un projet, un besoin urgent ? Écrivez-nous : nous répondons sous 48 h ouvrées. Pour un chiffrage, le formulaire de devis est plus rapide." />
+      <PageHero
+        eyebrow="Contact"
+        h1={s.city ? 'Votre agence web et print' : 'Parlons de'}
+        h1em={s.city ? `à ${s.city}.` : 'votre projet.'}
+        intro={`Une question, un projet, un besoin urgent ? Appelez-nous ou écrivez-nous : nous répondons sous 48 h ouvrées.${s.city ? ` Nous nous déplaçons dans le Pays de Caux et travaillons à distance partout en France.` : ''}`}
+      />
       <section class="section section-tight">
         <div class="container split">
           <div>
@@ -558,7 +566,16 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
               {s.contactPhone && (
                 <li>
                   <span>Téléphone</span>
-                  <a href={`tel:${s.contactPhone.replace(/\s/g, '')}`}>{s.contactPhone}</a>
+                  <a href={telHref(s.contactPhone)}>{s.contactPhone}</a>
+                </li>
+              )}
+              {s.city && (
+                <li>
+                  <span>Localisation</span>
+                  {s.streetAddress ? `${s.streetAddress}, ` : ''}
+                  {localityLabel(s)}
+                  {s.department ? `, ${s.department}` : ''}
+                  {s.region ? ` (${s.region})` : ''}
                 </li>
               )}
               <li>
@@ -572,6 +589,12 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
                 </li>
               )}
             </ul>
+            {s.contactPhone && (
+              <p>
+                <a href={telHref(s.contactPhone)} class="btn btn-outline btn-lg">Appeler le {s.contactPhone}</a>
+              </p>
+            )}
+            {s.latitude != null && s.longitude != null && <MapEmbed s={s} />}
             <div class="aside-card">
               <p class="strong">Besoin d’un prix ?</p>
               <p class="muted">Le formulaire de devis vous guide en 6 étapes et nous donne toutes les informations utiles.</p>
@@ -601,8 +624,8 @@ export function BlogList({ s, posts }: { s: Settings; posts: PostRow[] }) {
     <Layout
       s={s}
       meta={{
-        title: 'Blog : conseils site internet, impression et visibilité locale',
-        description: 'Conseils pratiques pour les petites entreprises : sites internet, supports imprimés, identité visuelle et référencement local.',
+        title: 'Blog : conseils web, print et visibilité',
+        description: 'Conseils pratiques et sans jargon pour les artisans, commerçants et petites entreprises : sites internet, supports imprimés, identité visuelle et visibilité locale.',
         path: '/blog',
         breadcrumbs: [{ name: 'Blog', path: '/blog' }],
       }}
@@ -771,7 +794,7 @@ export function ClientSpaceInfo({ s }: { s: Settings }) {
       s={s}
       meta={{
         title: 'Espace client',
-        description: 'Consultez et validez vos devis, bons à tirer et recettes de site via vos liens sécurisés.',
+        description: 'Consultez et validez vos devis, bons à tirer (BAT) et recettes de site grâce aux liens personnels et sécurisés reçus par e-mail. Aucun mot de passe à retenir.',
         path: '/espace-client',
         breadcrumbs: [{ name: 'Espace client', path: '/espace-client' }],
       }}
@@ -818,7 +841,7 @@ export function SitePlan({ s, posts, products, items, local }: { s: Settings; po
     ['/cgv', 'Conditions générales de vente'],
   ];
   return (
-    <Layout s={s} meta={{ title: 'Plan du site', description: 'Toutes les pages du site.', path: '/plan-du-site', breadcrumbs: [{ name: 'Plan du site', path: '/plan-du-site' }] }}>
+    <Layout s={s} meta={{ title: 'Plan du site', description: `Toutes les pages du site ${s.agencyName} : prestations web et print, impression, réalisations, articles de blog et informations légales.`, path: '/plan-du-site', breadcrumbs: [{ name: 'Plan du site', path: '/plan-du-site' }] }}>
       <section class="page-hero">
         <div class="container">
           <h1>Plan du site</h1>

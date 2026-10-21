@@ -70,15 +70,15 @@ publicRoutes.get('/tarifs', async (c) => c.html(<PricingPage s={c.get('settings'
 
 publicRoutes.get('/realisations', async (c) => c.html(<PortfolioPage s={c.get('settings')} items={await publishedPortfolio(c.get('deps').db)} />));
 publicRoutes.get('/etudes-de-cas', async (c) => c.html(<PortfolioPage s={c.get('settings')} items={await publishedPortfolio(c.get('deps').db, { caseStudies: true })} caseStudies />));
-for (const base of ['realisations', 'etudes-de-cas'] as const) {
-  publicRoutes.get(`/${base}/:slug`, async (c) => {
-    const { db } = c.get('deps');
-    const item = await portfolioBySlug(db, c.req.param('slug'));
-    if (!item || (base === 'etudes-de-cas' && !item.is_case_study)) return c.notFound();
-    const others = (await publishedPortfolio(db)).filter((x) => x.id !== item.id);
-    return c.html(<PortfolioDetail s={c.get('settings')} item={item} others={others} base={base} />);
-  });
-}
+publicRoutes.get('/realisations/:slug', async (c) => {
+  const { db } = c.get('deps');
+  const item = await portfolioBySlug(db, c.req.param('slug'));
+  if (!item) return c.notFound();
+  const others = (await publishedPortfolio(db)).filter((x) => x.id !== item.id);
+  return c.html(<PortfolioDetail s={c.get('settings')} item={item} others={others} base="realisations" />);
+});
+// Une étude de cas est une réalisation détaillée : une seule URL (évite le contenu dupliqué).
+publicRoutes.get('/etudes-de-cas/:slug', (c) => c.redirect(`/realisations/${encodeURIComponent(c.req.param('slug'))}`, 301));
 
 publicRoutes.get('/a-propos', (c) => c.html(<AboutPage s={c.get('settings')} />));
 publicRoutes.get('/espace-client', (c) => c.html(<ClientSpaceInfo s={c.get('settings')} />));

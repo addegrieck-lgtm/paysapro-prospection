@@ -2,13 +2,24 @@ import { raw } from 'hono/html';
 import type { Settings } from '../../domain/settings';
 import type { ProductRow, ServiceRow } from '../../repo/types';
 import { Layout, jsonForScript } from '../layout';
-import { CtaBand, FaqList, Notice, SectionHead } from '../components';
+import { CtaBand, FaqList, Notice, SectionHead, faqJsonLd } from '../components';
 import type { FaqRow } from '../../repo/types';
 import { ProductVisual } from '../illustrations';
-import { FAMILY_LABELS } from '../content';
+import { FAMILY_LABELS, SERVICE_PAGES } from '../content';
 import { ProductCard, PageHero } from './pages';
 import { activeAttrs, attrLabel, parseOptions, type PrintConfig, type PrintOptions, type PublicEstimate } from '../../domain/print';
 import { formatEuros } from '../../domain/money';
+
+/** « Impression de flyers », « Impression d’affiches » (élision devant une voyelle). */
+export function printTitle(name: string): string {
+  const n = name.charAt(0).toLowerCase() + name.slice(1);
+  return /^[aeiouyéèêàâîôûh]/i.test(n) ? `Impression d’${n}` : `Impression de ${n}`;
+}
+export const lcFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+/** Coupe un texte à la dernière fin de mot avant la longueur maximale. */
+export const clip = (t: string, max: number) => (t.length <= max ? t : t.slice(0, max - 1).replace(/\s+\S*$/, '') + '…');
+/** Page de prestation qui présente la création graphique associée à un produit imprimé. */
+const designPageFor = (slug: string | null) => SERVICE_PAGES.find((p) => slug && p.serviceSlugs.includes(slug));
 
 export function CatalogPage({ s, products }: { s: Settings; products: ProductRow[] }) {
   const families = Object.keys(FAMILY_LABELS).filter((f) => products.some((p) => p.family === f));
@@ -16,8 +27,8 @@ export function CatalogPage({ s, products }: { s: Settings; products: ProductRow
     <Layout
       s={s}
       meta={{
-        title: 'Catalogue d’impression : flyers, cartes de visite, affiches, brochures',
-        description: 'Impression professionnelle de flyers, cartes de visite, dépliants, affiches, brochures, roll-ups et étiquettes. Configurez votre produit et obtenez une estimation.',
+        title: 'Catalogue d’impression professionnelle',
+        description: 'Impression de flyers, cartes de visite, dépliants, affiches, brochures, roll-ups et étiquettes : configurez votre produit et obtenez une estimation détaillée.',
         path: '/impression',
         breadcrumbs: [{ name: 'Impression', path: '/impression' }],
       }}
@@ -200,7 +211,7 @@ export function ProductPage(p: {
         <div class="container product-hero">
           <div>
             <p class="eyebrow">Impression · {FAMILY_LABELS[product.family] ?? ''}</p>
-            <h1>{product.name}</h1>
+            <h1>{printTitle(product.name)}</h1>
             <p class="hero-lead">{product.summary}</p>
             <p>{product.description}</p>
           </div>
@@ -243,9 +254,6 @@ export function ProductPage(p: {
                     )}
                   </label>
                 </div>
-                <noscript>
-                  <button type="submit" class="btn btn-outline">Calculer l’estimation</button>
-                </noscript>
                 <button type="submit" class="btn btn-outline js-hide">Calculer l’estimation</button>
               </form>
               <aside class="config-summary" aria-live="polite">
@@ -267,6 +275,29 @@ export function ProductPage(p: {
           )}
         </div>
       </section>
+      {!p.embedded && (
+        <section class="section section-tight">
+          <div class="container">
+            <p class="eyebrow">Pour aller plus loin</p>
+            <div class="related">
+              {designPageFor(product.design_service_slug) && (
+                <a href={designPageFor(product.design_service_slug)!.path} class="related-link">
+                  <span>Faire créer votre visuel : {lcFirst(designPageFor(product.design_service_slug)!.name)}</span>
+                  <span aria-hidden="true">→</span>
+                </a>
+              )}
+              <a href="/impression" class="related-link">
+                <span>Tous les supports du catalogue d’impression</span>
+                <span aria-hidden="true">→</span>
+              </a>
+              <a href="/realisations" class="related-link">
+                <span>Voir des exemples de réalisations</span>
+                <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
       {!p.embedded && p.faqs.length > 0 && (
         <section class="section">
           <div class="container narrow">
@@ -282,14 +313,15 @@ export function ProductPage(p: {
     <Layout
       s={s}
       meta={{
-        title: `${product.name} : configurateur d’impression et devis`,
-        description: `${product.summary} Configurez votre commande et obtenez une estimation détaillée : création, impression et livraison séparées.`,
+        title: printTitle(product.name),
+        description: clip(`${printTitle(product.name)} : ${lcFirst(product.summary)} Estimation détaillée, BAT avant impression, livraison suivie.`, 158),
         path: `/impression/${product.slug}`,
         breadcrumbs: [
           { name: 'Impression', path: '/impression' },
           { name: product.name, path: `/impression/${product.slug}` },
         ],
         scripts: ['configurator'],
+        jsonLd: p.faqs.length ? [faqJsonLd(p.faqs)] : [],
       }}
     >
       {content}
@@ -304,7 +336,7 @@ export function ConfiguratorIndex({ s, products }: { s: Settings; products: Prod
     <Layout
       s={s}
       meta={{
-        title: 'Configurateur de produits imprimés',
+        title: 'Configurateur d’impression en ligne',
         description: 'Configurez vos flyers, cartes de visite, affiches, brochures et roll-ups : estimation détaillée de la création, de l’impression et de la livraison.',
         path: '/configurateur',
         breadcrumbs: [{ name: 'Configurateur', path: '/configurateur' }],

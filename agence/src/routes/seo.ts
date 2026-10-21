@@ -17,7 +17,6 @@ export async function publicUrls(db: AppEnv['Variables']['deps']['db']): Promise
     ...SERVICE_PAGES.map((p) => ({ path: p.path })),
     ...products.map((p) => ({ path: `/impression/${p.slug}`, lastmod: p.updated_at })),
     ...items.map((p) => ({ path: `/realisations/${p.slug}` })),
-    ...items.filter((p) => p.is_case_study).map((p) => ({ path: `/etudes-de-cas/${p.slug}` })),
     ...posts.map((p) => ({ path: `/blog/${p.slug}`, lastmod: p.updated_at })),
     ...local.map((p) => ({ path: `/agence-web/${p.slug}`, lastmod: p.updated_at })),
   ];
@@ -51,7 +50,7 @@ Sitemap: ${base}/sitemap.xml
 /** Favicon généré à partir du nom de l'agence (logo provisoire). */
 seoRoutes.get('/favicon.svg', (c) => {
   const s = c.get('settings');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect x="1" y="1" width="38" height="38" rx="11" fill="#16161A"/><path d="M11 31.5c6-2.2 12-2.2 18 0" fill="none" stroke="${s.accentColor}" stroke-width="2.4" stroke-linecap="round"/><text x="20" y="24" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="600" fill="#fff">${escapeHtml(initials(s.agencyName))}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect x="1" y="1" width="38" height="38" rx="11" fill="#16161A"/><path d="M10 31c3.3-2.4 6.7-2.4 10 0s6.7 2.4 10 0" fill="none" stroke="${s.accentColor}" stroke-width="2.4" stroke-linecap="round"/><text x="20" y="24" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="600" fill="#fff">${escapeHtml(initials(s.agencyName))}</text></svg>`;
   return c.body(svg, 200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' });
 });
 
