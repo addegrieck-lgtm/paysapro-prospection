@@ -326,7 +326,9 @@ function ConsentBanner({ s }: { s: Settings }) {
 
 export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) {
   const { s, meta } = props;
-  const fullTitle = meta.path === '/' ? `${s.agencyName} — ${meta.title}` : `${meta.title} | ${s.agencyName}`;
+  // Titre ≤ 60 caractères (affichage complet dans Google) : le nom de l'agence n'est ajouté que s'il tient.
+  const branded = meta.path === '/' ? `${s.agencyName} — ${meta.title}` : `${meta.title} | ${s.agencyName}`;
+  const fullTitle = branded.length <= 60 || meta.path === '/' ? branded : meta.title;
   const canonical = absoluteUrl(s, meta.path);
   const jsonLd: object[] = [...(meta.jsonLd ?? [])];
   if (meta.breadcrumbs?.length) {

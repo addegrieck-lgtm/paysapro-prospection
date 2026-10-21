@@ -425,7 +425,7 @@ export function PacksHub({ s, packs: generic }: { s: Settings; packs: ServiceRow
       s={s}
       meta={{
         title: 'Packs Bien démarrer : communication par métier',
-        description: 'Packs de communication par métier pour ouvrir ou relancer son activité : restaurant, paysagiste, coiffeur, artisan du bâtiment. Site, logo, imprimés, fiche Google.',
+        description: 'Packs de communication par métier pour ouvrir ou relancer son activité : restaurant, paysagiste, coiffeur, artisan. Site, logo, imprimés, fiche Google.',
         path: '/packs',
         breadcrumbs: [{ name: 'Packs Bien démarrer', path: '/packs' }],
         jsonLd: [

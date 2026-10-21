@@ -6,6 +6,14 @@ import { POSTS_V5 } from './posts-v5';
 const q = (v: string | number) => (typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
 const NOW = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
 
+/** Titres SEO courts (≤ 60 caractères) des articles d'origine dont le titre est trop long, si aucun n'a été saisi. */
+export const blogMetaStatements = (): string[] =>
+  [
+    ['visibilite-locale-par-ou-commencer', 'Visibilité locale : par où commencer ?'],
+    ['flyer-points-a-verifier-avant-impression', 'Flyer : 8 points à vérifier avant impression'],
+    ['site-vitrine-combien-de-pages', 'Site vitrine : combien de pages faut-il ?'],
+  ].map(([slug, t]) => `UPDATE posts SET meta_title = ${q(t!)} WHERE slug = ${q(slug!)} AND meta_title = ''`);
+
 /** Mise à jour des champs commerciaux d'un concept existant (sans écraser une saisie faite dans l'administration). */
 export const portfolioEnrichStatements = (): string[] =>
   Object.entries(PORTFOLIO_ENRICH_V3).map(
@@ -525,6 +533,15 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
         ${q('Paramétrage de la TVA à valider avec votre expert-comptable. Compte de caisse au nom du client.')},
         ${q('Abonnement, commissions sur les paiements et matériel de la solution non inclus : facturés par l’éditeur et présentés avant engagement.')},
         'published', 0, 410, ${NOW}, ${NOW})`,
+    ],
+  },
+  {
+    version: 7,
+    name: 'SEO : titres et descriptions dans les limites affichées par Google',
+    // Ne modifie que des valeurs encore d'origine : une saisie faite dans l'administration est conservée.
+    statements: [
+      `UPDATE local_pages SET meta_description = ${q('Site internet, logo, flyers, vitrophanie et signalétique à Lillebonne et Port-Jérôme-sur-Seine. Agence voisine, rendez-vous sur place, devis gratuit.')} WHERE slug = 'lillebonne' AND meta_description = ${q('Création de site internet, logo, flyers, vitrophanie et signalétique à Lillebonne et Port-Jérôme-sur-Seine. Agence voisine, rendez-vous sur place, devis gratuit.')}`,
+      ...blogMetaStatements(),
     ],
   },
 ];
