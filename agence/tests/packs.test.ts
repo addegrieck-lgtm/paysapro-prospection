@@ -106,3 +106,41 @@ describe('packs Bien démarrer', () => {
     expect(await (await req(app, '/packs/paysagiste')).text()).toContain('href="/creation-site-internet-paysagiste"');
   });
 });
+
+describe('mise à jour du 21/10 : prix des packs, déplacements, fiche Google', () => {
+  it('prix « à partir de » et quantités affichés, options sans prix, plus de [À COMPLÉTER] sur les packs', async () => {
+    const { app } = await makeApp();
+    const html = await (await req(app, '/packs/restaurant')).text();
+    expect(html).toContain('1 890 €');
+    expect(html).toContain('500 exemplaires');
+    expect(html).toContain('5 exemplaires');
+    expect(html).toContain('certaines peuvent être offertes');
+    expect(html).not.toContain('option-price');
+    for (const p of PACKS) expect(await (await req(app, `/packs/${p.slug}`)).text(), p.slug).not.toContain('À COMPLÉTER');
+    const offer = jsonLd(html).find((x) => x['@type'] === 'Service').hasOfferCatalog.itemListElement[0];
+    expect(offer.priceSpecification.minPrice).toBe('1890.00');
+  });
+
+  it('fiche Google dans sameAs, le pied de page et la page contact', async () => {
+    const { app } = await makeApp();
+    const home = await (await req(app, '/')).text();
+    const biz = jsonLd(home).find((x) => x['@type'] === 'ProfessionalService');
+    expect(biz.sameAs).toContain('https://share.google/Kuoatbjm9GEr1Pvi2');
+    expect(home).toContain('Notre fiche Google et vos avis');
+    expect(await (await req(app, '/contact')).text()).toContain('laisser un avis');
+  });
+
+  it('migration 4 sur la base en ligne : déplacements et fiche Google, sans écraser une saisie', async () => {
+    const { db } = await makeApp();
+    const { migrate } = await import('../src/db/migrations');
+    await db.run("UPDATE local_pages SET body = 'Conditions de déplacement à Bolbec : [À COMPLÉTER : confirmer l’absence de frais de déplacement pour Bolbec].' WHERE slug = 'bolbec'");
+    await db.run("UPDATE settings SET value = json_set(value, '$.googleBusinessUrl', '') WHERE key = 'site'");
+    await db.run("UPDATE local_pages SET body = 'Texte personnalisé' WHERE slug = 'lillebonne'");
+    await db.run('DELETE FROM schema_migrations WHERE version = 4');
+    expect(await migrate(db)).toEqual([4]);
+    expect((await db.get<{ body: string }>("SELECT body FROM local_pages WHERE slug = 'bolbec'"))!.body).toContain('Bolbec est voisine');
+    expect((await db.get<{ body: string }>("SELECT body FROM local_pages WHERE slug = 'lillebonne'"))!.body).toBe('Texte personnalisé');
+    const s = await db.get<{ v: string }>("SELECT json_extract(value, '$.googleBusinessUrl') AS v FROM settings WHERE key = 'site'");
+    expect(s!.v).toBe('https://share.google/Kuoatbjm9GEr1Pvi2');
+  });
+});

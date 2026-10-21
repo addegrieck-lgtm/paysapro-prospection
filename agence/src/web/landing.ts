@@ -140,7 +140,7 @@ Le contenu du pack est ajusté à votre local et à votre budget. **Prix sur dev
       title: 'Pose dans le Pays de Caux, livraison partout en France',
       body: `Basés à Gruchet-le-Valasse, nous intervenons avec notre poseur partenaire dans les communes de notre zone principale : relevé des mesures, maquette sur photo et pose sur place. Pour les autres départements, nous concevons vos supports à distance et vous livrons des adhésifs prêts à poser.
 
-Conditions de déplacement : [À COMPLÉTER : rayon d’intervention pour la pose et frais de déplacement éventuels].`,
+Nous nous déplaçons partout en France : les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.`,
     },
     faq: [
       ['La vitrophanie abîme-t-elle la vitre ?', 'Non. Un adhésif adapté se retire sans endommager le verre. Selon l’ancienneté de la pose, il peut rester un peu de colle, qui s’enlève avec un produit adapté. Nous vous indiquons la méthode de retrait au moment de la pose.'],
@@ -510,7 +510,7 @@ Envoyez-nous une photo prise de face, d’un peu loin, avec les dimensions appro
       title: 'Des vitrines habillées dans le Pays de Caux',
       body: `Centre-ville de Bolbec, rues commerçantes de Lillebonne, quartiers du Havre, commerces de Fécamp ou d’Yvetot : nous nous déplaçons pour relever les mesures et organiser la pose. Pour les commerces plus éloignés, nous préparons les adhésifs à partir de vos mesures et vous les livrons prêts à poser.
 
-Conditions de déplacement : [À COMPLÉTER : rayon d’intervention pour la pose et frais de déplacement éventuels].`,
+Nous nous déplaçons partout en France : les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.`,
     },
     faq: [
       ['Ai-je besoin d’une autorisation pour habiller ma vitrine ?', 'Une simple vitrophanie à l’intérieur de la vitre est rarement soumise à autorisation, mais certaines communes encadrent les enseignes et la publicité (règlement local de publicité, secteur protégé). Renseignez-vous auprès de votre mairie ; nous vous fournissons visuels et dimensions pour votre dossier.'],
@@ -574,7 +574,7 @@ Conditions de déplacement : [À COMPLÉTER : rayon d’intervention pour la pos
 
 **Partout en France** : sites internet, identité visuelle, supports imprimés et référencement se gèrent très bien à distance. Les supports imprimés sont livrés à votre adresse.
 
-Conditions de déplacement : [À COMPLÉTER : rayon couvert sans frais, frais de déplacement au-delà, délais de pose habituels].`,
+Déplacements : nous nous déplaçons partout en France : les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis. Les délais de pose dépendent de la fabrication des supports et sont confirmés sur le devis.`,
       },
       {
         eyebrow: 'Organisation',
@@ -604,7 +604,7 @@ Pour la signalétique, nous préparons les adhésifs et panneaux à partir de vo
       body: `Certaines communes disposent d’une page dédiée, avec ce que nous y faisons concrètement. Cliquez sur leur nom pour la consulter.`,
     },
     faq: [
-      ['Vous déplacez-vous gratuitement ?', 'Conditions de déplacement : [À COMPLÉTER : rayon couvert sans frais et frais au-delà]. Elles sont toujours indiquées sur le devis avant tout engagement.'],
+      ['Vous déplacez-vous partout en France ?', 'Oui. Nous intervenons sur toute la France ; les frais de déplacement éventuels dépendent du projet et sont toujours indiqués sur le devis, avant tout engagement.'],
       ['Recevez-vous des clients à votre adresse ?', 'Nous nous déplaçons chez vous ou échangeons par téléphone et visioconférence. Pour un rendez-vous, contactez-nous afin de convenir du lieu le plus pratique.'],
       ['Travaillez-vous avec des entreprises hors de Normandie ?', 'Oui. Sites internet, logos, supports imprimés et référencement se gèrent entièrement à distance. Seule la pose de signalétique est réservée à notre zone d’intervention.'],
       ['Comment vous joindre ?', 'Par téléphone ou par e-mail : nos coordonnées et nos horaires figurent sur la page [contact](/contact) et en bas de chaque page.'],

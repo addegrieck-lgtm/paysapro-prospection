@@ -4,18 +4,17 @@
  * dans `src/web/packs/index.ts`. Le gabarit (`src/web/public/packs.tsx`) est commun : ajouter un métier
  * (boulangerie, boutique…) ne demande aucun code supplémentaire.
  *
- * Règles de contenu : aucun prix, quantité ou délai inventé (placeholder « [À COMPLÉTER : …] »),
+ * Règles de contenu : prix, quantités et délais validés par l'exploitant (placeholder « [À COMPLÉTER : …] » sinon),
  * aucun avis ni chiffre fictif, aucune marque d'outil tiers citée, texte propre à chaque métier.
  */
 import type { VisualKind } from '../content';
 
 export type PackIcon = 'restaurant' | 'jardin' | 'coiffure' | 'batiment' | 'boutique';
 
+/** Option métier : toujours sur devis, présentée sans prix (certaines peuvent être offertes selon la prestation). */
 export interface PackOption {
   name: string;
   text: string;
-  /** « Sur devis » ou tarif (placeholder tant qu'il n'est pas fixé). */
-  price: string;
 }
 
 export interface PackDef {
@@ -44,7 +43,7 @@ export interface PackDef {
 
   // 2. Pack de base
   base: {
-    /** Prix « à partir de », HT. */
+    /** Prix « à partir de », HT, tel qu'affiché (ex. « 1 890 € »). */
     priceFrom: string;
     intro: string;
     site: { title: string; items: string[] };

@@ -174,38 +174,52 @@ Flyers et cartes de visite : les deux pages existantes ont été **renforcées**
 
 ### Affichés sur le site
 
-| Où | Placeholder | Comment le modifier |
+Il ne reste aucun « [À COMPLÉTER] » visible sur le site. Ceux qui l’étaient ont été remplacés le 21/10/2026, à partir de vos réponses.
+
+**Déplacements** (pages vitrophanie, zone d’intervention, Le Havre, Bolbec, Lillebonne) : *« Nous nous déplaçons partout en France : les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis. »*
+
+**Packs Bien démarrer** : les prix sont **estimés à partir des tarifs déjà affichés sur le site**, à valider par vous.
+
+| Pack | Prix « à partir de » (HT) | Impressions incluses |
 |---|---|---|
-| `/vitrophanie-signaletique` (section « Pose dans le Pays de Caux ») | rayon d’intervention pour la pose et frais de déplacement | Me le donner (texte dans `src/web/landing.ts`) |
-| `/vitrophanie-vitrine-commerce` (section locale) | rayon d’intervention pour la pose et frais de déplacement | Idem |
-| `/zone-intervention` (section « Notre zone ») | rayon couvert sans frais, frais au-delà, délais de pose habituels | Idem |
-| `/zone-intervention` (FAQ) | rayon couvert sans frais et frais au-delà | Idem |
-| `/agence-web/le-havre` | frais de déplacement éventuels pour Le Havre | Administration → Contenus → Pages locales |
-| `/agence-web/bolbec` | confirmer l’absence de frais de déplacement pour Bolbec | Idem |
-| `/agence-web/lillebonne` | confirmer l’absence de frais de déplacement pour Lillebonne | Idem |
+| Restaurant | 1 890 € | 500 cartes de visite, 1 000 flyers, 5 affichages extérieurs du menu |
+| Paysagiste | 1 790 € | 500 cartes de visite, 1 000 flyers (présentation ou saison) |
+| Coiffeur & institut | 1 790 € | 500 cartes de visite, 1 000 flyers, 5 affiches des tarifs |
+| Artisan du bâtiment | 1 790 € | 500 cartes de visite, 1 000 flyers |
 
-### Packs Bien démarrer (affichés sur les pages packs)
+Comment les prix ont été calculés :
 
-Ils se modifient dans les fichiers `src/web/packs/<métier>.ts` : donnez-moi les valeurs et je les remplace.
+- **Base commune ≈ 1 590 €** :
+  - Pack Visibilité (1 390 € : Site Essentiel, fiche Google, flyer et carte de visite) ;
+  - identité visuelle simple ou mise au propre du logo (199 €).
+- **Impressions ≈ 150 à 200 € HT revendus** : coût estimé, marge de 35 % incluse. Le calcul part des prix relevés chez l’imprimeur, encore à vérifier (500 flyers A5 à 32,99 € HT, 250 cartes à 18,29 € HT), extrapolés à 1 000 flyers et 500 cartes, frais de port compris.
+- **Supports propres au métier** : menu et affichage extérieur pour le restaurant ; flyer de saison, affiche des tarifs ou modèle de devis pour les autres métiers.
 
-| Pack | Prix « à partir de » | Quantités d’impression incluses | Tarifs d’options | Délais du déroulé |
-|---|---|---|---|---|
-| Restaurant | [À COMPLÉTER] | cartes de visite, flyers d’ouverture, affichage du menu (3) | QR code menu, carte de fidélité (2) | 5 étapes |
-| Paysagiste | [À COMPLÉTER] | cartes de visite, flyers de présentation, flyers de saison (3) | — (tout sur devis) | 5 étapes |
-| Coiffeur & institut | [À COMPLÉTER] | cartes de visite, flyers d’ouverture, affiche des tarifs (3) | cartes de rendez-vous, cartes de fidélité (2) | 5 étapes |
-| Artisan du bâtiment | [À COMPLÉTER] | cartes de visite, flyers, autocollants (3) | autocollants « intervention réalisée par » (1) | 5 étapes |
+**À faire avant de les confirmer** : vérifier dans *Administration → Prix fournisseurs* les prix d’impression réels pour 500 cartes et 1 000 flyers. Les autocollants de l’artisan ne sont plus inclus dans le pack : ils restent une option.
 
-Autres informations à fournir :
+**Options** : elles sont présentées sans prix, avec la mention *« Toutes les options sont sur devis. Selon la prestation demandée, certaines peuvent être offertes. »*
+
+**Délais du déroulé** : ils sont estimés à partir des délais déjà affichés pour les prestations :
+
+- lancement : sous une semaine ;
+- identité : 1 à 2 semaines ;
+- site : 3 à 4 semaines après réception des contenus ;
+- impression : 1 à 2 semaines après validation des BAT ;
+- pose : selon la fabrication.
+
+Ils sont modifiables dans `src/web/packs/<métier>.ts`.
+
+**Fiche Google** : https://share.google/Kuoatbjm9GEr1Pvi2. Elle est renseignée dans les Paramètres, ajoutée aux données structurées (`sameAs`), au pied de page et à la page contact.
+
+Encore à fournir :
 
 - [À COMPLÉTER : lien et présentation de PaysaPro], si vous souhaitez un lien vers sa page. Aujourd’hui, l’option est présentée sobrement, « sur demande », sans lien.
-- Les options marquées « Sur devis » peuvent recevoir un tarif dès que vous le fixez.
 
 ### Informations manquantes, non affichées tant qu’elles sont vides
 
 Elles sont à saisir dans *Administration → Paramètres*.
 
 - [À COMPLÉTER : adresse de rue] : facultative, à laisser vide si vous ne recevez pas de public.
-- [À COMPLÉTER : lien de la fiche Google Business Profile] : alimente le lien `sameAs` des données structurées.
 - [À COMPLÉTER : liens des réseaux sociaux].
 - [À COMPLÉTER : nom de domaine définitif] (champ « Adresse du site ») : sert aux URL canoniques, au sitemap et aux liens des e-mails.
 - [À COMPLÉTER : position GPS exacte] : c’est actuellement le centre de Gruchet-le-Valasse.
@@ -284,7 +298,7 @@ Une fois des images réelles disponibles, il faudra ajouter dans l’administrat
 cd agence
 npm install
 npm run typecheck        # vérification TypeScript
-npm test                 # 87 tests automatisés (domaine, site, administration, phases 3 à 6)
+npm test                 # 90 tests automatisés (domaine, site, administration, phases 3 à 6)
 npm run build            # compilation + contrôle du bundle Cloudflare Workers
 npm run check:public     # aucune donnée sensible dans les ressources publiques
 

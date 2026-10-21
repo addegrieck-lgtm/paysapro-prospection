@@ -39,7 +39,7 @@ Le bouche-à-oreille fera le reste, à condition de lui donner un support : un s
   },
 
   base: {
-    priceFrom: '[À COMPLÉTER : prix du pack artisan du bâtiment]',
+    priceFrom: '1 790 €',
     intro: 'Le pack de base installe votre entreprise dans le paysage local : identité, site, imprimés et fiche Google.',
     site: {
       title: 'Un site d’artisan du bâtiment',
@@ -63,9 +63,8 @@ Le bouche-à-oreille fera le reste, à condition de lui donner un support : un s
       ],
     },
     prints: [
-      ['Cartes de visite', '[À COMPLÉTER : quantité]'],
-      ['Flyers de présentation', '[À COMPLÉTER : quantité]'],
-      ['Autocollants à votre nom', '[À COMPLÉTER : quantité]'],
+      ['Cartes de visite', '500 exemplaires'],
+      ['Flyers de présentation', '1 000 exemplaires'],
     ],
     google: [
       'Création de la fiche Google Business Profile avec zone desservie',
@@ -78,12 +77,12 @@ Le bouche-à-oreille fera le reste, à condition de lui donner un support : un s
   options: {
     intro: 'Selon votre métier et votre organisation, ajoutez ces options. Elles sont chiffrées sur devis.',
     items: [
-      { name: 'Page réalisations enrichie', text: 'Chantiers présentés avec photos avant/après, type de travaux et commune (avec l’accord du client).', price: 'Sur devis' },
-      { name: 'Demande de devis détaillée', text: 'Formulaire en plusieurs étapes adapté à votre métier : type de travaux, surface, urgence, photos.', price: 'Sur devis' },
-      { name: 'Mise en avant des certifications et assurances', text: 'Bloc dédié avec vos qualifications, labels et assurance, liens vers les organismes et documents à jour.', price: 'Sur devis' },
-      { name: 'Panneaux de chantier', text: 'Panneaux rigides avec votre nom, métier et numéro, à installer pendant toute la durée des travaux.', price: 'Sur devis' },
-      { name: 'Flocage du véhicule', text: 'Marquage complet ou partiel de votre utilitaire, ou magnets amovibles.', price: 'Sur devis' },
-      { name: 'Autocollants « intervention réalisée par »', text: 'Petits autocollants à poser sur une chaudière, un tableau électrique ou un chauffe-eau : le client retrouve votre numéro au prochain besoin.', price: '[À COMPLÉTER : tarif]' },
+      { name: 'Page réalisations enrichie', text: 'Chantiers présentés avec photos avant/après, type de travaux et commune (avec l’accord du client).' },
+      { name: 'Demande de devis détaillée', text: 'Formulaire en plusieurs étapes adapté à votre métier : type de travaux, surface, urgence, photos.' },
+      { name: 'Mise en avant des certifications et assurances', text: 'Bloc dédié avec vos qualifications, labels et assurance, liens vers les organismes et documents à jour.' },
+      { name: 'Panneaux de chantier', text: 'Panneaux rigides avec votre nom, métier et numéro, à installer pendant toute la durée des travaux.' },
+      { name: 'Flocage du véhicule', text: 'Marquage complet ou partiel de votre utilitaire, ou magnets amovibles.' },
+      { name: 'Autocollants « intervention réalisée par »', text: 'Petits autocollants à poser sur une chaudière, un tableau électrique ou un chauffe-eau : le client retrouve votre numéro au prochain besoin.' },
     ],
   },
 
@@ -122,11 +121,11 @@ Pour en profiter : un **numéro unique et bien lisible** sur tous les supports, 
   ],
 
   steps: [
-    ['Rendez-vous de lancement', 'Échange sur votre métier, votre secteur, vos qualifications et vos premiers chantiers.', '[À COMPLÉTER : délai]'],
-    ['Identité et documents', 'Logo ou mise au propre, modèle de devis et de facture, cartes de visite.', '[À COMPLÉTER : délai]'],
-    ['Site et fiche Google', 'Rédaction des pages métiers, formulaire de devis, page garanties, fiche Google avec zone desservie.', '[À COMPLÉTER : délai]'],
-    ['Imprimés', 'Bons à tirer, impression des cartes, flyers et autocollants.', '[À COMPLÉTER : délai]'],
-    ['Véhicule, panneaux et autocollants', 'Simulation du marquage sur les photos de votre véhicule, fabrication des panneaux et autocollants, pose par notre partenaire.', '[À COMPLÉTER : délai]'],
+    ['Rendez-vous de lancement', 'Échange sur votre métier, votre secteur, vos qualifications et vos premiers chantiers.', 'Sous une semaine'],
+    ['Identité et documents', 'Logo ou mise au propre, modèle de devis et de facture, cartes de visite.', '1 à 2 semaines'],
+    ['Site et fiche Google', 'Rédaction des pages métiers, formulaire de devis, page garanties, fiche Google avec zone desservie.', '3 à 4 semaines après réception des contenus'],
+    ['Imprimés', 'Bons à tirer, impression des cartes, flyers et autocollants.', '1 à 2 semaines après validation des BAT'],
+    ['Véhicule, panneaux et autocollants', 'Simulation du marquage sur les photos de votre véhicule, fabrication des panneaux et autocollants, pose par notre partenaire.', 'Selon la fabrication et la date de pose'],
   ],
 
   portfolio: {

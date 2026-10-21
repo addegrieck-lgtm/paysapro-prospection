@@ -488,6 +488,17 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       ),
     ],
   },
+  {
+    version: 4,
+    name: 'fiche Google Business et conditions de déplacement',
+    // Données fournies par l'exploitant le 21/10/2026 : déplacements partout en France, frais selon le projet.
+    statements: [
+      `UPDATE settings SET value = json_set(value, '$.googleBusinessUrl', 'https://share.google/Kuoatbjm9GEr1Pvi2') WHERE key = 'site' AND COALESCE(json_extract(value, '$.googleBusinessUrl'), '') = ''`,
+      `UPDATE local_pages SET body = replace(body, ${q('Conditions de déplacement au Havre : [À COMPLÉTER : frais de déplacement éventuels pour Le Havre].')}, ${q('Déplacements : nous intervenons au Havre comme partout en France ; les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.')}) WHERE slug = 'le-havre'`,
+      `UPDATE local_pages SET body = replace(body, ${q('Conditions de déplacement à Bolbec : [À COMPLÉTER : confirmer l’absence de frais de déplacement pour Bolbec].')}, ${q('Déplacements : Bolbec est voisine de notre agence ; pour tout projet, les frais de déplacement éventuels dépendent de la prestation et sont indiqués sur le devis.')}) WHERE slug = 'bolbec'`,
+      `UPDATE local_pages SET body = replace(body, ${q('Conditions de déplacement à Lillebonne : [À COMPLÉTER : confirmer l’absence de frais de déplacement pour Lillebonne].')}, ${q('Déplacements : Lillebonne est à quelques minutes de notre agence ; les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.')}) WHERE slug = 'lillebonne'`,
+    ],
+  },
 ];
 
 /** Applique les migrations manquantes, dans l'ordre. Idempotent. */

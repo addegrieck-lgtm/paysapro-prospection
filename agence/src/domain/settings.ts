@@ -97,7 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
   openingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   opensAt: '08:30',
   closesAt: '20:00',
-  googleBusinessUrl: '',
+  googleBusinessUrl: 'https://share.google/Kuoatbjm9GEr1Pvi2',
   socialUrls: [],
   legal: {
     companyName: '',

@@ -217,6 +217,13 @@ function Footer({ s }: { s: Settings }) {
               )}
               <li>{s.serviceArea}</li>
               {s.openingHours && <li>{s.openingHours}</li>}
+              {s.googleBusinessUrl && (
+                <li>
+                  <a href={s.googleBusinessUrl} rel="noopener" target="_blank">
+                    Notre fiche Google et vos avis
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
           <div>
