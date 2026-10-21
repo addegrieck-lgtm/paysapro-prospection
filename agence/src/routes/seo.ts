@@ -3,7 +3,6 @@ import type { AppEnv } from '../app/context';
 import { publishedLocalPages, publishedPortfolio, publishedPosts, publishedProducts } from '../repo/catalog';
 import { SERVICE_PAGES } from '../web/content';
 import { escapeHtml } from '../domain/text';
-import { initials } from '../domain/settings';
 
 export const seoRoutes = new Hono<AppEnv>();
 
@@ -47,10 +46,10 @@ Sitemap: ${base}/sitemap.xml
 `);
 });
 
-/** Favicon généré à partir du nom de l'agence (logo provisoire). */
+/** Favicon : symbole des falaises (couleur d'accent paramétrable). */
 seoRoutes.get('/favicon.svg', (c) => {
   const s = c.get('settings');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect x="1" y="1" width="38" height="38" rx="11" fill="#16161A"/><path d="M10 31c3.3-2.4 6.7-2.4 10 0s6.7 2.4 10 0" fill="none" stroke="${s.accentColor}" stroke-width="2.4" stroke-linecap="round"/><text x="20" y="24" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-weight="600" fill="#fff">${escapeHtml(initials(s.agencyName))}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0E4A57"/><g transform="translate(4 8)"><path fill="#fff" d="M2 34V9Q16 7 28 11Q38 14 42 19Q44 23 43 34H37Q37 25 32 25Q27 25 27 34Z"/><path fill="#fff" d="M49 34L51.5 15L54.5 34Z"/><path d="M2 41c5-3.4 10-3.4 15 0s10 3.4 15 0 10-3.4 15 0 10 3.4 15 0" stroke="${escapeHtml(s.accentColor)}" stroke-width="3.6" fill="none" stroke-linecap="round"/></g></svg>`;
   return c.body(svg, 200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' });
 });
 

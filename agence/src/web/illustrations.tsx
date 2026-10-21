@@ -414,9 +414,7 @@ export function HeroComposition({ accent }: { accent: string }) {
         <BrowserMock accent={accent} title="Atelier Chêne & Fil" variant="artisan" />
       </div>
       <div class="hv-flyer">
-        <svg class="mock" viewBox="-6 -6 222 308">
-          <FlyerMock accent={accent} title="Studio Mèche" />
-        </svg>
+        <StorefrontMock accent={accent} />
       </div>
       <div class="hv-card">
         <svg class="mock" viewBox="-6 -6 199 133">
@@ -424,6 +422,69 @@ export function HeroComposition({ accent }: { accent: string }) {
         </svg>
       </div>
     </div>
+  );
+}
+
+/** Devanture avec vitrophanie (commerce fictif). */
+export function StorefrontMock({ accent = '#C2410C' }: { accent?: string }) {
+  const stripes = Array.from({ length: 8 }, (_, i) => i);
+  return (
+    <svg class="mock" viewBox="0 0 220 250" role="img" aria-label="Illustration d’une vitrine de commerce habillée en vitrophanie">
+      <rect x="4" y="18" width="212" height="228" rx="6" fill="#0E4A57" />
+      <rect x="4" y="18" width="212" height="34" rx="6" fill="#0B3C47" />
+      <text x="110" y="41" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-weight="600" font-size="15" letter-spacing="3" fill="#fff">
+        FOURNIL DU CAUX
+      </text>
+      {stripes.map((i) => (
+        <path d={`M${4 + i * 26.5} 52h26.5l-3 22h-20.5z`} fill={i % 2 ? '#F6F1E8' : accent} />
+      ))}
+      <rect x="18" y="86" width="122" height="146" rx="3" fill="#BFD3D6" />
+      <path d="M18 160 L80 86 H104 L18 190Z" fill="#fff" opacity=".28" />
+      <text x="79" y="128" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-weight="600" font-size="12" letter-spacing="1.2" fill="#fff">
+        PAINS &amp;
+      </text>
+      <text x="79" y="146" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-weight="600" font-size="11" letter-spacing="0.8" fill="#fff">
+        VIENNOISERIES
+      </text>
+      <path d="M44 160c11.7-5 23.3-5 35 0s23.3 5 35 0" stroke={accent} stroke-width="3" fill="none" stroke-linecap="round" />
+      <text x="79" y="214" text-anchor="middle" font-family="Inter Tight, sans-serif" font-size="8.5" fill="#0E4A57">
+        Mar.–Dim. · 7 h – 19 h 30
+      </text>
+      <rect x="152" y="86" width="50" height="146" rx="3" fill="#A9C2C6" />
+      <path d="M152 140 L190 86 H202 L152 170Z" fill="#fff" opacity=".25" />
+      <circle cx="194" cy="162" r="2.6" fill="#F6F1E8" />
+      <text x="177" y="112" text-anchor="middle" font-family="Inter Tight, sans-serif" font-weight="600" font-size="8" fill="#0E4A57">
+        OUVERT
+      </text>
+    </svg>
+  );
+}
+
+/** Panorama de falaises et de vagues (signature visuelle de la marque). */
+export function CoastLine() {
+  return (
+    <svg class="coastline" viewBox="0 0 1440 160" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path
+        d="M0 160V70Q90 58 190 66L330 78Q380 84 392 104V160H360Q360 120 330 120Q300 120 300 160H250V120Q240 92 200 90L130 88Q60 86 0 96Z"
+        fill="currentColor"
+        opacity=".14"
+      />
+      <path d="M430 160L444 92L458 160Z" fill="currentColor" opacity=".14" />
+      <path
+        d="M1440 160V52Q1350 44 1250 54L1130 68Q1080 76 1068 100V160H1100Q1100 126 1126 126Q1152 126 1152 160Z"
+        fill="currentColor"
+        opacity=".14"
+      />
+      <path d="M1010 160L1022 104L1034 160Z" fill="currentColor" opacity=".14" />
+      <path
+        d="M0 142c40-12 80-12 120 0s80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0 80-12 120 0 80 12 120 0"
+        stroke="var(--accent)"
+        stroke-width="2.5"
+        fill="none"
+        opacity=".55"
+        vector-effect="non-scaling-stroke"
+      />
+    </svg>
   );
 }
 

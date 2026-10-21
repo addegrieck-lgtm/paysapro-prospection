@@ -3,42 +3,52 @@
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fonts = `file://${root}/public/assets/fonts`;
 const NAME = process.env.AGENCY_NAME ?? 'Signe & Seine';
-const INITIALS = process.env.AGENCY_INITIALS ?? 'SS';
 const ACCENT = process.env.AGENCY_ACCENT ?? '#C2410C';
+const SEINE = '#0E4A57';
 const LINE = process.env.AGENCY_LINE ?? 'Agence web & print · Gruchet-le-Valasse, Pays de Caux';
 
 const css = `
-@font-face{font-family:Fraunces;src:url(${fonts}/fraunces-latin-wght-normal.woff2)}
-@font-face{font-family:Fraunces;font-style:italic;src:url(${fonts}/fraunces-latin-wght-italic.woff2)}
-@font-face{font-family:Inter;src:url(${fonts}/inter-tight-latin-wght-normal.woff2)}
-*{margin:0;box-sizing:border-box}body{background:#14110f}`;
-const mark = (s) => `<svg width="${s}" height="${s}" viewBox="0 0 40 40"><rect x="1" y="1" width="38" height="38" rx="11" fill="#14110f"/>
-<path d="M10 31c3.3-2.4 6.7-2.4 10 0s6.7 2.4 10 0" fill="none" stroke="${ACCENT}" stroke-width="2.4" stroke-linecap="round"/>
-<text x="20" y="24" text-anchor="middle" font-family="Fraunces" font-size="14" font-weight="500" fill="#fff">${INITIALS}</text></svg>`;
+@font-face{font-family:Josefin;src:url(${fonts}/josefin-sans-latin-wght-normal.woff2);font-weight:100 700}
+@font-face{font-family:Inter;src:url(${fonts}/inter-tight-latin-wght-normal.woff2);font-weight:100 900}
+*{margin:0;box-sizing:border-box}body{background:transparent}`;
+const cliffs = (c, a, w) => `<svg width="${w}" height="${Math.round((w * 44) / 64)}" viewBox="0 0 64 44">
+<path fill="${c}" d="M2 34V9Q16 7 28 11Q38 14 42 19Q44 23 43 34H37Q37 25 32 25Q27 25 27 34Z"/><path fill="${c}" d="M49 34L51.5 15L54.5 34Z"/>
+<path d="M2 40c5-3 10-3 15 0s10 3 15 0 10-3 15 0 10 3 15 0" stroke="${a}" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>`;
+const wordmark = (c) => NAME.toUpperCase().replace('&', `<span style="color:${ACCENT === c ? '#fff' : ACCENT}">&amp;</span>`);
 
 const og = `<style>${css}
-.c{width:1200px;height:630px;background:#f6f1e8;padding:80px 90px;display:flex;flex-direction:column;justify-content:space-between;font-family:Inter;color:#14110f;position:relative;overflow:hidden}
-.c:after{content:"";position:absolute;right:-120px;bottom:-160px;width:520px;height:520px;border-radius:50%;background:${ACCENT};opacity:.12}
-.top{display:flex;align-items:center;gap:22px;font-family:Fraunces;font-size:44px;font-weight:500}
-h1{font-family:Fraunces;font-weight:450;font-size:76px;line-height:1.05;letter-spacing:-.02em;max-width:950px}
-h1 em{color:${ACCENT}}p{font-size:28px;color:#4a433c}</style>
-<div class="c"><div class="top">${mark(84)}<span>${NAME}</span></div>
+.c{width:1200px;height:630px;background:#f6f1e8;padding:76px 90px;display:flex;flex-direction:column;justify-content:space-between;font-family:Inter;color:#0f2f38;position:relative;overflow:hidden}
+.top{display:flex;align-items:center;gap:24px;font-family:Josefin;font-weight:600;font-size:40px;letter-spacing:.16em;padding-top:6px}
+h1{font-family:Josefin;font-weight:600;font-size:74px;line-height:1.04;max-width:980px;position:relative}
+h1 em{color:${ACCENT};font-style:normal;font-weight:500}p{font-size:28px;color:#3c4a4e;position:relative}
+.coast{position:absolute;left:0;right:0;bottom:0;opacity:.16}</style>
+<div class="c"><svg class="coast" viewBox="0 0 1200 140" preserveAspectRatio="none" width="1200" height="90"><path fill="${SEINE}" d="M700 140V60Q800 44 930 52L1060 62Q1110 70 1122 96V140H1090Q1090 104 1062 104Q1034 104 1034 140Z"/><path fill="${SEINE}" d="M1150 140L1162 80L1174 140Z"/></svg>
+<div class="top">${cliffs(SEINE, ACCENT, 104)}<span>${wordmark('#0f2f38')}</span></div>
 <h1>Sites internet et imprimés qui font <em>venir des clients.</em></h1><p>${LINE}</p></div>`;
-const logo = `<style>${css}body{background:transparent}</style>${mark(512)}`;
+const logo = `<style>${css}.l{width:512px;height:512px;border-radius:112px;background:${SEINE};display:grid;place-items:center}</style><div class="l">${cliffs('#fff', ACCENT, 380)}</div>`;
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 const page = await browser.newPage();
 await page.setViewportSize({ width: 1200, height: 630 });
-await page.setContent(og);
+const tmp = mkdtempSync(path.join(tmpdir(), 'og-'));
+// Une page file:// (et non about:blank) est nécessaire pour charger les polices locales.
+const show = async (html) => {
+  writeFileSync(path.join(tmp, 'p.html'), `<!doctype html><meta charset="utf-8">${html}`);
+  await page.goto(`file://${tmp}/p.html`);
+};
+await show(og);
 await page.evaluate(() => document.fonts.ready);
 await page.screenshot({ path: `${root}/public/assets/img/og-default.png` });
 await page.setViewportSize({ width: 512, height: 512 });
-await page.setContent(logo);
+await show(logo);
 await page.evaluate(() => document.fonts.ready);
 await page.screenshot({ path: `${root}/public/assets/img/logo-512.png`, omitBackground: true });
 await browser.close();
+rmSync(tmp, { recursive: true, force: true });
 console.log('Images générées dans public/assets/img/');

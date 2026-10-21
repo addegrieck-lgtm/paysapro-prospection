@@ -1,7 +1,6 @@
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
 import type { Settings } from '../domain/settings';
-import { initials } from '../domain/settings';
 import { localityLabel, telHref } from './seo';
 
 export interface Crumb {
@@ -36,17 +35,24 @@ export function absoluteUrl(s: Settings, path: string): string {
   return base ? `${base}${path}` : path;
 }
 
+/** Symbole de la marque : les falaises du Pays de Caux (arche et aiguille) au-dessus de la Seine. */
+export function CliffMark({ width = 48 }: { width?: number }) {
+  return (
+    <svg class="logo-mark" width={width} height={Math.round((width * 44) / 64)} viewBox="0 0 64 44" aria-hidden="true">
+      <path fill="currentColor" d="M2 34V9Q16 7 28 11Q38 14 42 19Q44 23 43 34H37Q37 25 32 25Q27 25 27 34Z" />
+      <path fill="currentColor" d="M49 34L51.5 15L54.5 34Z" />
+      <path d="M2 40c5-3 10-3 15 0s10 3 15 0 10-3 15 0 10 3 15 0" stroke="var(--accent)" stroke-width="2.6" fill="none" stroke-linecap="round" />
+    </svg>
+  );
+}
+
 export function Logo({ s, size = 34 }: { s: Settings; size?: number }) {
   return (
     <span class="logo">
-      <svg class="logo-mark" width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-        <rect x="1" y="1" width="38" height="38" rx="11" fill="var(--ink)" />
-        <path d="M10 31c3.3-2.4 6.7-2.4 10 0s6.7 2.4 10 0" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" />
-        <text x="20" y="24" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="14" font-weight="500" fill="#fff">
-          {initials(s.agencyName)}
-        </text>
-      </svg>
-      <span class="logo-name">{s.agencyName}</span>
+      <CliffMark width={Math.round(size * 1.45)} />
+      <span class="logo-name">
+        {s.agencyName.split(/(\s*&\s*)/).map((part) => (part.trim() === '&' ? <span class="amp">&amp;</span> : part))}
+      </span>
     </span>
   );
 }
@@ -319,8 +325,7 @@ export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) 
         {s.searchConsoleToken && <meta name="google-site-verification" content={s.searchConsoleToken} />}
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="preload" href="/assets/fonts/inter-tight-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-        <link rel="preload" href="/assets/fonts/fraunces-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-        <link rel="preload" href="/assets/fonts/fraunces-latin-wght-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+        <link rel="preload" href="/assets/fonts/josefin-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
         <link rel="apple-touch-icon" href="/assets/img/logo-512.png" />
         <link rel="stylesheet" href="/assets/css/site.css" />
         <style>{raw(`:root{--accent:${s.accentColor}}`)}</style>

@@ -3,7 +3,7 @@ import type { FaqRow, PortfolioRow, ProductRow, ServiceRow } from '../../repo/ty
 import { Layout } from '../layout';
 import { businessJsonLd, websiteJsonLd } from '../seo';
 import { ConceptBadge, ContactForm, FaqList, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
-import { HeroComposition, PortfolioVisual, ProductVisual, SeoMock } from '../illustrations';
+import { CoastLine, HeroComposition, PortfolioVisual, ProductVisual, SeoMock } from '../illustrations';
 
 const SERVICE_TILES: [string, string, string, string][] = [
   ['/creation-site-internet', 'Création de site', 'Des sites vitrines rapides, clairs et pensés pour le mobile.', '01'],
@@ -16,6 +16,8 @@ const SERVICE_TILES: [string, string, string, string][] = [
   ['/referencement-seo', 'Référencement SEO', 'Être trouvé par les clients de votre zone.', '08'],
   ['/maintenance-site-internet', 'Maintenance', 'Mises à jour, sauvegardes, petites modifications.', '09'],
 ];
+
+const RIBBON = ['Sites internet', 'Logos & identité', 'Flyers', 'Cartes de visite', 'Vitrophanie', 'Enseignes & panneaux', 'Réseaux sociaux', 'Référencement local'];
 
 export function HomePage(p: {
   s: Settings;
@@ -61,7 +63,20 @@ export function HomePage(p: {
           </div>
           <HeroComposition accent={s.accentColor} />
         </div>
+        <CoastLine />
       </section>
+
+      <div class="ribbon" aria-label="Nos métiers">
+        <div class="ribbon-track">
+          {[0, 1].map((dup) => (
+            <ul aria-hidden={dup ? 'true' : undefined}>
+              {RIBBON.map((w) => (
+                <li>{w}</li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </div>
 
       <section class="section" aria-labelledby="prestations">
         <div class="container">

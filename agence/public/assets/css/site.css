@@ -1,7 +1,8 @@
 /* ==========================================================================
    Direction artistique — site public
-   Papier chaud, encre profonde, une couleur d'accent (paramétrable).
-   Typographies : Fraunces (titres éditoriaux) + Inter Tight (texte, interface). Licence SIL OFL.
+   Sable, bleu Seine profond, une couleur d'accent ocre (paramétrable). Signature : les falaises du Pays de Caux.
+   Typographies : Josefin Sans (logo, titres) + Inter Tight (texte, interface). Fraunces reste chargée à la demande
+   pour les maquettes fictives des réalisations. Licence SIL OFL.
    ========================================================================== */
 
 @font-face {
@@ -19,6 +20,20 @@
   font-display: swap;
 }
 @font-face {
+  font-family: 'Josefin Sans';
+  src: url('/assets/fonts/josefin-sans-latin-wght-normal.woff2') format('woff2-variations');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Josefin Sans';
+  src: url('/assets/fonts/josefin-sans-latin-wght-italic.woff2') format('woff2-variations');
+  font-weight: 100 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
   font-family: 'Inter Tight';
   src: url('/assets/fonts/inter-tight-latin-wght-normal.woff2') format('woff2-variations');
   font-weight: 100 900;
@@ -32,10 +47,11 @@
   --accent-soft: color-mix(in oklab, var(--accent) 10%, white);
   /* Petits textes colorés : accent assombri pour garantir un contraste ≥ 4,5:1 sur fond clair, quelle que soit la couleur choisie. */
   --accent-text: color-mix(in oklab, var(--accent) 72%, black);
-  --paper: #f6f3ee;
-  --paper-2: #efe9df;
+  --paper: #f6f1e8;
+  --paper-2: #eee6d8;
   --card: #ffffff;
-  --ink: #16161a;
+  --ink: #0f2f38;
+  --seine: #0e4a57;
   --ink-2: #34322e;
   --muted: #67625a;
   --line: #e4ded3;
@@ -49,7 +65,7 @@
   --info: #2c5578;
   --info-bg: #eaf1f7;
 
-  --serif: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --serif: 'Josefin Sans', 'Futura', 'Century Gothic', ui-sans-serif, sans-serif;
   --sans: 'Inter Tight', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   --r-sm: 8px;
@@ -116,16 +132,19 @@ h2,
 h3,
 h4 {
   font-family: var(--serif);
-  font-weight: 400;
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
   margin: 0 0 0.5em;
-  font-variation-settings: 'opsz' 144, 'SOFT' 30;
   text-wrap: balance;
 }
 h1 {
-  font-size: clamp(2.35rem, 5.4vw, 4.5rem);
-  letter-spacing: -0.03em;
+  font-size: clamp(2.4rem, 5.6vw, 4.6rem);
+  letter-spacing: -0.015em;
+}
+h1 em,
+h2 em {
+  font-weight: 500;
 }
 h2,
 .h2 {
@@ -331,11 +350,22 @@ a:hover .link-arrow::after {
   align-items: center;
   gap: 0.65rem;
 }
+.logo-mark {
+  color: var(--seine);
+  flex: none;
+}
 .logo-name {
   font-family: var(--serif);
-  font-size: 1.28rem;
-  letter-spacing: -0.02em;
-  font-variation-settings: 'opsz' 72;
+  font-weight: 600;
+  font-size: 1.12rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding-top: 0.2em;
+}
+.logo-name .amp {
+  color: var(--accent-text);
+  margin-inline: 0.45em 0.3em;
 }
 .main-nav {
   display: flex;
@@ -2087,8 +2117,12 @@ html:not(.js) .dropzone {
 .footer-grid a:hover {
   color: #fff;
 }
-.footer-brand .logo-name {
+.footer-brand .logo-name,
+.footer-brand .logo-mark {
   color: #fff;
+}
+.footer-brand .logo-name .amp {
+  color: color-mix(in oklab, var(--accent) 55%, white);
 }
 .footer-brand p {
   margin: 1rem 0;
@@ -2517,4 +2551,106 @@ html.js [data-reveal].is-visible {
   .header-actions {
     gap: 0.4rem;
   }
+}
+
+/* ─── Signature « falaises » : panorama du héros et ruban des métiers ─── */
+.hero .coastline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: clamp(56px, 8vw, 120px);
+  color: var(--seine);
+  pointer-events: none;
+}
+.ribbon {
+  background: var(--seine);
+  color: #f6f1e8;
+  overflow: hidden;
+  padding-block: 0.95rem 0.8rem;
+}
+.ribbon-track {
+  display: flex;
+  width: max-content;
+  animation: ribbon 38s linear infinite;
+}
+.ribbon ul {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ribbon li {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+.ribbon li::after {
+  content: '';
+  width: 26px;
+  height: 8px;
+  margin-inline: 1.6rem;
+  background: no-repeat center / contain
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 8'%3E%3Cpath d='M1 4c4-3 8-3 12 0s8 3 12 0' stroke='%23F2B48C' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+@keyframes ribbon {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ribbon-track {
+    animation: none;
+    flex-wrap: wrap;
+    width: auto;
+    justify-content: center;
+  }
+  .ribbon ul[aria-hidden] {
+    display: none;
+  }
+  .ribbon ul {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.4rem;
+  }
+}
+.hv-flyer .mock {
+  border-radius: 6px;
+}
+.hero {
+  padding-bottom: clamp(5.5rem, 10vw, 9rem);
+}
+@media (max-width: 640px) {
+  .logo .logo-mark {
+    width: 38px;
+    height: 26px;
+  }
+  .logo-name {
+    font-size: 0.86rem;
+    letter-spacing: 0.08em;
+  }
+  .site-header .logo {
+    gap: 0.45rem;
+    min-width: 0;
+  }
+}
+@media (max-width: 400px) {
+  .site-header .logo-name {
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+  }
+  .header-actions .btn-sm {
+    padding-inline: 0.7rem;
+    font-size: 0.85rem;
+  }
+}
+.section-ink h2 em,
+.section-ink h3 em {
+  color: color-mix(in oklab, var(--accent) 55%, white);
 }

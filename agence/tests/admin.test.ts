@@ -85,9 +85,9 @@ describe('paramètres', () => {
     expect(r.status).toBe(303);
     const home = await (await req(app, '/')).text();
     expect(home).toContain('Maison Lumière');
-    expect(home).toContain('>ML<');
+    expect(home).toContain('class="logo-name"');
     const fav = await (await req(app, '/favicon.svg')).text();
-    expect(fav).toContain('>ML<');
+    expect(fav).toContain('<svg');
   });
 });
 
