@@ -3201,3 +3201,120 @@ html.js [data-reveal].is-visible {
   flex: none;
   white-space: nowrap;
 }
+
+/* ─── Cahier des charges (espace client) ─── */
+.brief-form {
+  display: grid;
+  gap: 1.25rem;
+}
+html.js .brief-q[data-off] {
+  display: none;
+}
+.field-help {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: -0.15rem;
+}
+.chips-field.brief-q {
+  display: grid;
+  gap: 0.6rem;
+}
+.brief-other {
+  max-width: 420px;
+}
+.brief-other > label {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.brief-nav {
+  align-items: center;
+}
+.brief-nav .brief-prev {
+  order: -2;
+}
+.brief-nav .brief-pause {
+  order: -1;
+}
+.brief-nav [data-submit] {
+  order: 2;
+}
+.brief-pause {
+  min-height: 44px;
+  padding: 0.5rem 0.25rem;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.92rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.brief-progress {
+  display: grid;
+  gap: 0.4rem;
+  margin: 1.25rem 0;
+}
+.brief-progress-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.brief-progress-bar {
+  height: 6px;
+  border-radius: 6px;
+  background: var(--line);
+  overflow: hidden;
+}
+.brief-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--seine);
+}
+.brief-recap {
+  margin-top: 2.5rem;
+}
+.brief-doc-section {
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--line);
+}
+.brief-doc-section h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-size: 1.15rem;
+  margin: 0 0 0.75rem;
+}
+.brief-edit {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.brief-doc dl {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+}
+.brief-doc dt {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.brief-doc dd {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .brief-doc dl {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+  .brief-doc dd {
+    margin-bottom: 0.6rem;
+  }
+}

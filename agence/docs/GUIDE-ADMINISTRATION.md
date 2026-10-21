@@ -18,6 +18,15 @@ pages d’arrivée, appareils, pays, et demandes de devis ou messages selon la p
 Mesure interne sans cookie ni service extérieur (aucun bandeau de consentement), robots et administrateur connecté exclus, conservation 13 mois.
 Pour identifier un canal précis (fiche Google, QR code d’un flyer, signature e-mail), utilisez les liens avec `utm_source` proposés en bas de la page.
 
+## Cahier des charges client
+
+*Commercial → Cahiers des charges* (ou bouton « Cahier des charges » sur une fiche contact) : choisissez le client et les prestations
+(site internet, logo et identité visuelle, impression et signalétique), puis envoyez le lien par e-mail ou copiez-le dans un SMS.
+Le client répond étape par étape à un questionnaire guidé (choix à cocher, exemples, aide), peut ajuster les prestations, s'arrêter
+et reprendre avec le même lien, et joindre logo, photos et documents. Vous êtes prévenu quand il a terminé ; ses réponses
+s'affichent dans l'administration (bouton « Imprimer / PDF »). « Rouvrir pour le client » lui permet de modifier ses réponses.
+Les questions se modifient dans `src/domain/brief.ts`.
+
 ## Faire un devis
 
 1. Depuis une demande : *Préparer le devis* (les lignes sont préremplies : création, impression, livraison).

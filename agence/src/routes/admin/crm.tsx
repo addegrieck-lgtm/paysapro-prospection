@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { MEDIUM_LABELS, type Medium } from '../../domain/analytics';
+import { BRIEF_STATUSES } from '../../domain/brief';
 import { z } from 'zod';
 import type { AppEnv, Ctx } from '../../app/context';
 import { PAGE_SIZE, idParam, page, pageNum, readForm } from './helpers';
@@ -207,13 +208,14 @@ crmRoutes.get('/crm/:id', async (c) => {
   const id = idParam(c);
   const ct = await db.get<ContactRow>('SELECT * FROM contacts WHERE id = ?', [id]);
   if (!ct) return c.notFound();
-  const [events, requests, quotes, orders, invoices, projects] = await Promise.all([
+  const [events, requests, quotes, orders, invoices, projects, briefs] = await Promise.all([
     db.all<{ id: number; kind: string; body: string; author: string; created_at: string }>('SELECT * FROM contact_events WHERE contact_id = ? ORDER BY created_at DESC', [id]),
     db.all<RequestRow>('SELECT * FROM quote_requests WHERE contact_id = ? ORDER BY created_at DESC', [id]),
     db.all<{ id: number; number: string | null; title: string; status: string; created_at: string }>('SELECT id, number, title, status, created_at FROM quotes WHERE contact_id = ? ORDER BY created_at DESC', [id]),
     db.all<{ id: number; number: string; status: string; description: string }>('SELECT id, number, status, description FROM print_orders WHERE contact_id = ? ORDER BY created_at DESC', [id]),
     db.all<{ id: number; number: string | null; type: string; status: string; total_ttc: number }>('SELECT id, number, type, status, total_ttc FROM invoices WHERE contact_id = ? ORDER BY created_at DESC', [id]),
     db.all<{ id: number; name: string; status: string }>('SELECT id, name, status FROM web_projects WHERE contact_id = ? ORDER BY created_at DESC', [id]),
+    db.all<{ id: number; title: string; status: string }>('SELECT id, title, status FROM briefs WHERE contact_id = ? ORDER BY created_at DESC', [id]),
   ]);
   const csrf = c.get('csrf');
   return page(
@@ -250,6 +252,7 @@ crmRoutes.get('/crm/:id', async (c) => {
           <div class="page-actions">
             <a class="btn btn-primary btn-sm" href={`/admin/devis/nouveau?contact=${id}`}>Créer un devis</a>
             <a class="btn btn-outline btn-sm" href={`/admin/commandes/nouvelle?contact=${id}`}>Commande d’impression</a>
+            <a class="btn btn-outline btn-sm" href={`/admin/cahiers/nouveau?contact=${id}`}>Cahier des charges</a>
             <a class="btn btn-outline btn-sm" href={`/admin/projets/nouveau?contact=${id}`}>Projet web</a>
             <a class="btn btn-outline btn-sm" href={`/admin/abonnements?contact=${id}#nouveau`}>Abonnement</a>
           </div>
@@ -274,6 +277,18 @@ crmRoutes.get('/crm/:id', async (c) => {
             </ul>
           ) : (
             <p class="muted">Aucune.</p>
+          )}
+          <h2>Cahiers des charges</h2>
+          {briefs.length ? (
+            <ul>
+              {briefs.map((b) => (
+                <li>
+                  <a href={`/admin/cahiers/${b.id}`}>{b.title}</a> <Badge options={BRIEF_STATUSES} value={b.status} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="muted">Aucun.</p>
           )}
           <h2>Devis</h2>
           {quotes.length ? (

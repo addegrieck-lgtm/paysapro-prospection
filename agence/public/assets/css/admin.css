@@ -892,3 +892,56 @@ dl.kv dd {
 .stat-links code {
   overflow-wrap: anywhere;
 }
+
+/* Cahier des charges */
+.check-line {
+  display: block;
+  padding: 0.25rem 0;
+}
+.print-only {
+  display: none;
+}
+.brief-doc-section {
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
+}
+.brief-doc-section h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.6rem;
+}
+.brief-doc dl {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 0.45rem 1.25rem;
+  margin: 0;
+}
+.brief-doc dt {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.brief-doc dd {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .brief-doc dl {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+  .brief-doc dd {
+    margin-bottom: 0.5rem;
+  }
+}
+@media print {
+  .print-only {
+    display: block;
+  }
+  .brief-admin-doc {
+    border: 0;
+    padding: 0;
+  }
+  .brief-doc-section {
+    break-inside: avoid;
+  }
+}
