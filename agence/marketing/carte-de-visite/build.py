@@ -106,6 +106,13 @@ def verso():
         ("lieu", "Gruchet-le-Valasse (76)"),
     ]
     y0, pas = 150, 27
+    metiers = ["Sites internet", "Identité visuelle", "Impression", "Vitrophanie"]
+    poles = "".join(
+        f"""
+    <text x="{W - m + 2}" y="{m + 22 + i * 19}" text-anchor="end" font-family="Josefin Sans"
+      font-weight="400" font-size="11" letter-spacing="2" fill="{BLEU}">{t.upper()}</text>"""
+        for i, t in enumerate(metiers)
+    )
     contacts = "".join(
         f"""
     <g transform="translate({m} {y0 + i * pas - 11.5})" fill="none" stroke="{BLEU}"
@@ -124,6 +131,7 @@ def verso():
       letter-spacing="0.5" fill="{BLEU}" fill-opacity="0.75">Fondateur · Création web &amp; graphique</text>
     <line x1="{m}" x2="{m + 28}" y1="{m + 68}" y2="{m + 68}" stroke="{BLEU}"
       stroke-opacity="0.35" stroke-width="1"/>
+    {poles}
     {contacts}
     <g transform="translate({qx} {qy}) scale({qr_size / n})" fill="{BLEU}"
       shape-rendering="crispEdges"><path d="{d}"/></g>

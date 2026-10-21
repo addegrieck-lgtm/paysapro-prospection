@@ -2,7 +2,7 @@
 
 Format 85 × 55 mm, recto bleu Seine `#0E4A57`, verso crème `#F6F1E8`, accent orange brique `#C2410C` (vague et « & » uniquement).
 
-- `maquette.png` : recto et verso côte à côte, rendu papier mat avec ombre portée.
+- `maquette.png` : recto et verso côte à côte (le verso liste les quatre métiers en haut à droite), rendu papier mat avec ombre portée.
 - `carte-signe-et-seine.pdf` : fichier d'impression, 2 pages au format fini 85 × 55 mm (recto, verso), texte vectoriel, polices incorporées.
 - `build.py` : source du design (logo, mise en page, QR code vers https://www.signeetseine.fr).
 - `fonts/` : Josefin Sans et Inter (SIL Open Font License).
