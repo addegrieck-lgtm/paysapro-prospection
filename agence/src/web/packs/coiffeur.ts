@@ -42,7 +42,7 @@ La prise de rendez-vous est l’autre point clé. Un client qui ne peut réserve
     priceFrom: '1 790 €',
     intro: 'Le pack de base installe votre image et votre présence en ligne, avec les supports du quotidien d’un salon.',
     site: {
-      title: 'Un site de salon ou d’institut',
+      title: 'Le site internet de votre salon ou institut',
       items: [
         'Page d’accueil qui montre l’ambiance du salon et vos spécialités',
         'Page des prestations et tarifs, par catégorie (coupe, couleur, soins, épilation, ongles…)',
