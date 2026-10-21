@@ -37,6 +37,25 @@ for (const [name, viewport] of Object.entries(VIEWPORTS)) {
     console.log(`${okPage ? '✔' : '✘'} [${name}] ${p}${overflow > 0 ? ` — débordement ${overflow}px` : ''}${small ? ` — ${small} cible(s) < 40px` : ''}${violations.length ? ` — ${violations.map((v) => `${v.id}×${v.n} (${v.sample})`).join(', ')}` : ''}${errors.length ? ` — erreurs JS : ${errors.splice(0).join(' | ')}` : ''}`);
   }
 }
+// Menus déroulants : le panneau ouvert doit être visible en entier (menu mobile sur tout l'écran, menu Prestations sous l'en-tête).
+for (const [name, viewport] of Object.entries(VIEWPORTS)) {
+  const page = await browser.newPage({ viewport });
+  await page.goto(BASE + '/', { waitUntil: 'networkidle' });
+  const mobile = viewport.width <= 960;
+  await page.click(mobile ? '.mobile-nav > summary' : '.nav-menu > summary');
+  await page.waitForTimeout(400);
+  const r = await page.evaluate((m) => {
+    const panel = document.querySelector(m ? '.mobile-panel' : '.mega');
+    const box = panel.getBoundingClientRect();
+    const bg = getComputedStyle(panel).backgroundColor;
+    return { height: box.height, bottom: box.bottom, vh: innerHeight, opaque: !/rgba\(.*, 0\)|transparent/.test(bg) };
+  }, mobile);
+  const ok = r.opaque && (mobile ? r.bottom >= r.vh - 2 && r.height > r.vh * 0.6 : r.height > 200 && r.bottom <= r.vh);
+  if (!ok) problems++;
+  console.log(`${ok ? '✔' : '✘'} [${name}] menu ${mobile ? 'mobile' : 'Prestations'} ouvert — hauteur ${Math.round(r.height)}px / écran ${r.vh}px`);
+  await page.close();
+}
+
 await browser.close();
 console.log(problems ? `\n${problems} page(s) à corriger.` : '\nAccessibilité (axe, niveau sérieux/critique) et responsive : conformes.');
 process.exit(problems ? 1 : 0);
