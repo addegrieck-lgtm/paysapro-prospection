@@ -764,7 +764,14 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
                 <ContactForm
                   token={token}
                   pack={values?.pack ?? ''}
-                  subjectDefault={values?.message ?? (pack ? `Bonjour, je lance mon activité (${pack.metier.toLowerCase()}) et le pack Bien démarrer m’intéresse. ` : '')}
+                  subjectDefault={
+                    values?.message ??
+                    (pack
+                      ? `Bonjour, je lance mon activité (${pack.metier.toLowerCase()}) et le pack Bien démarrer m’intéresse. `
+                      : values?.pack === 'caisse'
+                        ? 'Bonjour, je souhaite uniquement le module caisse et paiement par carte. Mon activité : '
+                        : '')
+                  }
                 />
               </>
             )}

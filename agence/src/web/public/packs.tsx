@@ -273,6 +273,11 @@ export function PackPage({ s, p, item }: { s: Settings; p: PackDef; item?: Portf
                   <h3>{o.name}</h3>
                   <p>{o.text}</p>
                 </div>
+                {o.href && (
+                  <a href={o.href} class="link-arrow option-link">
+                    En savoir plus
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -457,6 +462,21 @@ export function PacksHub({ s, packs: generic }: { s: Settings; packs: ServiceRow
               <span class="link-arrow">Nous en parler</span>
             </a>
           </div>
+        </div>
+      </section>
+
+      <section class="section section-tight" aria-labelledby="caisse-seule">
+        <div class="container">
+          <a href="/caisse-paiement-carte" class="module-banner">
+            <div>
+              <p class="eyebrow" id="caisse-seule">
+                Module seul
+              </p>
+              <h2 class="h3">Vous avez juste besoin d’une caisse ?</h2>
+              <p>Caisse conforme et paiement par carte : choix, installation, paramétrage et formation, sans prendre de pack.</p>
+            </div>
+            <span class="btn btn-primary">Découvrir le module caisse</span>
+          </a>
         </div>
       </section>
 

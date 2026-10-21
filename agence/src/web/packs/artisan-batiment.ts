@@ -83,6 +83,7 @@ Le bouche-à-oreille fera le reste, à condition de lui donner un support : un s
       { name: 'Panneaux de chantier', text: 'Panneaux rigides avec votre nom, métier et numéro, à installer pendant toute la durée des travaux.' },
       { name: 'Flocage du véhicule', text: 'Marquage complet ou partiel de votre utilitaire, ou magnets amovibles.' },
       { name: 'Autocollants « intervention réalisée par »', text: 'Petits autocollants à poser sur une chaudière, un tableau électrique ou un chauffe-eau : le client retrouve votre numéro au prochain besoin.' },
+      { name: 'Paiement par carte chez le client', text: 'Encaissement par carte sur le chantier ou au domicile du client, avec reçu par e-mail, et caisse conforme si vous vendez aussi au comptoir. Aussi disponible seul.', href: '/caisse-paiement-carte' },
     ],
   },
 

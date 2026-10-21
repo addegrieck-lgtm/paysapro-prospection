@@ -510,6 +510,23 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
         VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`,
     ),
   },
+  {
+    version: 6,
+    name: 'module caisse et paiement par carte (sur devis)',
+    // INSERT OR IGNORE : une prestation déjà créée ou modifiée dans l'administration n'est jamais écrasée.
+    statements: [
+      `INSERT OR IGNORE INTO services (slug, category, name, summary, description, price_mode, price_ht, billing, lead_time, revisions, options, includes,
+        conditions, exclusions, status, featured, sort_order, created_at, updated_at)
+        VALUES ('module-caisse', 'accompagnement', 'Caisse et paiement par carte',
+        ${q('Choix, installation, paramétrage et formation : une caisse conforme, prête à encaisser. Disponible seule ou en pack.')},
+        ${q('Mise en service d’une solution de caisse et de paiement par carte existante et conforme, paramétrée à votre activité.')},
+        'quote', NULL, 'once', ${q('Selon le catalogue et le matériel')}, NULL, '[]',
+        ${q('Conseil sur la solution adaptée à votre activité\nOuverture du compte à votre nom\nCatalogue, prix et taux de TVA\nTicket à vos couleurs\nMise en service du paiement par carte\nFormation et justificatif de conformité remis')},
+        ${q('Paramétrage de la TVA à valider avec votre expert-comptable. Compte de caisse au nom du client.')},
+        ${q('Abonnement, commissions sur les paiements et matériel de la solution non inclus : facturés par l’éditeur et présentés avant engagement.')},
+        'published', 0, 410, ${NOW}, ${NOW})`,
+    ],
+  },
 ];
 
 /** Applique les migrations manquantes, dans l'ordre. Idempotent. */

@@ -244,6 +244,9 @@ export function HomePage(p: {
           <p class="mt-lg">
             <a href="/packs" class="link-arrow">Découvrir les packs Bien démarrer</a>
           </p>
+          <p class="module-note">
+            Juste besoin d’une caisse ? <a href="/caisse-paiement-carte">Le module caisse et paiement par carte</a> se commande aussi seul.
+          </p>
         </div>
       </section>
 

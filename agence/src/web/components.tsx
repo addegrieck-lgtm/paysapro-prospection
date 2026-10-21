@@ -209,6 +209,9 @@ export function ContactForm({ token, compact = false, subjectDefault = '', pack 
             <option value="autre-metier" selected={pack === 'autre-metier'}>
               Pack Bien démarrer — autre métier
             </option>
+            <option value="caisse" selected={pack === 'caisse'}>
+              Module caisse et paiement par carte (seul)
+            </option>
           </select>
         </div>
       )}

@@ -144,3 +144,30 @@ describe('mise à jour du 21/10 : prix des packs, déplacements, fiche Google', 
     expect(s!.v).toBe('https://share.google/Kuoatbjm9GEr1Pvi2');
   });
 });
+
+describe('module caisse et paiement par carte', () => {
+  it('page dédiée, proposée seule et en option des packs, sans marque citée', async () => {
+    const { app } = await makeApp();
+    const html = await (await req(app, '/caisse-paiement-carte')).text();
+    expect(html).toContain('Je veux juste la caisse');
+    expect(html).toContain('href="/contact?pack=caisse#formulaire"');
+    expect(html.toLowerCase()).not.toMatch(/sumup|lightspeed|zelty|square|kerawen|clyo/);
+    for (const slug of ['restaurant', 'coiffeur', 'artisan-batiment']) {
+      expect(await (await req(app, `/packs/${slug}`)).text(), slug).toContain('href="/caisse-paiement-carte"');
+    }
+    expect(await (await req(app, '/packs')).text()).toContain('Vous avez juste besoin d’une caisse');
+    expect(await (await req(app, '/')).text()).toContain('se commande aussi seul');
+    expect(await (await req(app, '/tarifs')).text()).toContain('Caisse et paiement par carte');
+    expect(await (await req(app, '/sitemap.xml')).text()).toContain('/caisse-paiement-carte</loc>');
+  });
+
+  it('contact : module seul pré-sélectionné et enregistré', async () => {
+    const { app, db } = await makeApp();
+    const html = await (await req(app, '/contact?pack=caisse')).text();
+    expect(html).toMatch(/<option value="caisse" selected/);
+    expect(html).toContain('uniquement le module caisse');
+    const body = new URLSearchParams({ _ft: await oldToken(), name: 'Max Test', email: 'max@example.com', message: 'Je voudrais seulement une caisse pour ma boutique.', pack: 'caisse', privacy: '1' });
+    expect((await req(app, '/contact', { method: 'POST', body, headers: { 'content-type': 'application/x-www-form-urlencoded' } })).status).toBe(303);
+    expect((await db.get<{ need: string }>("SELECT need FROM contacts WHERE email = 'max@example.com'"))!.need).toContain('Module caisse et paiement par carte (seul)');
+  });
+});

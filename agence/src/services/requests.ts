@@ -260,7 +260,11 @@ export const contactSchema = z.object({
 });
 
 export async function submitContact(deps: Deps, s: Settings, input: z.infer<typeof contactSchema>, origin: string): Promise<number> {
-  const packLabel = input.pack ? `Pack Bien démarrer — ${packBySlug(input.pack)?.metier ?? 'autre métier'}` : '';
+  const packLabel = !input.pack
+    ? ''
+    : input.pack === 'caisse'
+      ? 'Module caisse et paiement par carte (seul)'
+      : `Pack Bien démarrer — ${packBySlug(input.pack)?.metier ?? 'autre métier'}`;
   const contact = await upsertContact(deps, {
     name: input.name,
     company: input.company,
