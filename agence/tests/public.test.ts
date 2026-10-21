@@ -332,4 +332,16 @@ describe('SEO technique et local (phase 2)', () => {
     expect(r.status).toBe(301);
     expect(r.headers.get('location')).toBe('https://exemple.fr/tarifs?x=1');
   });
+
+  it('redirige le domaine sans www vers le domaine principal et l’utilise comme adresse du site', async () => {
+    const { app } = await makeApp({
+      config: { appSecret: SECRET, production: true, setupToken: 'x', forceHttps: true, canonicalHost: 'www.exemple.fr' },
+    });
+    const r = await app.request('https://exemple.fr/tarifs?x=1');
+    expect(r.status).toBe(301);
+    expect(r.headers.get('location')).toBe('https://www.exemple.fr/tarifs?x=1');
+    const page = await app.request('https://agence-web.compte.workers.dev/tarifs');
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain('<link rel="canonical" href="https://www.exemple.fr/tarifs"');
+  });
 });

@@ -22,6 +22,7 @@ interface Env {
   MAIL_FROM?: string;
   MAIL_FROM_NAME?: string;
   ENVIRONMENT?: string;
+  SITE_HOST?: string;
 }
 
 let ready: Promise<void> | null = null;
@@ -49,7 +50,7 @@ export default {
         from: env.MAIL_FROM,
         fromName: env.MAIL_FROM_NAME,
       }),
-      config: { appSecret: env.APP_SECRET, production: env.ENVIRONMENT !== 'development', setupToken: env.ADMIN_SETUP_TOKEN ?? '', forceHttps: env.ENVIRONMENT !== 'development' },
+      config: { appSecret: env.APP_SECRET, production: env.ENVIRONMENT !== 'development', setupToken: env.ADMIN_SETUP_TOKEN ?? '', forceHttps: env.ENVIRONMENT !== 'development', canonicalHost: env.SITE_HOST || undefined },
       clientIp: (c) => c.req.header('cf-connecting-ip') ?? 'inconnu',
     });
     return app.fetch(request, env, ctx as never);

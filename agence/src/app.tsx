@@ -26,12 +26,21 @@ export function createApp(deps: Deps) {
       url.protocol = 'https:';
       return c.redirect(url.toString(), 301);
     }
+    // Domaine sans « www » → domaine principal (une seule adresse indexée).
+    const host = deps.config.canonicalHost;
+    if (host && host !== url.hostname && url.hostname === host.replace(/^www\./, '')) {
+      url.hostname = host;
+      url.protocol = 'https:';
+      return c.redirect(url.toString(), 301);
+    }
     c.set('deps', deps);
     const settings = await getSettings(deps.db);
     // Pages publiques : sans adresse de site configurée, les URL absolues (canonical, sitemap, données structurées,
-    // Open Graph) utilisent l'origine de la requête. L'administration conserve la valeur réellement enregistrée.
+    // Open Graph) utilisent le domaine principal, à défaut l'origine de la requête. L'administration conserve la valeur
+    // réellement enregistrée.
     const publicPage = !url.pathname.startsWith('/admin');
-    c.set('settings', publicPage && !settings.siteUrl ? { ...settings, siteUrl: url.origin } : settings);
+    const fallback = host ? `https://${host}` : url.origin;
+    c.set('settings', publicPage && !settings.siteUrl ? { ...settings, siteUrl: fallback } : settings);
     await next();
   });
   app.use('*', securityHeaders);
