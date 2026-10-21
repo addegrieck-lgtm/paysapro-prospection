@@ -1,6 +1,7 @@
 import type { Db, Statement } from './types';
 import { DEFAULT_SETTINGS } from '../domain/settings';
 import type { PrintOptions } from '../domain/print';
+import { portfolioEnrichStatements } from './migrations';
 
 /**
  * Données initiales, insérées UNE SEULE FOIS (base vide). Tout est ensuite modifiable dans l'administration.
@@ -597,6 +598,9 @@ export async function seedIfEmpty(db: Db): Promise<boolean> {
       params: [p.slug, p.title, p.category, p.summary, p.challenge, p.solution, p.outcome, p.deliverables, p.visual, p.accent, p.is_case_study, p.featured, (i + 1) * 10, now, now],
     });
   });
+
+  // Champs commerciaux des concepts (la migration 3 s'exécute avant ces données sur une base neuve).
+  for (const sql of portfolioEnrichStatements()) st.push({ sql });
 
   FAQS.forEach((f, i) => {
     st.push({

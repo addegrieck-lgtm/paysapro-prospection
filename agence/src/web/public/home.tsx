@@ -15,6 +15,7 @@ const SERVICE_TILES: [string, string, string, string][] = [
   ['/reseaux-sociaux', 'Réseaux sociaux', 'Des visuels prêts à publier, aux bons formats.', '07'],
   ['/referencement-seo', 'Référencement SEO', 'Être trouvé par les clients de votre zone.', '08'],
   ['/maintenance-site-internet', 'Maintenance', 'Mises à jour, sauvegardes, petites modifications.', '09'],
+  ['/vitrophanie-signaletique', 'Vitrophanie & signalétique', 'Vitrines, enseignes, panneaux de chantier et véhicules.', '10'],
 ];
 
 const RIBBON = ['Sites internet', 'Logos & identité', 'Flyers', 'Cartes de visite', 'Vitrophanie', 'Enseignes & panneaux', 'Réseaux sociaux', 'Référencement local'];

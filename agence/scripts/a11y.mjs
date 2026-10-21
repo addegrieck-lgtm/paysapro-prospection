@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '');
 const axeSource = readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');
-const PAGES = ['/', '/creation-site-internet', '/flyers-depliants', '/tarifs', '/impression', '/impression/cartes-de-visite', '/configurateur', '/devis', '/realisations', '/realisations/les-pages-lentes', '/contact', '/blog/visibilite-locale-par-ou-commencer', '/cgv', '/mentions-legales', '/nexiste-pas'];
+const PAGES = ['/', '/creation-site-internet', '/flyers-depliants', '/tarifs', '/impression', '/impression/cartes-de-visite', '/configurateur', '/devis', '/realisations', '/realisations/les-pages-lentes', '/contact', '/blog/visibilite-locale-par-ou-commencer', '/cgv', '/mentions-legales', '/vitrophanie-signaletique', '/devis-vitrophanie-signaletique', '/creation-site-internet-artisan', '/creation-site-internet-paysagiste', '/referencement-local-artisan', '/vitrophanie-vitrine-commerce', '/zone-intervention', '/agence-web/le-havre', '/realisations/fournil-du-caux', '/nexiste-pas'];
 const VIEWPORTS = { mobile: { width: 375, height: 812 }, tablette: { width: 820, height: 1180 }, ordinateur: { width: 1440, height: 900 } };
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

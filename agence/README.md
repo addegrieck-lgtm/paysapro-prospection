@@ -9,6 +9,8 @@ sites internet, refontes, identité visuelle, flyers, cartes de visite, supports
 Nom : **Signe & Seine** (Gruchet-le-Valasse) — modifiable dans *Administration → Paramètres* (le logo provisoire, le favicon, les e-mails
 et les documents suivent automatiquement).
 
+SEO : [AUDIT-SEO.md](AUDIT-SEO.md) (audit) et [LIVRABLE-SEO.md](LIVRABLE-SEO.md) (travaux réalisés, placeholders, actions hors site).
+
 ## Ce qui est livré
 
 | Domaine | Contenu |

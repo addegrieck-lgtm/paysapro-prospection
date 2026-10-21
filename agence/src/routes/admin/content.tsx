@@ -37,7 +37,7 @@ interface Resource {
   intro?: string;
 }
 
-const VISUALS = ['site-menuisier', 'site-sante', 'identite-cafe', 'print-salon', 'social-resto', 'brochure-gite', 'site-agence'].map((v) => [v, v] as const);
+const VISUALS = ['site-menuisier', 'site-sante', 'site-paysagiste', 'identite-cafe', 'print-salon', 'social-resto', 'brochure-gite', 'vitrine-commerce', 'site-agence'].map((v) => [v, v] as const);
 const statusCol = { label: 'Statut', value: (r: Record<string, unknown>) => <Badge options={PUBLISH_STATUSES} value={String(r.status)} /> };
 
 const RESOURCES: Resource[] = [
@@ -57,10 +57,19 @@ const RESOURCES: Resource[] = [
       { name: 'is_concept', label: 'Projet fictif / concept de démonstration', type: 'checkbox' },
       { name: 'client_label', label: 'Mention client', type: 'text', max: 160, help: 'Ex. « Projet fictif — concept de démonstration » ou nom du client réel (avec son accord).' },
       { name: 'summary', label: 'Résumé', type: 'textarea', max: 400, rows: 2 },
+      { name: 'client_type', label: 'Type de client', type: 'text', max: 120, help: 'Ex. « Artisan plombier », « Boulangerie (ouverture) ».' },
+      { name: 'need', label: 'Besoin principal (une phrase)', type: 'text', max: 200 },
+      { name: 'services', label: 'Prestations réalisées (une par ligne : /chemin | Libellé)', type: 'textarea', max: 1500, rows: 4, help: 'Ex. « /vitrophanie-vitrine-commerce | Vitrophanie de vitrine ». Chaque ligne devient un lien vers la page de la prestation.' },
+      { name: 'objectives', label: 'Objectifs (un par ligne)', type: 'textarea', max: 1500, rows: 3, help: 'Les objectifs du projet, pas des résultats : n’indiquez de résultats que s’ils sont réels et mesurés.' },
+      { name: 'before_label', label: 'Légende « avant »', type: 'text', max: 200, help: 'Remplie avec la légende « après », elle active le comparatif avant / après.' },
+      { name: 'after_label', label: 'Légende « après »', type: 'text', max: 200 },
       { name: 'challenge', label: 'Le besoin', type: 'textarea', max: 3000 },
       { name: 'solution', label: 'Notre réponse', type: 'textarea', max: 3000 },
       { name: 'deliverables', label: 'Livrables (un par ligne)', type: 'textarea', max: 2000 },
       { name: 'outcome', label: 'Résultats', type: 'textarea', max: 2000, help: 'N’indiquez que des résultats réels et vérifiables.' },
+      { name: 'testimonial', label: 'Témoignage du client (réel uniquement)', type: 'textarea', max: 1200, rows: 3, help: 'Jamais pour un concept. Recopiez mot pour mot les propos du client.' },
+      { name: 'testimonial_author', label: 'Auteur du témoignage', type: 'text', max: 160, help: 'Ex. « Marie D., gérante » (selon ce que le client a autorisé).' },
+      { name: 'testimonial_authorized', label: 'J’ai l’autorisation écrite du client de publier ce témoignage et son nom', type: 'checkbox' },
       { name: 'visual', label: 'Visuel', type: 'select', options: VISUALS },
       { name: 'accent', label: 'Couleur d’accent (#RRGGBB)', type: 'text', max: 7 },
       { name: 'is_case_study', label: 'Afficher aussi dans les études de cas', type: 'checkbox' },
@@ -74,7 +83,12 @@ const RESOURCES: Resource[] = [
       { label: 'Concept', value: (r) => (r.is_concept ? 'Oui' : 'Non') },
       statusCol,
     ],
-    validate: (d) => (d.accent && !/^#[0-9a-fA-F]{6}$/.test(String(d.accent)) ? 'Couleur invalide (format #RRGGBB).' : null),
+    validate: (d) => {
+      if (d.accent && !/^#[0-9a-fA-F]{6}$/.test(String(d.accent))) return 'Couleur invalide (format #RRGGBB).';
+      if (d.is_concept && String(d.testimonial ?? '').trim()) return 'Un projet fictif (concept) ne peut pas afficher de témoignage.';
+      if (String(d.testimonial ?? '').trim() && !d.testimonial_authorized) return 'Cochez l’autorisation écrite du client avant de publier un témoignage (ou laissez le champ vide).';
+      return null;
+    },
   },
   {
     path: 'articles',

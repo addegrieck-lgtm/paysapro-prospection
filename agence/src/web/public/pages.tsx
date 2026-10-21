@@ -4,19 +4,24 @@ import type { FaqRow, LocalPageRow, PortfolioRow, PostRow, ProductRow, ServiceRo
 import { Layout, absoluteUrl } from '../layout';
 import { areaServed, businessJsonLd, localityLabel, providerRef, telHref } from '../seo';
 import { CATEGORY_LABELS, SERVICE_PAGES, type ServicePageDef, type VisualKind } from '../content';
+import { LANDING_PAGES } from '../landing';
 import { ConceptBadge, ContactForm, CtaBand, FaqList, MapEmbed, Notice, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
-import { BrochureMock, BrowserMock, HeroComposition, IdentityBoard, MaintenanceMock, PortfolioVisual, PrintComposition, ProductVisual, SeoMock, SocialMock } from '../illustrations';
+import { BrochureMock, BrowserMock, OldSiteMock, StorefrontMock, HeroComposition, IdentityBoard, MaintenanceMock, PortfolioVisual, PrintComposition, ProductVisual, SeoMock, SocialMock } from '../illustrations';
 import { formatEuros, ttcOf } from '../../domain/money';
 import { formatDate } from '../../domain/dates';
 import { lines, renderMarkdown } from '../../domain/text';
 
-function PageVisual({ kind, s }: { kind: VisualKind; s: Settings }) {
+export function PageVisual({ kind, s }: { kind: VisualKind; s: Settings }) {
   const a = s.accentColor;
   switch (kind) {
     case 'site':
       return <BrowserMock accent={a} />;
     case 'site-sante':
       return <BrowserMock accent="#2D6A4F" title="Cabinet Mouvement" variant="sante" />;
+    case 'site-paysage':
+      return <BrowserMock accent="#5B8C3A" title="Jardins de la Valmont" variant="paysage" />;
+    case 'storefront':
+      return <StorefrontMock accent={a} />;
     case 'print':
       return <PrintComposition accent={a} />;
     case 'identity':
@@ -36,7 +41,7 @@ function PageVisual({ kind, s }: { kind: VisualKind; s: Settings }) {
   }
 }
 
-function PageHero({ eyebrow, h1, h1em, intro, children }: { eyebrow: string; h1: string; h1em?: string; intro: string; children?: unknown }) {
+export function PageHero({ eyebrow, h1, h1em, intro, children }: { eyebrow: string; h1: string; h1em?: string; intro: string; children?: unknown }) {
   return (
     <section class="page-hero">
       <div class="container page-hero-grid">
@@ -149,6 +154,17 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
         </section>
       ) : null}
 
+      {def.article?.map((a, i) => (
+        <section class={`section ${i % 2 ? 'section-sand' : ''}`}>
+          <div class="container">
+            <div class="narrow-left">
+              <SectionHead eyebrow={a.eyebrow} title={a.title} />
+              <div class="prose landing-prose">{raw(renderMarkdown(a.body))}</div>
+            </div>
+          </div>
+        </section>
+      ))}
+
       {p.products.length > 0 && (
         <section class="section" aria-labelledby="impression">
           <div class="container">
@@ -215,7 +231,7 @@ export function ProductCard({ product, s }: { product: ProductRow; s: Settings }
 
 export function PricingPage(p: { s: Settings; services: ServiceRow[] }) {
   const { s } = p;
-  const order = ['web', 'pack', 'graphisme', 'recurrent', 'accompagnement'];
+  const order = ['web', 'pack', 'graphisme', 'signaletique', 'recurrent', 'accompagnement'];
   const groups = order.map((cat) => [cat, p.services.filter((x) => x.category === cat)] as const).filter(([, list]) => list.length);
   return (
     <Layout
@@ -362,10 +378,12 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
                   </div>
                   <div class="work-body">
                     <p class="work-cat">
-                      {w.category} {w.is_concept ? <ConceptBadge /> : null}
+                      {w.category} {w.is_concept ? <ConceptBadge /> : <RealClientBadge />}
                     </p>
                     <h2 class="h3">{w.title}</h2>
-                    <p class="muted">{w.summary}</p>
+                    {w.client_type && <p class="work-client">{w.client_type}</p>}
+                    <p class="muted">{w.need ? `Besoin : ${w.need}.` : w.summary}</p>
+                    <span class="link-arrow">Voir le projet</span>
                   </div>
                 </a>
               ))}
@@ -383,9 +401,49 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
   );
 }
 
+/** Prestations liées : lignes « /chemin | Libellé » (chemins internes uniquement). */
+export function serviceLinks(text: string): [string, string][] {
+  return lines(text)
+    .map((l) => l.split('|').map((x) => x.trim()) as [string, string?])
+    .filter(([href, label]) => /^\/[a-z0-9/#?=_-]*$/i.test(href) && !!label)
+    .map(([href, label]) => [href, label!]);
+}
+
+function BeforeVisual({ item }: { item: PortfolioRow }) {
+  return item.visual === 'vitrine-commerce' ? <StorefrontMock bare /> : <OldSiteMock />;
+}
+
+/** Comparatif avant / après : curseur avec JavaScript, deux moitiés visibles sans. */
+function BeforeAfter({ item, accent }: { item: PortfolioRow; accent: string }) {
+  return (
+    <figure class="ba-figure">
+      <div class={`ba ${item.visual === 'vitrine-commerce' ? 'ba-portrait' : ''}`} data-ba>
+        <div class="ba-layer ba-before">
+          <BeforeVisual item={item} />
+          <span class="ba-tag">Avant</span>
+        </div>
+        <div class="ba-layer ba-after">
+          <PortfolioVisual visual={item.visual} accent={accent} title={item.title} />
+          <span class="ba-tag ba-tag-after">Après</span>
+        </div>
+        <input type="range" class="ba-range" min="0" max="100" value="50" aria-label="Comparer l’avant et l’après" />
+      </div>
+      <figcaption class={`ba-caption ${item.visual === 'vitrine-commerce' ? 'ba-portrait' : ''}`}>
+        <span>{item.before_label}</span>
+        <span>{item.after_label}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: PortfolioRow[]; base: 'realisations' | 'etudes-de-cas' }) {
   const { s, item } = p;
   const label = p.base === 'realisations' ? 'Réalisations' : 'Études de cas';
+  const accent = item.accent || s.accentColor;
+  const links = serviceLinks(item.services);
+  const objectives = lines(item.objectives);
+  const hasBA = !!(item.before_label && item.after_label);
+  const showTestimonial = !item.is_concept && !!item.testimonial && !!item.testimonial_authorized;
   return (
     <Layout
       s={s}
@@ -402,7 +460,7 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
       <section class="page-hero">
         <div class="container narrow">
           <p class="work-cat">
-            {item.category} {item.is_concept ? <ConceptBadge /> : null}
+            {item.category} {item.is_concept ? <ConceptBadge /> : <RealClientBadge />}
           </p>
           <h1>{item.title}</h1>
           <p class="hero-lead">{item.summary}</p>
@@ -414,17 +472,60 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
           ) : null}
         </div>
       </section>
-      <div class="container">
-        <div class="case-visual">
-          <PortfolioVisual visual={item.visual} accent={item.accent || s.accentColor} title={item.title} />
+
+      {(item.client_type || item.need || links.length > 0) && (
+        <div class="container narrow">
+          <dl class="case-facts">
+            {item.client_type && (
+              <div>
+                <dt>Type de client</dt>
+                <dd>{item.client_type}</dd>
+              </div>
+            )}
+            {item.need && (
+              <div>
+                <dt>Besoin</dt>
+                <dd>{item.need}</dd>
+              </div>
+            )}
+            {links.length > 0 && (
+              <div>
+                <dt>Prestations</dt>
+                <dd>
+                  <ul class="case-services">
+                    {links.map(([href, l]) => (
+                      <li>
+                        <a href={href}>{l}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
+            )}
+          </dl>
         </div>
+      )}
+
+      <div class="container">
+        <div class="case-visual">{hasBA ? <BeforeAfter item={item} accent={accent} /> : <PortfolioVisual visual={item.visual} accent={accent} title={item.title} />}</div>
       </div>
+
       <section class="section">
         <div class="container narrow case-body">
           {item.challenge && (
             <div>
               <h2>Le besoin</h2>
               <p>{item.challenge}</p>
+            </div>
+          )}
+          {objectives.length > 0 && (
+            <div>
+              <h2>Les objectifs</h2>
+              <ul class="checks">
+                {objectives.map((o) => (
+                  <li>{o}</li>
+                ))}
+              </ul>
             </div>
           )}
           {item.solution && (
@@ -449,8 +550,37 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
               <p>{item.outcome}</p>
             </div>
           )}
+          {showTestimonial && (
+            <figure class="testimonial">
+              <blockquote>
+                <p>{item.testimonial}</p>
+              </blockquote>
+              {item.testimonial_author && <figcaption>— {item.testimonial_author}</figcaption>}
+            </figure>
+          )}
         </div>
       </section>
+
+      <section class="section section-ink section-tight">
+        <div class="container case-cta">
+          <div>
+            <p class="eyebrow">{item.client_type || 'Un projet similaire ?'}</p>
+            <h2>Un projet comparable pour votre entreprise ?</h2>
+            <p>Décrivez-nous votre besoin : nous vous répondons sous 48 h ouvrées avec des questions et un devis gratuit.</p>
+          </div>
+          <div class="btn-row">
+            <a href={links.some(([h]) => h.startsWith('/vitrophanie')) ? '/devis-vitrophanie-signaletique' : '/devis'} class="btn btn-light">
+              Demander un devis
+            </a>
+            {links[0] && (
+              <a href={links[0][0]} class="btn btn-ghost-light">
+                {links[0][1]}
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
+
       {p.others.length > 0 && (
         <section class="section section-sand">
           <div class="container">
@@ -471,9 +601,12 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
           </div>
         </section>
       )}
-      <CtaBand />
     </Layout>
   );
+}
+
+function RealClientBadge() {
+  return <span class="badge-real">Client réel</span>;
 }
 
 export function AboutPage({ s }: { s: Settings }) {
@@ -727,14 +860,37 @@ export function LocalPage({ s, page }: { s: Settings; page: LocalPageRow }) {
         title: page.title,
         description: page.meta_description || page.intro,
         path: `/agence-web/${page.slug}`,
-        breadcrumbs: [{ name: page.title, path: `/agence-web/${page.slug}` }],
+        breadcrumbs: [
+          { name: 'Zone d’intervention', path: '/zone-intervention' },
+          { name: page.city, path: `/agence-web/${page.slug}` },
+        ],
+        jsonLd: [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            name: page.title,
+            serviceType: 'Agence web, graphisme, impression et signalétique',
+            description: page.meta_description || page.intro,
+            provider: providerRef(s),
+            areaServed: { '@type': 'City', name: page.city },
+            url: absoluteUrl(s, `/agence-web/${page.slug}`),
+          },
+        ],
       }}
     >
-      <PageHero eyebrow={page.city} h1={page.title} intro={page.intro} />
+      <PageHero eyebrow={`Zone d’intervention · ${page.city}`} h1={page.title} intro={page.intro} />
+      <div class="container hero-ctas">
+        <a href="/devis" class="btn btn-primary btn-lg">Demander un devis gratuit</a>
+        {s.contactPhone && (
+          <a href={telHref(s.contactPhone)} class="btn btn-outline btn-lg">
+            Appeler le {s.contactPhone}
+          </a>
+        )}
+      </div>
       <section class="section section-tight">
-        <div class="container narrow prose">{raw(renderMarkdown(page.body))}</div>
+        <div class="container narrow prose landing-prose">{raw(renderMarkdown(page.body))}</div>
       </section>
-      <CtaBand />
+      <CtaBand title={`Un projet à ${page.city} ?`} text="Rendez-vous sur place ou à distance, devis gratuit et sans engagement." />
     </Layout>
   );
 }
@@ -825,6 +981,7 @@ export function SitePlan({ s, posts, products, items, local }: { s: Settings; po
   const main: [string, string][] = [
     ['/', 'Accueil'],
     ...SERVICE_PAGES.map((p) => [p.path, p.name] as [string, string]),
+    ...LANDING_PAGES.map((p) => [p.path, p.name] as [string, string]),
     ['/tarifs', 'Tarifs'],
     ['/impression', 'Catalogue d’impression'],
     ['/configurateur', 'Configurateur'],
@@ -905,4 +1062,3 @@ export function SitePlan({ s, posts, products, items, local }: { s: Settings; po
   );
 }
 
-export { PageHero };

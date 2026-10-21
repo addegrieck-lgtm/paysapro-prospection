@@ -17,6 +17,7 @@ export const PROJECT_TYPES: [string, string, string][] = [
   ['graphisme', 'Création graphique', 'Logo, flyer, carte de visite, visuels'],
   ['seo', 'Référencement & visibilité', 'SEO local, fiche d’établissement'],
   ['maintenance', 'Maintenance', 'Mises à jour, sauvegardes, modifications'],
+  ['signaletique', 'Vitrophanie & signalétique', 'Vitrine, enseigne, panneau, véhicule'],
   ['autre', 'Autre / plusieurs besoins', 'Pack ou besoin à préciser'],
 ];
 

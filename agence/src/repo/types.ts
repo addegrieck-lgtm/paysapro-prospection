@@ -266,6 +266,16 @@ export interface PortfolioRow {
   featured: number;
   status: string;
   sort_order: number;
+  client_type: string;
+  need: string;
+  /** Prestations liées, une par ligne : « /chemin | Libellé ». */
+  services: string;
+  objectives: string;
+  before_label: string;
+  after_label: string;
+  testimonial: string;
+  testimonial_author: string;
+  testimonial_authorized: number;
 }
 
 export interface PostRow {

@@ -2654,3 +2654,244 @@ html.js [data-reveal].is-visible {
 .section-ink h3 em {
   color: color-mix(in oklab, var(--accent) 55%, white);
 }
+
+/* ─── Pages thématiques (vitrophanie, pages métiers, zone) ─── */
+.narrow-left {
+  max-width: 780px;
+}
+.landing-prose {
+  font-size: 1.05rem;
+}
+.landing-prose > :first-child {
+  margin-top: 0;
+}
+.landing-prose li + li {
+  margin-top: 0.45rem;
+}
+.section-ink .landing-prose,
+.section-ink .landing-prose li,
+.section-ink .landing-prose strong {
+  color: rgb(243 239 232 / 0.88);
+}
+.section-ink .landing-prose a {
+  color: #fff;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.feature-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 1.35rem 1.4rem;
+  border-top: 3px solid var(--seine);
+}
+.feature-card h3 {
+  font-size: 1.15rem;
+  margin-bottom: 0.4rem;
+}
+.feature-card p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.97rem;
+}
+.area-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+.area-chips li {
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.95rem;
+  background: var(--card);
+}
+.area-chips a {
+  font-weight: 600;
+  color: var(--seine);
+}
+.area-chips li:has(a) {
+  border-color: var(--seine);
+}
+
+/* ─── Réalisations : fiche projet, avant / après, témoignage ─── */
+.work-client {
+  font-weight: 600;
+  color: var(--seine);
+  margin: -0.2rem 0 0.35rem;
+}
+.badge-real {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  background: var(--success-bg);
+  color: var(--success);
+  vertical-align: middle;
+}
+.case-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 0 0 2rem;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--card);
+}
+.case-facts dt {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.case-facts dd {
+  margin: 0;
+  font-weight: 500;
+}
+.case-services {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+.case-services a {
+  font-weight: 600;
+  color: var(--seine);
+}
+.ba-figure {
+  margin: 0;
+}
+.ba {
+  --pos: 50%;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  background: var(--paper-2);
+  max-width: 760px;
+  margin-inline: auto;
+}
+.ba-layer {
+  position: relative;
+}
+.ba-after {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 0 var(--pos));
+}
+.ba::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pos);
+  width: 3px;
+  margin-left: -1.5px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.12);
+  pointer-events: none;
+}
+.ba-tag {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: rgb(15 47 56 / 0.85);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+}
+.ba-tag-after {
+  left: auto;
+  right: 0.75rem;
+  background: var(--accent-strong);
+}
+.ba-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: ew-resize;
+  margin: 0;
+}
+.ba-range:focus-visible {
+  opacity: 0.0001;
+}
+.ba:has(.ba-range:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.ba-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 760px;
+  margin: 0.75rem auto 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.ba-caption span:last-child {
+  text-align: right;
+}
+.testimonial {
+  margin: 0;
+  padding: 1.5rem 1.75rem;
+  border-left: 4px solid var(--accent);
+  background: var(--card);
+  border-radius: var(--r);
+}
+.testimonial blockquote {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.testimonial figcaption {
+  margin-top: 0.6rem;
+  font-weight: 600;
+}
+.case-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+.case-cta h2 {
+  color: #fff;
+  margin-bottom: 0.35rem;
+}
+.case-cta p {
+  margin: 0;
+}
+.page-hero-visual .mock-portrait,
+.work-visual .mock-portrait,
+.case-visual > .mock-portrait {
+  max-width: 380px;
+  margin-inline: auto;
+}
+.ba.ba-portrait,
+.ba-caption.ba-portrait {
+  max-width: 440px;
+}
+@media (min-width: 961px) {
+  /* Dixième tuile (vitrophanie) : pleine largeur pour ne pas rester seule sur sa ligne. */
+  .tiles > .tile:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
+  }
+}

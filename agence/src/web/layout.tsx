@@ -75,6 +75,7 @@ const NAV_SERVICES: { group: string; items: [string, string, string][] }[] = [
       ['/cartes-de-visite', 'Cartes de visite', 'Classiques ou premium'],
       ['/affiches-brochures', 'Affiches & brochures', 'Grands formats et multipages'],
       ['/reseaux-sociaux', 'Réseaux sociaux', 'Visuels prêts à publier'],
+      ['/vitrophanie-signaletique', 'Vitrophanie & signalétique', 'Vitrines, enseignes, panneaux'],
     ],
   },
 ];
@@ -212,6 +213,9 @@ function Footer({ s }: { s: Settings }) {
             <a href="/referencement-seo">Référencement SEO</a>
             <a href="/maintenance-site-internet">Maintenance</a>
             <a href="/packs">Packs professionnels</a>
+            <a href="/creation-site-internet-artisan">Site internet pour artisans</a>
+            <a href="/creation-site-internet-paysagiste">Site internet pour paysagistes</a>
+            <a href="/referencement-local-artisan">Référencement local des artisans</a>
           </div>
           <div>
             <p class="footer-title">Graphisme & impression</p>
@@ -220,12 +224,15 @@ function Footer({ s }: { s: Settings }) {
             <a href="/cartes-de-visite">Cartes de visite</a>
             <a href="/affiches-brochures">Affiches & brochures</a>
             <a href="/reseaux-sociaux">Réseaux sociaux</a>
+            <a href="/vitrophanie-signaletique">Vitrophanie & signalétique</a>
+            <a href="/vitrophanie-vitrine-commerce">Vitrines de commerce</a>
             <a href="/impression">Catalogue d’impression</a>
             <a href="/configurateur">Configurateur</a>
           </div>
           <div>
             <p class="footer-title">L’agence</p>
             <a href="/a-propos">À propos</a>
+            <a href="/zone-intervention">Zone d’intervention</a>
             <a href="/realisations">Réalisations</a>
             <a href="/etudes-de-cas">Études de cas</a>
             <a href="/tarifs">Tarifs</a>

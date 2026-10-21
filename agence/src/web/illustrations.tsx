@@ -19,8 +19,8 @@ function Bars({ x, y, w, n = 3, gap = 9, h = 4, fill = '#D9D3C7', last = 0.6 }: 
 }
 
 /** Fenêtre de navigateur contenant une page de site. */
-export function BrowserMock({ accent = '#8A5A3B', title = 'Atelier Chêne & Fil', variant = 'artisan', class: cls }: P & { variant?: 'artisan' | 'sante' | 'agence' }) {
-  const dark = variant === 'sante' ? '#1E3A33' : variant === 'agence' ? '#16161A' : '#2A211C';
+export function BrowserMock({ accent = '#8A5A3B', title = 'Atelier Chêne & Fil', variant = 'artisan', class: cls }: P & { variant?: 'artisan' | 'sante' | 'agence' | 'paysage' }) {
+  const dark = variant === 'sante' ? '#1E3A33' : variant === 'paysage' ? '#1F3A2B' : variant === 'agence' ? '#16161A' : '#2A211C';
   return (
     <svg class={`mock ${cls ?? ''}`} viewBox="0 0 560 380" role="img" aria-label={`Maquette de site internet — ${title}`}>
       <g class="paper">
@@ -60,6 +60,19 @@ export function BrowserMock({ accent = '#8A5A3B', title = 'Atelier Chêne & Fil'
           <circle cx="430" cy="165" r="44" fill="#40916C" />
           <path d="M405 168c10-18 40-18 50 0" stroke="#D8F3DC" stroke-width="6" fill="none" stroke-linecap="round" />
         </g>
+      ) : variant === 'paysage' ? (
+        <g>
+          <rect x="300" y="88" width="232" height="150" fill="#A9C98F" />
+          <path d="M300 200 Q360 150 420 185 T532 170 V238 H300Z" fill="#6E9F4E" />
+          <path d="M300 222 Q380 190 450 214 T532 206 V238 H300Z" fill="#4E7D36" />
+          <circle cx="470" cy="128" r="16" fill="#F2D27A" />
+          {[338, 372, 404].map((x, i) => (
+            <g>
+              <rect x={x - 2} y={150 + i * 4} width="4" height="26" fill="#5A3E2B" />
+              <circle cx={x} cy={146 + i * 4} r={14 - i * 2} fill="#2F5D2A" />
+            </g>
+          ))}
+        </g>
       ) : (
         <g>
           <rect x="330" y="112" width="170" height="104" rx="8" fill="#26262C" />
@@ -68,10 +81,10 @@ export function BrowserMock({ accent = '#8A5A3B', title = 'Atelier Chêne & Fil'
         </g>
       )}
       <text x="50" y="135" font-family={SERIF} font-size="22" fill="#fff">
-        {variant === 'sante' ? 'Votre santé,' : variant === 'agence' ? 'Votre entreprise,' : 'Le bois, travaillé'}
+        {variant === 'sante' ? 'Votre santé,' : variant === 'paysage' ? 'Vos extérieurs,' : variant === 'agence' ? 'Votre entreprise,' : 'Le bois, travaillé'}
       </text>
       <text x="50" y="161" font-family={SERIF} font-size="22" font-style="italic" fill="#fff">
-        {variant === 'sante' ? 'en mouvement.' : variant === 'agence' ? 'enfin visible.' : 'sur mesure.'}
+        {variant === 'sante' ? 'en mouvement.' : variant === 'paysage' ? 'bien pensés.' : variant === 'agence' ? 'enfin visible.' : 'sur mesure.'}
       </text>
       <Bars x={50} y={180} w={170} n={2} fill="rgba(255,255,255,.35)" />
       <rect x="50" y="204" width="92" height="20" rx="10" fill={accent} />
@@ -401,6 +414,10 @@ export function PortfolioVisual({ visual, accent, title }: { visual: string; acc
       return <SocialMock accent={accent} title={title} />;
     case 'brochure-gite':
       return <BrochureMock accent={accent} title={title} />;
+    case 'vitrine-commerce':
+      return <StorefrontMock accent={accent} />;
+    case 'site-paysagiste':
+      return <BrowserMock accent={accent} title={title} variant="paysage" />;
     default:
       return <BrowserMock accent={accent} title={title} variant="agence" />;
   }
@@ -426,10 +443,11 @@ export function HeroComposition({ accent }: { accent: string }) {
 }
 
 /** Devanture avec vitrophanie (commerce fictif). */
-export function StorefrontMock({ accent = '#C2410C' }: { accent?: string }) {
+export function StorefrontMock({ accent = '#C2410C', bare = false }: { accent?: string; bare?: boolean }) {
   const stripes = Array.from({ length: 8 }, (_, i) => i);
+  if (bare) return <BareStorefront />;
   return (
-    <svg class="mock" viewBox="0 0 220 250" role="img" aria-label="Illustration d’une vitrine de commerce habillée en vitrophanie">
+    <svg class="mock mock-portrait" viewBox="0 0 220 250" role="img" aria-label="Illustration d’une vitrine de commerce habillée en vitrophanie">
       <rect x="4" y="18" width="212" height="228" rx="6" fill="#0E4A57" />
       <rect x="4" y="18" width="212" height="34" rx="6" fill="#0B3C47" />
       <text x="110" y="41" text-anchor="middle" font-family="Josefin Sans, sans-serif" font-weight="600" font-size="15" letter-spacing="3" fill="#fff">
@@ -456,6 +474,44 @@ export function StorefrontMock({ accent = '#C2410C' }: { accent?: string }) {
       <text x="177" y="112" text-anchor="middle" font-family="Inter Tight, sans-serif" font-weight="600" font-size="8" fill="#0E4A57">
         OUVERT
       </text>
+    </svg>
+  );
+}
+
+/** Même devanture, avant habillage : vitrine vierge. */
+function BareStorefront() {
+  return (
+    <svg class="mock mock-portrait" viewBox="0 0 220 250" role="img" aria-label="Illustration d’une vitrine vierge, avant habillage">
+      <rect x="4" y="18" width="212" height="228" rx="6" fill="#8C9599" />
+      <rect x="4" y="18" width="212" height="34" rx="6" fill="#7A8387" />
+      <rect x="4" y="52" width="212" height="22" fill="#9EA6A9" />
+      <rect x="18" y="86" width="122" height="146" rx="3" fill="#C9D3D5" />
+      <path d="M18 160 L80 86 H104 L18 190Z" fill="#fff" opacity=".22" />
+      <rect x="152" y="86" width="50" height="146" rx="3" fill="#B9C4C6" />
+      <rect x="40" y="140" width="40" height="28" fill="#fff" opacity=".7" transform="rotate(-4 60 154)" />
+      <circle cx="194" cy="162" r="2.6" fill="#E7E9EA" />
+    </svg>
+  );
+}
+
+/** Ancien site (avant refonte) : peu lisible, non adapté au mobile. */
+export function OldSiteMock() {
+  return (
+    <svg class="mock" viewBox="0 0 560 380" role="img" aria-label="Illustration d’un ancien site internet daté">
+      <rect width="560" height="380" rx="14" fill="#fff" />
+      <rect width="560" height="34" rx="14" fill="#E9E9E9" />
+      <rect y="20" width="560" height="14" fill="#E9E9E9" />
+      <rect x="20" y="50" width="520" height="60" fill="#5C6E8C" />
+      <text x="40" y="88" font-family="Times New Roman, serif" font-size="22" fill="#FFF7B0">Bienvenue sur notre site !!</text>
+      <rect x="20" y="118" width="120" height="240" fill="#D8DDE6" />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <rect x="30" y={130 + i * 22} width="96" height="10" fill="#4A63B7" />
+      ))}
+      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+        <rect x="156" y={124 + i * 16} width={360 - (i % 3) * 40} height="6" fill="#B5B5B5" />
+      ))}
+      <rect x="156" y="296" width="160" height="56" fill="#CFCFCF" />
+      <text x="330" y="330" font-family="Times New Roman, serif" font-size="11" fill="#999">Dernière mise à jour : il y a longtemps</text>
     </svg>
   );
 }

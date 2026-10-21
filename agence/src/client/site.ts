@@ -105,3 +105,9 @@ for (const box of document.querySelectorAll<HTMLElement>('[data-map]')) {
     box.replaceChildren(frame);
   });
 }
+
+// Comparatif avant / après : le curseur déplace la séparation.
+for (const ba of document.querySelectorAll<HTMLElement>('[data-ba]')) {
+  const range = ba.querySelector<HTMLInputElement>('.ba-range');
+  range?.addEventListener('input', () => ba.style.setProperty('--pos', `${range.value}%`));
+}

@@ -1,6 +1,6 @@
 /** Contenu éditorial des pages de prestations (textes de présentation ; les prix viennent de la base). */
 
-export type VisualKind = 'site' | 'site-sante' | 'print' | 'identity' | 'social' | 'brochure' | 'cards' | 'seo' | 'maintenance' | 'packs';
+export type VisualKind = 'site' | 'site-sante' | 'site-paysage' | 'print' | 'identity' | 'social' | 'brochure' | 'cards' | 'seo' | 'maintenance' | 'packs' | 'storefront';
 
 export interface ServicePageDef {
   path: string;
@@ -16,6 +16,8 @@ export interface ServicePageDef {
   serviceSlugs: string[];
   productSlugs?: string[];
   details?: { title: string; items: string[] }[];
+  /** Contenu éditorial complémentaire (Markdown), affiché avant le déroulement. */
+  article?: { eyebrow?: string; title: string; body: string }[];
   steps?: [string, string][];
   faq: [string, string][];
   faqTopics: string[];
@@ -115,9 +117,43 @@ export const SERVICE_PAGES: ServicePageDef[] = [
     ],
     serviceSlugs: ['flyer-personnalise', 'depliant-personnalise', 'pack-flyer-carte'],
     productSlugs: ['flyers', 'depliants'],
+    article: [
+      {
+        eyebrow: 'La méthode',
+        title: 'Un flyer qui se lit en trois secondes',
+        body: `Un flyer est pris en main, regardé quelques secondes, puis gardé ou jeté. Pour qu’il soit gardé, il doit répondre immédiatement à une question simple : **qu’est-ce que j’y gagne ?** Nous construisons chaque flyer autour de cette règle.
+
+- **Une seule idée principale** : une ouverture, une offre, un nouveau service, un événement. Un flyer qui parle de tout ne dit rien.
+- **Une accroche visible à un mètre** : c’est elle qui donne envie de lire la suite.
+- **Une hiérarchie claire** : l’accroche, puis deux ou trois arguments, puis l’action attendue (appeler, venir, réserver, scanner le QR code).
+- **Vos coordonnées complètes** : adresse, téléphone, horaires, site. On les oublie trop souvent au verso.
+- **Une image cohérente** avec votre vitrine, votre site et vos cartes de visite, pour que le client fasse le lien.
+
+Pour un dépliant (2 ou 3 volets), la logique est la même, mais le parcours de lecture se construit volet après volet : la couverture accroche, l’intérieur détaille, le dernier volet conclut avec le contact.`,
+      },
+      {
+        eyebrow: 'Les usages',
+        title: 'Distribution, comptoir, salon : à chaque usage son flyer',
+        body: `Le bon format et le bon papier dépendent de la façon dont votre flyer sera utilisé :
+
+- **Distribution en boîtes aux lettres** : format A5 ou A6, papier léger (135 à 170 g) pour limiter le coût sur de grandes quantités. Vérifiez la réglementation « Stop pub » et les autorisations de distribution sur la voie publique auprès de votre mairie.
+- **Présentoir de comptoir** : A6 ou DL, papier plus rigide (250 g et plus) qui tient debout et inspire confiance.
+- **Salon, foire, marché** : A5 recto verso avec un message court, ou dépliant pour présenter une gamme complète.
+- **Envoi avec une facture ou un colis** : DL, qui tient dans une enveloppe standard.
+
+Le tarif de création est indiqué ci-dessus ; l’impression et la livraison sont chiffrées à part, dans le [configurateur](/impression/flyers), selon le format, le papier et la quantité. Vous validez toujours un bon à tirer avant l’impression.`,
+      },
+      {
+        eyebrow: 'Près de chez vous',
+        title: 'Des flyers pour les commerces et artisans du Pays de Caux',
+        body: `Ouverture d’un commerce à Bolbec, fête de quartier à Lillebonne, nouveau service d’un artisan de Fécamp ou d’Yvetot : nous concevons vos flyers depuis Gruchet-le-Valasse et pouvons vous rencontrer sur place pour en parler. Pour une ouverture, pensez au [pack ouverture de commerce](/vitrophanie-signaletique#pack-ouverture), qui associe flyers, cartes de visite et vitrophanie. Ailleurs en France, tout se fait à distance et les flyers sont livrés à votre adresse.`,
+      },
+    ],
     faq: [
       ['Quel format choisir ?', 'Le A5 est le plus polyvalent. Le A6 convient aux offres courtes et aux comptoirs ; le DL tient dans une enveloppe ; le A4 est adapté aux informations détaillées.'],
       ['Quel grammage ?', '135 à 170 g pour une distribution en grande quantité, 250 g et plus pour un support plus rigide et qualitatif.'],
+      ['Puis-je fournir mes propres textes et photos ?', 'Oui, c’est même recommandé pour les photos de vos produits ou réalisations. Nous vérifions leur qualité d’impression et vous prévenons si une image risque d’être floue.'],
+      ['Combien de flyers faut-il imprimer ?', 'Tout dépend de l’usage : quelques centaines suffisent pour un comptoir, plusieurs milliers pour une distribution. Le configurateur affiche les prix par quantité pour comparer avant de décider.'],
     ],
     faqTopics: ['impression'],
     related: ['/cartes-de-visite', '/affiches-brochures', '/impression'],
@@ -139,9 +175,45 @@ export const SERVICE_PAGES: ServicePageDef[] = [
     ],
     serviceSlugs: ['carte-de-visite-personnalisee', 'pack-flyer-carte', 'identite-visuelle-simple'],
     productSlugs: ['cartes-de-visite', 'cartes-de-visite-premium'],
+    article: [
+      {
+        eyebrow: 'L’essentiel',
+        title: 'Une carte de visite utile, avant d’être belle',
+        body: `Une carte de visite reste l’un des supports les plus rentables : elle coûte peu, elle se garde dans un portefeuille ou sur un bureau, et elle est souvent le premier objet qu’un client associe à votre entreprise. Pour qu’elle joue ce rôle, elle doit d’abord être **utile** :
+
+- **Votre nom et votre métier**, lisibles immédiatement. « Plomberie — Chauffage » en dit plus qu’un simple nom d’entreprise.
+- **Un seul numéro de téléphone**, celui où l’on vous joint vraiment, et une adresse e-mail professionnelle.
+- **L’adresse de votre site** et, si c’est utile, un QR code vers votre site, votre prise de rendez-vous ou votre fiche Google.
+- **Votre zone d’intervention ou votre adresse**, selon votre activité.
+- **Des textes assez grands** pour être lus sans lunettes : nous ne descendons jamais sous une taille confortable, même pour les mentions secondaires.
+
+Le verso peut accueillir un rappel de rendez-vous, une carte de fidélité ou la liste de vos prestations principales.`,
+      },
+      {
+        eyebrow: 'Papier et finitions',
+        title: 'Le toucher fait partie du message',
+        body: `Une carte se juge aussi à la main. Selon votre activité et votre budget, nous vous conseillons parmi :
+
+- **Le papier standard épais**, mat ou brillant : le bon choix pour la plupart des artisans et des indépendants.
+- **Le pelliculage soft-touch** : un toucher velouté qui donne une impression haut de gamme, apprécié des métiers de la beauté, du conseil ou de l’artisanat d’art.
+- **Les coins arrondis** : un détail qui distingue votre carte dans une pile.
+- **La dorure ou le vernis sélectif**, sur le logo ou le nom, pour un effet premium mesuré.
+
+Les options disponibles et leur prix d’impression figurent dans le [configurateur des cartes de visite](/impression/cartes-de-visite) et pour les [cartes premium](/impression/cartes-de-visite-premium). Vous validez un bon à tirer avant toute impression.`,
+      },
+      {
+        eyebrow: 'Cohérence',
+        title: 'Une carte assortie à votre logo, votre site et votre vitrine',
+        body: `Votre carte de visite doit ressembler à votre site, à votre vitrine et à vos devis. Si votre logo date ou n’existe qu’en basse définition, nous pouvons le redessiner ou créer votre [identité visuelle](/identite-visuelle-logo). Le [pack flyer + carte](/tarifs) permet de créer les deux supports ensemble, avec un style commun.
+
+Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de Bolbec, Lillebonne, Port-Jérôme-sur-Seine, Fécamp ou du Havre pour choisir ensemble le papier et la finition, échantillons en main quand c’est possible. Partout ailleurs, les cartes sont livrées à votre adresse.`,
+      },
+    ],
     faq: [
       ['Mat ou brillant ?', 'Le mat est sobre et facile à annoter ; le brillant fait ressortir les couleurs ; le soft-touch donne un toucher velouté plus haut de gamme.'],
       ['Puis-je avoir plusieurs noms avec le même modèle ?', 'Oui, la déclinaison pour un collaborateur supplémentaire est proposée en option.'],
+      ['Faut-il mettre un QR code ?', 'C’est utile s’il mène vers une page précise (prise de rendez-vous, avis Google, portfolio). Nous le testons avant impression et le plaçons de façon à ne pas surcharger la carte.'],
+      ['Combien de cartes commander ?', 'Pour un indépendant, quelques centaines couvrent souvent plusieurs mois. Le configurateur affiche les prix par quantité pour choisir en connaissance de cause.'],
     ],
     faqTopics: ['impression'],
     related: ['/identite-visuelle-logo', '/flyers-depliants', '/impression'],
@@ -316,5 +388,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   graphisme: 'Création graphique',
   pack: 'Packs',
   recurrent: 'Services récurrents',
+  signaletique: 'Vitrophanie & signalétique',
   accompagnement: 'Accompagnement',
 };

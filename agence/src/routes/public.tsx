@@ -33,6 +33,8 @@ import { CatalogPage, ConfiguratorIndex, ProductPage } from '../web/public/print
 import { QuoteWizard, type QuoteFormState } from '../web/public/quote';
 import { CookiesPage, LegalNotice, PrivacyPolicy, TermsPage } from '../web/public/legal';
 import { SERVICE_PAGES } from '../web/content';
+import { LANDING_PAGES } from '../web/landing';
+import { LandingPage, SIGNAGE_DESIGN, SIGNAGE_NEEDS, SIGNAGE_POSE, SignageQuotePage } from '../web/public/landing';
 import { estimateFor } from '../services/estimate';
 import { ATTRS, parseOptions, type PrintConfig, type PublicEstimate } from '../domain/print';
 import { checkUploads, contactSchema, quoteSchema, submitContact, submitQuoteRequest, type UploadedFile } from '../services/requests';
@@ -64,6 +66,10 @@ for (const def of SERVICE_PAGES) {
     const products = (def.productSlugs ?? []).map((slug) => allProducts.find((p) => p.slug === slug)).filter((p) => !!p);
     return c.html(<ServicePage s={c.get('settings')} def={def} services={services} products={products} faqs={faqs.slice(0, 4)} />);
   });
+}
+
+for (const def of LANDING_PAGES) {
+  publicRoutes.get(def.path, async (c) => c.html(<LandingPage s={c.get('settings')} def={def} localPages={await publishedLocalPages(c.get('deps').db)} />));
 }
 
 publicRoutes.get('/tarifs', async (c) => c.html(<PricingPage s={c.get('settings')} services={await publishedServices(c.get('deps').db)} />));
@@ -257,6 +263,62 @@ publicRoutes.post('/devis', async (c) => {
 
   if (!parsed.success || !files.ok) return renderWizard(c, { ...state, errors: [...new Set(errors)] }, 422);
   await submitQuoteRequest(c.get('deps'), c.get('settings'), parsed.data, printRaw, files.files, new URL(c.req.url).origin);
+  return c.redirect('/devis/merci', 303);
+});
+
+// ─── Devis vitrophanie & signalétique (formulaire dédié avec photos) ───
+
+publicRoutes.get('/devis-vitrophanie-signaletique', async (c) => {
+  const besoin = c.req.query('besoin');
+  const values: Record<string, string[]> = besoin && SIGNAGE_NEEDS.some(([v]) => v === besoin) ? { needs: [besoin] } : {};
+  return c.html(<SignageQuotePage s={c.get('settings')} token={await token(c)} values={values} />);
+});
+
+publicRoutes.post('/devis-vitrophanie-signaletique', async (c) => {
+  const raw = await c.req.parseBody({ all: true });
+  const body = flatten(raw, ['needs', 'files']);
+  const values: Record<string, string | string[]> = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (typeof v === 'string') values[k] = v;
+    else if (Array.isArray(v) && v.every((x) => typeof x === 'string')) values[k] = v as string[];
+  }
+  const render = async (errors: string[], status: 422 | 429) => c.html(<SignageQuotePage s={c.get('settings')} token={await token(c)} values={values} errors={errors} />, status);
+  const g = await guard(c, body, 'devis', 5);
+  if (g === 'spam') return c.redirect('/devis/merci', 303);
+  if (g) return render([g], 429);
+
+  const pick = (opts: [string, string][], v: unknown) => opts.find(([k]) => k === v)?.[1] ?? '';
+  const needs = ((body.needs as string[] | undefined) ?? []).map((n) => pick(SIGNAGE_NEEDS, n)).filter(Boolean);
+  const txt = (k: string, max: number) => (typeof body[k] === 'string' ? (body[k] as string).trim().slice(0, max) : '');
+  const errors: string[] = [];
+  if (!needs.length) errors.push('Cochez au moins un besoin.');
+  const details = [
+    `Besoin : ${needs.join(', ') || '—'}`,
+    `Lieu de pose : ${txt('city', 120) || '—'}`,
+    txt('dimensions', 300) && `Dimensions : ${txt('dimensions', 300)}`,
+    txt('quantity', 60) && `Quantité : ${txt('quantity', 60)}`,
+    `Création graphique : ${pick(SIGNAGE_DESIGN, body.design) || '—'}`,
+    `Pose : ${pick(SIGNAGE_POSE, body.pose) || '—'}`,
+  ].filter(Boolean);
+  const message = txt('description', 4000);
+  const parsed = quoteSchema.safeParse({
+    ...body,
+    type: 'signaletique',
+    description: message.length >= 10 ? `${message}\n\n${details.join('\n')}` : message,
+    service: 'vitrophanie-signaletique',
+    customer_type: 'pro',
+  });
+  if (!parsed.success) errors.push(...parsed.error.issues.map((i) => i.message));
+  if (!txt('city', 120)) errors.push('Indiquez la commune du lieu de pose.');
+
+  const fileList = (Array.isArray(raw.files) ? raw.files : raw.files ? [raw.files] : []).filter((f): f is File => typeof f === 'object' && f !== null && 'arrayBuffer' in f);
+  const uploads: UploadedFile[] = [];
+  for (const f of fileList) uploads.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+  const files = checkUploads(uploads);
+  if (!files.ok) errors.push(files.error);
+
+  if (errors.length || !parsed.success || !files.ok) return render([...new Set(errors)], 422);
+  await submitQuoteRequest(c.get('deps'), c.get('settings'), parsed.data, {}, files.files, new URL(c.req.url).origin);
   return c.redirect('/devis/merci', 303);
 });
 
