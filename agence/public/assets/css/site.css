@@ -3318,3 +3318,7 @@ html.js .brief-q[data-off] {
     margin-bottom: 0.6rem;
   }
 }
+.doc h2 {
+  font-size: 1.05rem;
+  margin: 1.4rem 0 0.4rem;
+}

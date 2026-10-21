@@ -603,6 +603,32 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       `CREATE INDEX idx_briefs_contact ON briefs(contact_id)`,
     ],
   },
+  {
+    version: 10,
+    name: 'contrats d’abonnement (avec ou sans engagement), signature et résiliation en ligne',
+    // Les abonnements déjà saisis restent de simples suivis (formula vide) : aucun contrat n'est inventé.
+    statements: [
+      `ALTER TABLE subscriptions ADD COLUMN number TEXT`,
+      `ALTER TABLE subscriptions ADD COLUMN formula TEXT NOT NULL DEFAULT ''`,
+      `ALTER TABLE subscriptions ADD COLUMN base_monthly_ht INTEGER`,
+      `ALTER TABLE subscriptions ADD COLUMN discount_percent INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE subscriptions ADD COLUMN commitment_months INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE subscriptions ADD COLUMN notice_months INTEGER NOT NULL DEFAULT 1`,
+      `ALTER TABLE subscriptions ADD COLUMN terms TEXT NOT NULL DEFAULT '{}'`,
+      `ALTER TABLE subscriptions ADD COLUMN contract_status TEXT NOT NULL DEFAULT ''`,
+      `ALTER TABLE subscriptions ADD COLUMN token TEXT`,
+      `ALTER TABLE subscriptions ADD COLUMN sent_at TEXT`,
+      `ALTER TABLE subscriptions ADD COLUMN signed_at TEXT`,
+      `ALTER TABLE subscriptions ADD COLUMN signed_name TEXT`,
+      `ALTER TABLE subscriptions ADD COLUMN termination_requested_at TEXT`,
+      `ALTER TABLE subscriptions ADD COLUMN termination_by TEXT`,
+      `ALTER TABLE subscriptions ADD COLUMN renewal_notice_at TEXT`,
+      `CREATE UNIQUE INDEX idx_subscriptions_token ON subscriptions(token) WHERE token IS NOT NULL`,
+      // Textes publics : les deux formules au lieu d'un renvoi à un contrat qui n'existait pas (valeurs d'origine seulement).
+      `UPDATE services SET conditions = ${q('Deux formules au choix : sans engagement, résiliable à tout moment avec un mois de préavis ; ou avec engagement d’un an à prix remisé, puis résiliable chaque mois. Tout est précisé au contrat, signé en ligne.')} WHERE slug = 'maintenance' AND conditions = ${q('Durée et préavis précisés au contrat.')}`,
+      `UPDATE services SET lead_time = 'Mensuel' WHERE slug = 'maintenance' AND lead_time = ${q('Mensuel, sans engagement au-delà de la durée prévue au contrat')}`,
+    ],
+  },
 ];
 
 /** Applique les migrations manquantes, dans l'ordre. Idempotent. */

@@ -20,7 +20,7 @@ const NAV: { group: string; items: [string, string][] }[] = [
       ['/admin/cahiers', 'Cahiers des charges'],
       ['/admin/devis', 'Devis'],
       ['/admin/factures', 'Factures'],
-      ['/admin/abonnements', 'Abonnements'],
+      ['/admin/abonnements', 'Abonnements et contrats'],
     ],
   },
   {
