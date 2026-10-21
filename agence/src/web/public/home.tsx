@@ -44,7 +44,7 @@ export function HomePage(p: {
           <div class="hero-copy">
             <p class="eyebrow">Agence web & communication{s.city ? ` · ${s.city}, Pays de Caux` : ''}</p>
             <h1>
-              Sites internet et imprimés qui font <em>venir des clients.</em>
+              Une image à la hauteur de <em>votre savoir-faire.</em>
             </h1>
             <p class="hero-lead">
               Site internet, logo, flyers, cartes de visite, visibilité locale : nous créons une communication claire et cohérente pour les artisans,
