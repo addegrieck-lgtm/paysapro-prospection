@@ -11,6 +11,13 @@ Adresse : `https://votre-site/admin`. Tout se pilote depuis le menu de gauche.
 3. **Contacts (CRM)** : statut commercial (nouveau → à contacter → contacté → qualifié → devis envoyé → gagné / perdu),
    prochaine action et sa date (elle apparaîtra dans le tableau de bord), historique des échanges. Export CSV en haut à droite.
 
+## Statistiques du site
+
+*Pilotage → Statistiques du site* : visiteurs, provenance (Google, Facebook, accès direct, autres sites, liens suivis), pages vues,
+pages d’arrivée, appareils, pays, et demandes de devis ou messages selon la provenance de la visite (aussi affichée sur chaque demande).
+Mesure interne sans cookie ni service extérieur (aucun bandeau de consentement), robots et administrateur connecté exclus, conservation 13 mois.
+Pour identifier un canal précis (fiche Google, QR code d’un flyer, signature e-mail), utilisez les liens avec `utm_source` proposés en bas de la page.
+
 ## Faire un devis
 
 1. Depuis une demande : *Préparer le devis* (les lignes sont préremplies : création, impression, livraison).

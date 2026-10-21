@@ -39,6 +39,7 @@ import { PackPage, PacksHub } from '../web/public/packs';
 import { LandingPage, SIGNAGE_DESIGN, SIGNAGE_NEEDS, SIGNAGE_POSE, SignageQuotePage } from '../web/public/landing';
 import { estimateFor } from '../services/estimate';
 import { ATTRS, parseOptions, type PrintConfig, type PublicEstimate } from '../domain/print';
+import { recordConversion } from '../services/analytics';
 import { checkUploads, contactSchema, quoteSchema, submitContact, submitQuoteRequest, type UploadedFile } from '../services/requests';
 
 export const publicRoutes = new Hono<AppEnv>();
@@ -220,7 +221,8 @@ publicRoutes.post('/contact', async (c) => {
   if (!parsed.success) {
     return c.html(<ContactPage s={c.get('settings')} token={await token(c)} error={parsed.error.issues.map((i) => i.message).join(' ')} values={values} />, 422);
   }
-  await submitContact(c.get('deps'), c.get('settings'), parsed.data, new URL(c.req.url).origin);
+  const contactId = await submitContact(c.get('deps'), c.get('settings'), parsed.data, new URL(c.req.url).origin);
+  await recordConversion(c, 'contact', contactId);
   return c.redirect('/contact?envoye=1', 303);
 });
 
@@ -277,7 +279,8 @@ publicRoutes.post('/devis', async (c) => {
   if (!files.ok) errors.push(files.error);
 
   if (!parsed.success || !files.ok) return renderWizard(c, { ...state, errors: [...new Set(errors)] }, 422);
-  await submitQuoteRequest(c.get('deps'), c.get('settings'), parsed.data, printRaw, files.files, new URL(c.req.url).origin);
+  const sent = await submitQuoteRequest(c.get('deps'), c.get('settings'), parsed.data, printRaw, files.files, new URL(c.req.url).origin);
+  await recordConversion(c, 'devis', sent.requestId);
   return c.redirect('/devis/merci', 303);
 });
 
@@ -336,7 +339,8 @@ publicRoutes.post('/devis-vitrophanie-signaletique', async (c) => {
   if (!files.ok) errors.push(files.error);
 
   if (errors.length || !parsed.success || !files.ok) return render([...new Set(errors)], 422);
-  await submitQuoteRequest(c.get('deps'), c.get('settings'), parsed.data, {}, files.files, new URL(c.req.url).origin);
+  const sent = await submitQuoteRequest(c.get('deps'), c.get('settings'), parsed.data, {}, files.files, new URL(c.req.url).origin);
+  await recordConversion(c, 'devis', sent.requestId);
   return c.redirect('/devis/merci', 303);
 });
 

@@ -8,6 +8,7 @@ import { adminRoutes } from './routes/admin';
 import { clientRoutes } from './routes/client';
 import { NotFoundPage } from './web/public/pages';
 import { migrate } from './db/migrations';
+import { trackPageView } from './services/analytics';
 import { seedIfEmpty } from './db/seed';
 
 /** Prépare la base (migrations + données initiales). À appeler au démarrage. */
@@ -46,6 +47,7 @@ export function createApp(deps: Deps) {
   app.use('*', securityHeaders);
   app.use('*', sameOrigin);
   app.use('*', redirects);
+  app.use('*', trackPageView);
   app.use('/admin/*', loadSession);
   app.use('/admin', loadSession);
 

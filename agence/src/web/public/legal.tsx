@@ -140,9 +140,15 @@ export function PrivacyPolicy({ s, mailProvider }: { s: Settings; mailProvider: 
             <td>Intérêt légitime</td>
             <td>24 heures maximum</td>
           </tr>
+          <tr>
+            <td>Statistiques de fréquentation du site (mesure interne, sans cookie)</td>
+            <td>Pages consultées, site de provenance, pays, type d’appareil, empreinte anonyme renouvelée chaque jour (ne permet pas de retrouver l’adresse IP)</td>
+            <td>Intérêt légitime (mesure d’audience exemptée de consentement)</td>
+            <td>13 mois</td>
+          </tr>
           {s.analyticsProvider !== 'none' && (
             <tr>
-              <td>Mesure d’audience</td>
+              <td>Mesure d’audience complémentaire</td>
               <td>{s.analyticsProvider === 'plausible' ? 'Données de navigation agrégées, sans cookie' : 'Données de navigation (Google Analytics)'}</td>
               <td>{s.analyticsProvider === 'plausible' ? 'Intérêt légitime' : 'Consentement'}</td>
               <td>{s.analyticsProvider === 'plausible' ? 'Données agrégées' : '13 mois maximum pour les traceurs'}</td>
@@ -238,7 +244,10 @@ export function CookiesPage({ s }: { s: Settings }) {
       {s.analyticsProvider === 'plausible' && (
         <p>La mesure d’audience est réalisée avec Plausible Analytics, qui ne dépose aucun cookie et ne collecte pas de données personnelles identifiantes.</p>
       )}
-      {s.analyticsProvider === 'none' && <p>Aucun outil de mesure d’audience n’est actuellement utilisé sur ce site.</p>}
+      <p>
+        La fréquentation du site est mesurée par le site lui-même, <strong>sans cookie</strong> ni service extérieur : pages consultées, site de provenance,
+        pays et type d’appareil, de façon anonyme, uniquement pour produire des statistiques. Les données sont conservées 13 mois.
+      </p>
       {s.analyticsProvider === 'ga4' && (
         <p>
           <button type="button" class="btn btn-outline" data-consent="reset">

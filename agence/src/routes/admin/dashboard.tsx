@@ -3,7 +3,7 @@ import type { AppEnv } from '../../app/context';
 import { page, readForm } from './helpers';
 import { Csrf, Kpi, eur } from '../../web/admin/ui';
 import { missingLegalInfo } from '../../domain/settings';
-import { todayParis, formatShortDate } from '../../domain/dates';
+import { addDays, todayParis, formatShortDate } from '../../domain/dates';
 import { ACTIVE_ORDER_STATUSES, ORDER_STATUSES, labelOf } from '../../domain/statuses';
 import { computeMargin } from '../../domain/margin';
 import { effectiveStatus, costChangedSinceValidation, type VariantRow } from '../../domain/print';
@@ -20,6 +20,7 @@ dashboardRoutes.get('/', async (c) => {
   const n = async (sql: string, params: (string | number)[] = []) => (await db.get<{ n: number }>(sql, params))?.n ?? 0;
   const active = ACTIVE_ORDER_STATUSES.map(() => '?').join(',');
 
+  const weekVisitors = await n('SELECT COUNT(*) AS n FROM (SELECT DISTINCT day, visitor FROM page_views WHERE day > ?)', [addDays(today, -7)]);
   const [contacts, newContacts, newRequests, quotesPending, quotesAccepted, ordersActive, invoicesOpen, invoicesOverdue, subs] = await Promise.all([
     n('SELECT COUNT(*) AS n FROM contacts'),
     n("SELECT COUNT(*) AS n FROM contacts WHERE status IN ('nouveau', 'a_contacter')"),
@@ -111,6 +112,7 @@ dashboardRoutes.get('/', async (c) => {
         </div>
       )}
       <div class="grid-kpi">
+        <Kpi label="Visiteurs du site (7 jours)" value={weekVisitors} hint="Provenance, pages, appareils" href="/admin/statistiques" />
         <Kpi label="Prospects (total)" value={contacts} hint={`${newContacts} à traiter`} href="/admin/crm" />
         <Kpi label="Nouvelles demandes de devis" value={newRequests} href="/admin/demandes" tone={newRequests ? 'warn' : undefined} />
         <Kpi label="Devis en attente de réponse" value={quotesPending} href="/admin/devis?statut=envoye" />

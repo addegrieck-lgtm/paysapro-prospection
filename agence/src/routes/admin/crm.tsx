@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { MEDIUM_LABELS, type Medium } from '../../domain/analytics';
 import { z } from 'zod';
 import type { AppEnv, Ctx } from '../../app/context';
 import { PAGE_SIZE, idParam, page, pageNum, readForm } from './helpers';
@@ -463,6 +464,10 @@ crmRoutes.get('/demandes/:id', async (c) => {
   const config = r.print_config ? (JSON.parse(r.print_config) as PrintConfig) : null;
   const est = r.estimate ? (JSON.parse(r.estimate) as PublicEstimate) : null;
   const order = await db.get<{ id: number; number: string }>("SELECT id, number FROM print_orders WHERE json_extract(config, '$.request_id') = ?", [r.id]);
+  const origin = await db.get<{ medium: string; source: string; campaign: string; landing: string }>(
+    "SELECT medium, source, campaign, landing FROM conversions WHERE kind = 'devis' AND ref_id = ?",
+    [r.id],
+  );
   const csrf = c.get('csrf');
   return page(
     c,
@@ -496,6 +501,25 @@ crmRoutes.get('/demandes/:id', async (c) => {
             {order && (
               <p>
                 Commande créée : <a href={`/admin/commandes/${order.id}`}>{order.number}</a>
+              </p>
+            )}
+          </div>
+        )}
+        {origin && (
+          <div class="panel">
+            <h2>Provenance de la visite</h2>
+            {origin.medium === 'inconnu' ? (
+              <p class="muted">Inconnue (aucune visite du site retrouvée le jour de la demande).</p>
+            ) : (
+              <p>
+                {origin.medium === 'direct' ? 'Accès direct' : `${origin.source} (${MEDIUM_LABELS[origin.medium as Medium] ?? origin.medium})`}
+                {origin.campaign && ` — campagne « ${origin.campaign} »`}
+                {origin.landing && (
+                  <>
+                    {' '}
+                    — arrivée sur <span class="muted">{origin.landing}</span>
+                  </>
+                )}
               </p>
             )}
           </div>
