@@ -74,7 +74,9 @@ export function AdminLayout(p: { s: Settings; user: AdminUser; title: string; pa
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
         <title>{p.title} — Administration {p.s.agencyName}</title>
+        <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
         <link rel="stylesheet" href="/assets/css/admin.css" />
         <script type="module" src="/assets/js/admin.js"></script>
       </head>
@@ -288,7 +290,9 @@ export function LoginShell({ title, children }: { title: string; children: Child
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
         <title>{title}</title>
+        <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
         <link rel="stylesheet" href="/assets/css/admin.css" />
       </head>
       <body class="admin login-page">

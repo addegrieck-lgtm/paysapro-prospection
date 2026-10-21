@@ -88,6 +88,9 @@ describe('paramètres', () => {
     expect(home).toContain('class="logo-name"');
     const fav = await (await req(app, '/favicon.svg')).text();
     expect(fav).toContain('<svg');
+    expect(home).toContain('href="/assets/img/favicon.ico"');
+    expect(home).toContain('href="/assets/img/apple-touch-icon.png"');
+    expect((await req(app, '/favicon.ico')).headers.get('location')).toBe('/assets/img/favicon.ico');
   });
 });
 

@@ -357,10 +357,11 @@ export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) 
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="theme-color" content="#F6F3EE" />
         {s.searchConsoleToken && <meta name="google-site-verification" content={s.searchConsoleToken} />}
+        <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="preload" href="/assets/fonts/inter-tight-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
         <link rel="preload" href="/assets/fonts/josefin-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-        <link rel="apple-touch-icon" href="/assets/img/logo-512.png" />
+        <link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png" />
         <link rel="stylesheet" href="/assets/css/site.css" />
         <style>{raw(`:root{--accent:${s.accentColor}}`)}</style>
         {jsonLd.map((d) => (

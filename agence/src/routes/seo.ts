@@ -59,7 +59,8 @@ seoRoutes.get('/favicon.svg', (c) => {
   return c.body(svg, 200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=3600' });
 });
 
-seoRoutes.get('/favicon.ico', (c) => c.redirect('/favicon.svg', 301));
+// Navigateurs et robots qui demandent /favicon.ico sans lire la page : vrai fichier ICO (scripts/favicons.mjs).
+seoRoutes.get('/favicon.ico', (c) => c.redirect('/assets/img/favicon.ico', 301));
 
 /** Redirections administrables (anciennes URL → nouvelles). */
 export const redirects: MiddlewareHandler<AppEnv> = async (c, next) => {
