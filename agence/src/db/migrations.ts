@@ -544,6 +544,43 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       ...blogMetaStatements(),
     ],
   },
+  {
+    version: 8,
+    name: 'statistiques de visite internes (sans cookie)',
+    // visitor : empreinte du jour (non réversible, change chaque jour). Conservation : voir ANALYTICS_RETENTION_DAYS.
+    statements: [
+      `CREATE TABLE page_views (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        path TEXT NOT NULL,
+        status INTEGER NOT NULL DEFAULT 200,
+        entry INTEGER NOT NULL DEFAULT 0,
+        medium TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT '',
+        campaign TEXT NOT NULL DEFAULT '',
+        referrer TEXT NOT NULL DEFAULT '',
+        country TEXT NOT NULL DEFAULT '',
+        device TEXT NOT NULL DEFAULT '',
+        visitor TEXT NOT NULL
+      )`,
+      `CREATE INDEX idx_page_views_day ON page_views(day)`,
+      `CREATE INDEX idx_page_views_visitor ON page_views(day, visitor)`,
+      `CREATE TABLE conversions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        day TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        ref_id INTEGER,
+        medium TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT '',
+        campaign TEXT NOT NULL DEFAULT '',
+        landing TEXT NOT NULL DEFAULT '',
+        visitor TEXT NOT NULL DEFAULT ''
+      )`,
+      `CREATE INDEX idx_conversions_day ON conversions(day)`,
+    ],
+  },
 ];
 
 /** Applique les migrations manquantes, dans l'ordre. Idempotent. */

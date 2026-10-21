@@ -844,3 +844,51 @@ dl.kv dd {
     margin: 16mm;
   }
 }
+
+/* Statistiques du site : une seule teinte, valeurs toujours écrites. */
+.stat-chart {
+  display: block;
+  width: 100%;
+  height: 160px;
+}
+.stat-mark {
+  fill: var(--info);
+}
+.stat-hit {
+  fill: transparent;
+}
+.stat-col:hover .stat-hit {
+  fill: var(--info-bg);
+}
+.stat-axis {
+  stroke: var(--line-2);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.stat-axis-labels {
+  display: flex;
+  justify-content: space-between;
+  margin: 0.25rem 0 0.75rem;
+}
+.stat-table td:first-child {
+  width: 100%;
+}
+.stat-label {
+  overflow-wrap: anywhere;
+}
+.stat-bar {
+  display: block;
+  height: 4px;
+  margin-top: 0.3rem;
+  border-radius: 2px;
+  background: var(--line);
+}
+.stat-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--info);
+}
+.stat-links code {
+  overflow-wrap: anywhere;
+}

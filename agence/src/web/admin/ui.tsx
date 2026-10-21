@@ -5,7 +5,13 @@ import { type Option, labelOf } from '../../domain/statuses';
 import { centsToInput, formatEuros } from '../../domain/money';
 
 const NAV: { group: string; items: [string, string][] }[] = [
-  { group: 'Pilotage', items: [['/admin', 'Tableau de bord']] },
+  {
+    group: 'Pilotage',
+    items: [
+      ['/admin', 'Tableau de bord'],
+      ['/admin/statistiques', 'Statistiques du site'],
+    ],
+  },
   {
     group: 'Commercial',
     items: [
