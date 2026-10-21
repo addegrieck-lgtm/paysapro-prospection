@@ -1,7 +1,7 @@
 import type { Db, Statement } from './types';
 import { DEFAULT_SETTINGS } from '../domain/settings';
 import type { PrintOptions } from '../domain/print';
-import { portfolioEnrichStatements } from './migrations';
+import { blogMetaStatements, portfolioEnrichStatements } from './migrations';
 
 /**
  * Données initiales, insérées UNE SEULE FOIS (base vide). Tout est ensuite modifiable dans l'administration.
@@ -616,6 +616,9 @@ export async function seedIfEmpty(db: Db): Promise<boolean> {
       params: [p.slug, p.title, p.excerpt, p.body, p.category, date, now, now],
     });
   });
+
+  // Titres SEO courts des articles (la migration 7 s'exécute avant ces données sur une base neuve).
+  for (const sql of blogMetaStatements()) st.push({ sql });
 
   st.push({ sql: 'INSERT INTO settings (key, value) VALUES (?, ?)', params: ['seeded', now] });
   await db.batch(st);

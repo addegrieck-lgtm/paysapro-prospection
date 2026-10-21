@@ -15,6 +15,8 @@ export type PackIcon = 'restaurant' | 'jardin' | 'coiffure' | 'batiment' | 'bout
 export interface PackOption {
   name: string;
   text: string;
+  /** Page de détail (ex. module proposé aussi seul). */
+  href?: string;
 }
 
 export interface PackDef {

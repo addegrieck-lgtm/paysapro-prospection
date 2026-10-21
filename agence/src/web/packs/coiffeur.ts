@@ -84,6 +84,7 @@ La prise de rendez-vous est l’autre point clé. Un client qui ne peut réserve
       { name: 'Cartes de rendez-vous', text: 'Cartes au format carte de visite avec emplacement pour la date du prochain rendez-vous.' },
       { name: 'Cartes de fidélité', text: 'Cartes à tamponner aux couleurs du salon, avec la récompense de votre choix.' },
       { name: 'Chèques cadeaux', text: 'Chèques numérotés et personnalisés, avec talon, pour les fêtes et les anniversaires.' },
+      { name: 'Caisse et paiement par carte', text: 'Caisse conforme avec prestations et produits sur le même ticket, ventes par collaborateur et terminal de paiement. Aussi disponible seule.', href: '/caisse-paiement-carte' },
     ],
   },
 

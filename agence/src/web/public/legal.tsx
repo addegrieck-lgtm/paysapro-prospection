@@ -25,7 +25,7 @@ function LegalShell({ s, title, path, description, children, updated }: { s: Set
 export function LegalNotice({ s }: { s: Settings }) {
   const l = s.legal;
   return (
-    <LegalShell s={s} title="Mentions légales" path="/mentions-legales" description={`Mentions légales du site ${s.agencyName}.`}>
+    <LegalShell s={s} title="Mentions légales" path="/mentions-legales" description={`Mentions légales du site ${s.agencyName} : éditeur, directeur de la publication, hébergeur, propriété intellectuelle et données personnelles.`}>
       <h2>Éditeur du site</h2>
       <ul class="plain-list">
         <li>
@@ -195,7 +195,7 @@ export function PrivacyPolicy({ s, mailProvider }: { s: Settings; mailProvider: 
 
 export function CookiesPage({ s }: { s: Settings }) {
   return (
-    <LegalShell s={s} title="Gestion des cookies" path="/cookies" description="Les cookies et traceurs utilisés sur ce site et comment les gérer.">
+    <LegalShell s={s} title="Gestion des cookies" path="/cookies" description="Les cookies et traceurs utilisés sur ce site, leur finalité, leur durée de conservation et comment les accepter, les refuser ou les supprimer.">
       <p>
         Ce site limite au strict nécessaire l’usage des cookies. <strong>Aucun cookie publicitaire</strong> n’est utilisé.
       </p>
@@ -258,7 +258,7 @@ export function CookiesPage({ s }: { s: Settings }) {
 export function TermsPage({ s }: { s: Settings }) {
   const l = s.legal;
   return (
-    <LegalShell s={s} title="Conditions générales de vente" path="/cgv" description={`Conditions générales de vente des prestations de ${s.agencyName}.`}>
+    <LegalShell s={s} title="Conditions générales de vente" path="/cgv" description={`Conditions générales de vente de ${s.agencyName} : devis, acompte, délais, BAT, livraison, paiement, rétractation et responsabilités.`}>
       <h2>1. Objet et champ d’application</h2>
       <p>
         Les présentes conditions s’appliquent aux prestations de <V v={l.companyName} /> ({s.agencyName}) : création de sites internet, création

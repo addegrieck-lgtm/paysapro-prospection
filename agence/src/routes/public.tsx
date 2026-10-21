@@ -206,7 +206,7 @@ function flatten(body: Record<string, unknown>, arrays: string[]): Record<string
 
 publicRoutes.get('/contact', async (c) => {
   const pack = c.req.query('pack');
-  const values = pack && (packBySlug(pack) || pack === 'autre-metier') ? { pack } : undefined;
+  const values = pack && (packBySlug(pack) || pack === 'autre-metier' || pack === 'caisse') ? { pack } : undefined;
   return c.html(<ContactPage s={c.get('settings')} token={await token(c)} sent={c.req.query('envoye') === '1'} values={values} />);
 });
 

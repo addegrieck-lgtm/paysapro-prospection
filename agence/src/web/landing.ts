@@ -431,7 +431,7 @@ Les tarifs de l’accompagnement sont affichés sur la page [référencement SEO
     name: 'Vitrophanie de vitrine pour commerces',
     serviceType: 'Vitrophanie et habillage de vitrine',
     metaTitle: 'Vitrophanie de vitrine pour commerces',
-    metaDescription: 'Habillage de vitrine pour boutiques, restaurants, salons et cabinets : lettrage, horaires, microperforé, dépoli. Maquette sur photo et pose dans le Pays de Caux.',
+    metaDescription: 'Habillage de vitrine pour boutiques, restaurants, salons et cabinets : lettrage, horaires, microperforé, dépoli. Maquette sur photo et pose par un partenaire.',
     eyebrow: 'Vitrophanie · Commerces',
     h1: 'Une vitrine de commerce',
     h1em: 'qui fait entrer.',
@@ -520,6 +520,7 @@ Nous nous déplaçons partout en France : les frais de déplacement éventuels d
       ['Quel est le prix d’un habillage de vitrine ?', 'Il dépend de la surface, du type d’adhésif, de la création et de la pose. Chaque projet est chiffré sur devis gratuit, à partir de vos photos et de vos mesures.'],
     ],
     links: [
+      ['/caisse-paiement-carte', 'Caisse enregistreuse et paiement par carte'],
       ['/packs/coiffeur', 'Pack Bien démarrer — coiffeur et institut'],
       ['/packs/restaurant', 'Pack Bien démarrer — restaurant'],
       ['/vitrophanie-signaletique', 'Vitrophanie et signalétique'],
@@ -535,7 +536,7 @@ Nous nous déplaçons partout en France : les frais de déplacement éventuels d
     name: 'Zone d’intervention',
     serviceType: 'Agence web, graphisme, impression et signalétique',
     metaTitle: 'Zone d’intervention : Pays de Caux et France',
-    metaDescription: 'Agence web et print basée à Gruchet-le-Valasse : déplacements à Bolbec, Lillebonne, Le Havre, Fécamp, Yvetot et dans le Pays de Caux, à distance partout en France.',
+    metaDescription: 'Agence web et print à Gruchet-le-Valasse : rendez-vous à Bolbec, Lillebonne, Le Havre, Fécamp, Yvetot et dans le Pays de Caux, partout en France à distance.',
     eyebrow: 'Zone d’intervention',
     h1: 'Basés à Gruchet-le-Valasse,',
     h1em: 'au service de tout le Pays de Caux.',
@@ -617,6 +618,108 @@ Pour la signalétique, nous préparons les adhésifs et panneaux à partir de vo
     ],
     map: true,
     ctaBand: { title: 'Un projet près de chez vous ?', text: 'Appelez-nous ou écrivez-nous : nous convenons d’un rendez-vous sur place ou à distance.' },
+  },
+
+  // ─── Module caisse et paiement par carte (seul ou en option des packs) ───
+  {
+    path: '/caisse-paiement-carte',
+    name: 'Caisse et paiement par carte',
+    serviceType: 'Installation et paramétrage de caisse enregistreuse et de paiement par carte',
+    metaTitle: 'Installation de caisse enregistreuse',
+    metaDescription: 'Installation et paramétrage de caisse enregistreuse conforme et paiement par carte pour commerces, restaurants et salons. Module seul ou en pack, Pays de Caux.',
+    eyebrow: 'Module caisse · seul ou en pack',
+    h1: 'Installation de caisse enregistreuse',
+    h1em: 'et paiement par carte, prêts à encaisser.',
+    intro:
+      'Vous avez seulement besoin d’une caisse ? C’est possible, sans prendre de pack. Nous vous aidons à choisir une solution de caisse et de paiement par carte conforme, nous la paramétrons à votre activité et nous vous formons pour encaisser sereinement dès le premier client.',
+    visual: 'storefront',
+    cta: ['/contact?pack=caisse#formulaire', 'Je veux juste la caisse'],
+    secondary: ['/packs', 'Voir les packs Bien démarrer'],
+    sections: [
+      {
+        id: 'module-seul',
+        eyebrow: 'Le module seul',
+        title: 'Juste une caisse, sans le reste ? Aucun problème.',
+        tone: 'ink',
+        body: `Vous avez déjà votre site, votre logo et vos imprimés, ou vous voulez avancer étape par étape ? Le **module caisse** se commande **seul**, sans engagement sur nos autres prestations.
+
+- **Conseil** : la solution adaptée à votre activité, à votre volume de ventes et à votre budget.
+- **Mise en service** : ouverture du compte à votre nom, paramétrage complet, tests.
+- **Formation** : vous et votre équipe savez encaisser, rembourser et clôturer.
+
+Le module est **sur devis**, selon le nombre de produits à saisir, de postes et d’utilisateurs. Si vous prenez ensuite un pack, il s’intègre naturellement au reste de votre communication.`,
+        cta: ['/contact?pack=caisse#formulaire', 'Demander un devis pour le module caisse'],
+      },
+      {
+        eyebrow: 'Ce que nous faisons',
+        title: 'De l’ouverture du compte au premier ticket',
+        cards: [
+          ['Choix de la solution', 'Nous comparons avec vous les solutions existantes selon votre métier : abonnement ou commission par paiement, fonctions utiles, matériel nécessaire.'],
+          ['Ouverture du compte', 'Le compte est ouvert à votre nom : vous restez titulaire de votre caisse, de vos données et de vos encaissements.'],
+          ['Catalogue et TVA', 'Saisie de vos produits ou prestations, prix, catégories et taux de TVA, en lien avec votre expert-comptable.'],
+          ['Ticket à vos couleurs', 'Logo, coordonnées, mentions obligatoires et message de fin de ticket, cohérents avec votre identité.'],
+          ['Paiement par carte', 'Mise en service du terminal de paiement, sans contact et carte, et test d’un encaissement réel.'],
+          ['Formation et suivi', 'Prise en main sur place ou à distance, puis assistance pour ajouter des produits ou modifier vos prix.'],
+        ],
+      },
+      {
+        eyebrow: 'Conformité',
+        title: 'Une caisse conforme à la réglementation',
+        tone: 'sand',
+        body: `Si vous êtes assujetti à la TVA et que vous encaissez des particuliers avec un logiciel de caisse, ce logiciel doit respecter les règles anti-fraude à la TVA (inaltérabilité, sécurisation, conservation et archivage des données). La conformité se justifie par un **certificat** délivré par un organisme accrédité ou par une **attestation individuelle de l’éditeur**.
+
+Nous ne recommandons que des solutions capables de fournir ce justificatif, et nous vous le remettons lors de la mise en service. Nous ne développons pas de logiciel de caisse : nous **installons et paramétrons des solutions existantes**, ce qui vous garantit une solution maintenue et mise à jour par son éditeur.
+
+Faites valider le paramétrage de la TVA et des clôtures par votre expert-comptable avant votre premier jour d’encaissement : c’est une précaution simple qui évite bien des corrections.`,
+      },
+      {
+        eyebrow: 'Selon votre métier',
+        title: 'Une caisse adaptée à votre activité',
+        cards: [
+          ['Restaurant, café, traiteur', 'Plan de salle ou vente au comptoir, menus et formules, envoi en cuisine, vente à emporter.'],
+          ['Coiffeur, institut', 'Prestations et produits sur le même ticket, ventes par collaborateur, cartes de fidélité et chèques cadeaux.'],
+          ['Boutique, boulangerie', 'Catalogue de produits, codes-barres ou boutons rapides, gestion simple du stock, pesée si besoin.'],
+          ['Artisan, paysagiste', 'Encaissement par carte chez le client, à la fin d’une intervention ou d’un chantier, avec reçu par e-mail.'],
+        ],
+      },
+      {
+        eyebrow: 'Le matériel',
+        title: 'Le matériel dont vous aurez besoin',
+        body: `Le matériel dépend de votre activité. Nous vous indiquons ce qui est nécessaire, sans superflu :
+
+- un **terminal de paiement par carte** ;
+- un **support de caisse** : smartphone, tablette ou écran tactile ;
+- selon les besoins : **imprimante de tickets**, **tiroir-caisse**, **douchette code-barres**, **imprimante en cuisine** ou **balance**.
+
+Le matériel est acheté ou loué directement auprès de la solution choisie, ou fourni sur devis. Les frais de la solution (abonnement éventuel, commission sur les paiements, matériel) sont ceux de l’éditeur : nous vous les présentons clairement avant tout engagement, séparément de nos prestations d’installation et de formation.`,
+      },
+      {
+        eyebrow: 'En pack',
+        title: 'Ou en option des packs Bien démarrer',
+        tone: 'sand',
+        body: `Vous ouvrez votre activité ? Le module caisse est aussi proposé en option des packs [restaurant](/packs/restaurant), [coiffeur et institut](/packs/coiffeur) et [artisan du bâtiment](/packs/artisan-batiment). La caisse reprend alors votre identité (ticket, carte de fidélité, QR code vers votre site ou votre fiche Google), et tout est prêt pour le jour de l’ouverture.`,
+      },
+    ],
+    local: {
+      title: 'Mise en service sur place ou à distance',
+      body: `Basés à Gruchet-le-Valasse, nous venons installer et tester votre caisse dans votre commerce, et former votre équipe sur place. Ailleurs en France, la mise en service et la formation se font à distance, en visioconférence. Les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.`,
+    },
+    faq: [
+      ['Puis-je prendre uniquement le module caisse ?', 'Oui. Le module caisse se commande seul, sans pack ni autre prestation. Il est établi sur devis selon votre activité, le nombre de produits et de postes.'],
+      ['Ma caisse sera-t-elle conforme ?', 'Nous ne recommandons que des solutions capables de fournir un certificat d’un organisme accrédité ou une attestation de l’éditeur, que nous vous remettons. Le paramétrage de la TVA est à valider avec votre expert-comptable.'],
+      ['Qui est propriétaire du compte de caisse ?', 'Vous. Le compte est ouvert à votre nom : vos ventes, vos données et vos encaissements vous appartiennent, que vous restiez ou non notre client.'],
+      ['Combien coûte une caisse ?', 'Il y a deux parties : les frais de la solution (abonnement éventuel, commission sur les paiements, matériel), fixés par l’éditeur, et notre prestation d’installation, de paramétrage et de formation, sur devis. Nous vous présentons les deux avant tout engagement.'],
+      ['Faut-il obligatoirement une caisse enregistreuse ?', 'La loi n’oblige pas tous les commerçants à s’équiper d’une caisse. En revanche, si vous utilisez un logiciel de caisse, il doit être conforme. Pour votre situation précise, renseignez-vous auprès de votre expert-comptable.'],
+      ['Pouvez-vous reprendre une caisse existante ?', 'Oui : nous pouvons revoir le paramétrage d’une caisse déjà en place (catalogue, TVA, ticket) ou vous accompagner dans un changement de solution.'],
+    ],
+    links: [
+      ['/packs', 'Packs Bien démarrer'],
+      ['/packs/restaurant', 'Pack Bien démarrer — restaurant'],
+      ['/packs/coiffeur', 'Pack Bien démarrer — coiffeur et institut'],
+      ['/cartes-de-visite', 'Cartes de fidélité et cartes de visite'],
+      ['/vitrophanie-vitrine-commerce', 'Vitrophanie de vitrine'],
+    ],
+    ctaBand: { title: 'Besoin seulement d’une caisse ?', text: 'Dites-nous votre activité : nous vous proposons une solution adaptée et un devis pour l’installation.' },
   },
 ];
 

@@ -37,7 +37,7 @@ export function HomePage(p: {
       s={s}
       meta={{
         title: s.city ? `Agence web & print à ${s.city}` : 'Agence web et print pour TPE',
-        description: `${s.agencyName}${s.city ? `, agence web et print à ${s.city} (Pays de Caux)` : ''} : sites internet, logos, flyers, cartes de visite et vitrines pour artisans et TPE. Devis gratuit.`,
+        description: `Agence web et print${s.city ? ` à ${s.city} (Pays de Caux)` : ''} : sites internet, logos, flyers, cartes de visite et vitrines pour artisans et TPE. Devis gratuit.`,
         path: '/',
         jsonLd: [businessJsonLd(s), websiteJsonLd(s), ...(p.faqs.length ? [faqJsonLd(p.faqs)] : [])],
       }}
@@ -243,6 +243,9 @@ export function HomePage(p: {
           </div>
           <p class="mt-lg">
             <a href="/packs" class="link-arrow">Découvrir les packs Bien démarrer</a>
+          </p>
+          <p class="module-note">
+            Juste besoin d’une caisse ? <a href="/caisse-paiement-carte">Le module caisse et paiement par carte</a> se commande aussi seul.
           </p>
         </div>
       </section>

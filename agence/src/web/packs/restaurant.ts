@@ -86,6 +86,7 @@ Enfin, un restaurant a des **obligations d’affichage** que la communication do
       { name: 'Sets de table', text: 'Sets en papier personnalisés : une surface de communication que chaque client a sous les yeux.' },
       { name: 'Chevalet de terrasse', text: 'Panneau stop-trottoir avec votre menu du jour ou votre offre, réutilisable.' },
       { name: 'Carte de fidélité', text: 'Carte à tamponner aux couleurs du restaurant, pour faire revenir les habitués.' },
+      { name: 'Caisse et paiement par carte', text: 'Caisse conforme paramétrée pour votre carte (menus, formules, TVA sur place et à emporter), terminal de paiement et ticket à vos couleurs. Aussi disponible seul.', href: '/caisse-paiement-carte' },
     ],
   },
 

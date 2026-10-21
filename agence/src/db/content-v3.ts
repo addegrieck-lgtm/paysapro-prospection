@@ -90,7 +90,7 @@ Nous intervenons aussi dans les communes voisines : Gruchet-le-Valasse, Lillebon
     title: 'Agence web et print à Lillebonne',
     intro:
       'Sites internet, identité visuelle, imprimés et signalétique pour les commerces, artisans et entreprises de Lillebonne et du bassin de Port-Jérôme. Nous sommes à quelques minutes, à Gruchet-le-Valasse, et nous nous déplaçons sur place.',
-    meta_description: 'Création de site internet, logo, flyers, vitrophanie et signalétique à Lillebonne et Port-Jérôme-sur-Seine. Agence voisine, rendez-vous sur place, devis gratuit.',
+    meta_description: 'Site internet, logo, flyers, vitrophanie et signalétique à Lillebonne et Port-Jérôme-sur-Seine. Agence voisine, rendez-vous sur place, devis gratuit.',
     body: `## Lillebonne, à quelques minutes de notre agence
 
 Lillebonne fait partie de notre **zone principale**. Depuis Gruchet-le-Valasse, nous y sommes en quelques minutes, ce qui permet de se rencontrer facilement, de photographier vos réalisations ou de relever les mesures d’une vitrine ou d’une façade avant de vous proposer un projet.

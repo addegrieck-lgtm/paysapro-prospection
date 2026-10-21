@@ -3171,3 +3171,33 @@ html.js [data-reveal].is-visible {
   margin-top: 1rem;
   color: var(--ink-2);
 }
+
+/* ─── Module caisse (seul ou en pack) ─── */
+.module-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.6rem 1.8rem;
+  border-radius: var(--r-lg);
+  border: 2px solid var(--seine);
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+}
+.module-banner h2 {
+  margin-bottom: 0.3rem;
+}
+.module-banner p:last-child {
+  margin: 0;
+  color: var(--ink-2);
+}
+.module-note {
+  margin-top: 0.5rem;
+  color: var(--ink-2);
+}
+.option-link {
+  flex: none;
+  white-space: nowrap;
+}

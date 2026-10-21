@@ -411,6 +411,13 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
   );
 }
 
+/** Méta-description ≤ 160 caractères, coupée sur un mot si nécessaire. */
+function metaDescription(text: string): string {
+  if (text.length <= 160) return text;
+  const cut = text.slice(0, 159);
+  return `${cut.slice(0, cut.lastIndexOf(' ')).replace(/[\s,;:.]+$/, '')}…`;
+}
+
 /** Prestations liées : lignes « /chemin | Libellé » (chemins internes uniquement). */
 export function serviceLinks(text: string): [string, string][] {
   return lines(text)
@@ -459,7 +466,7 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
       s={s}
       meta={{
         title: `${item.title} : ${item.category.toLowerCase()}${item.is_concept ? ' (concept)' : ''}`,
-        description: item.summary.length >= 110 ? item.summary : `${item.summary} ${item.is_concept ? 'Projet de démonstration' : 'Réalisation'} ${s.agencyName}, agence web et print en Pays de Caux.`,
+        description: metaDescription(item.summary.length >= 110 ? item.summary : `${item.summary} ${item.is_concept ? 'Projet de démonstration' : 'Réalisation'} ${s.agencyName}, agence web et print en Pays de Caux.`),
         path: `/${p.base}/${item.slug}`,
         breadcrumbs: [
           { name: label, path: `/${p.base}` },
@@ -625,7 +632,7 @@ export function AboutPage({ s }: { s: Settings }) {
       s={s}
       meta={{
         title: s.city ? `L’agence web et print à ${s.city}` : 'À propos de l’agence',
-        description: `${s.agencyName}${s.city ? `, agence installée à ${s.city},` : ''} accompagne artisans, commerçants et TPE : site internet, identité visuelle, impression et visibilité locale.`,
+        description: `Agence${s.city ? ` installée à ${s.city}` : ''}, ${s.agencyName} accompagne artisans, commerçants et TPE : site internet, identité visuelle, impression et visibilité.`,
         path: '/a-propos',
         breadcrumbs: [{ name: 'À propos', path: '/a-propos' }],
       }}
@@ -685,7 +692,7 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
       s={s}
       meta={{
         title: s.city ? `Contact : agence web à ${s.city}` : 'Contact',
-        description: `Contactez ${s.agencyName}${s.city ? ` à ${s.city} (${s.department})` : ''} par téléphone, e-mail ou formulaire pour votre site, votre logo ou vos impressions. Réponse sous 48 h.`,
+        description: `Contactez ${s.agencyName}${s.city ? ` à ${s.city}` : ''} par téléphone, e-mail ou formulaire : site internet, logo, impression, vitrine ou caisse. Réponse sous 48 h.`,
         path: '/contact',
         breadcrumbs: [{ name: 'Contact', path: '/contact' }],
         jsonLd: [businessJsonLd(s)],
@@ -764,7 +771,14 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
                 <ContactForm
                   token={token}
                   pack={values?.pack ?? ''}
-                  subjectDefault={values?.message ?? (pack ? `Bonjour, je lance mon activité (${pack.metier.toLowerCase()}) et le pack Bien démarrer m’intéresse. ` : '')}
+                  subjectDefault={
+                    values?.message ??
+                    (pack
+                      ? `Bonjour, je lance mon activité (${pack.metier.toLowerCase()}) et le pack Bien démarrer m’intéresse. `
+                      : values?.pack === 'caisse'
+                        ? 'Bonjour, je souhaite uniquement le module caisse et paiement par carte. Mon activité : '
+                        : '')
+                  }
                 />
               </>
             )}
@@ -781,7 +795,7 @@ export function BlogList({ s, posts }: { s: Settings; posts: PostRow[] }) {
       s={s}
       meta={{
         title: 'Blog : conseils web, print et visibilité',
-        description: 'Conseils pratiques et sans jargon pour les artisans, commerçants et petites entreprises : sites internet, supports imprimés, identité visuelle et visibilité locale.',
+        description: 'Conseils pratiques et sans jargon pour artisans, commerçants et TPE : sites internet, supports imprimés, identité visuelle et visibilité locale.',
         path: '/blog',
         breadcrumbs: [{ name: 'Blog', path: '/blog' }],
       }}

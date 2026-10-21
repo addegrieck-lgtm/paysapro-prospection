@@ -334,6 +334,29 @@ Les packs visent l’intention **« j’ouvre / je lance mon activité »** (mé
 - **Contenu propre à chaque pack** : un test automatique refuse toute phrase de plus de 50 caractères présente dans deux packs.
 - **À surveiller dans la Search Console**, une fois en ligne : si une requête affiche alternativement deux de ces pages, renforcer l’ancrage de la page cible et retirer le terme de l’autre.
 
+
+### 5.4 Module caisse et paiement par carte
+
+| Page | Mot-clé principal | Variantes naturelles (dont locales) | Page à ne pas concurrencer |
+|---|---|---|---|
+| `/caisse-paiement-carte` | installation caisse enregistreuse | paramétrage caisse · caisse enregistreuse restaurant, coiffure, boulangerie · terminal de paiement carte commerce · caisse conforme · Pays de Caux | aucune (sujet nouveau) ; les packs n’en parlent qu’en option, avec un lien |
+
+**Choix rédactionnels :**
+
+- Aucune marque n’est citée.
+- La page présente l’installation de **solutions existantes conformes** (certificat ou attestation de l’éditeur, loi de finances 2026).
+- Le **module seul** est mis en avant dès le H1 et le premier bouton.
+
+### 5.5 Limites de titres et descriptions (appliquées le 21/10/2026)
+
+- **Titres ≤ 60 caractères** : au-delà, Google les coupe. Le nom de l’agence n’est ajouté au titre que s’il tient dans la limite.
+- **Méta-descriptions entre 70 et 160 caractères.**
+- **Un seul H1 par page, URL canonique absolue, titres uniques.**
+- Le test `tests/seo-limits.test.ts` vérifie ces règles sur **toutes les pages du sitemap** à chaque modification.
+- Les valeurs stockées en base (titres d’articles d’origine, description de la page Lillebonne) sont corrigées par la migration 7, sans écraser une saisie faite dans l’administration.
+
+> **Point d’attention : domaine non relié.** Le site déclare `https://www.signeetseine.fr` comme adresse canonique, mais ce domaine affiche encore la page « Site en construction » d’OVH. Tant que le domaine n’est pas relié à Cloudflare, Google est renvoyé vers une page vide. Relier le domaine est **la priorité SEO n° 1**.
+
 ## 6. Plan d’action priorisé
 
 Impact : ●●● fort · ●● moyen · ● faible. Effort : S (< 1 h) · M (demi-journée) · L (1 jour ou plus).

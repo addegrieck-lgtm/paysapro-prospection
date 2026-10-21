@@ -119,6 +119,9 @@ function Header({ s, path }: { s: Settings; path: string }) {
                     {p.metier} →
                   </a>
                 ))}
+                <a href="/caisse-paiement-carte" class="mega-link">
+                  Module caisse seul →
+                </a>
                 <a href="/tarifs" class="mega-link">Voir tous les tarifs →</a>
               </div>
             </div>
@@ -160,6 +163,7 @@ function Header({ s, path }: { s: Settings; path: string }) {
                 {PACKS.map((p) => (
                   <a href={`/packs/${p.slug}`}>{p.metier}</a>
                 ))}
+                <a href="/caisse-paiement-carte">Module caisse seul</a>
               </div>
               <div>
                 <p class="mega-title">Agence</p>
@@ -255,6 +259,7 @@ function Footer({ s }: { s: Settings }) {
             {PACKS.map((p) => (
               <a href={`/packs/${p.slug}`}>{p.card.title}</a>
             ))}
+            <a href="/caisse-paiement-carte">Caisse et paiement par carte</a>
           </div>
           <div>
             <p class="footer-title">L’agence</p>
@@ -321,7 +326,9 @@ function ConsentBanner({ s }: { s: Settings }) {
 
 export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) {
   const { s, meta } = props;
-  const fullTitle = meta.path === '/' ? `${s.agencyName} — ${meta.title}` : `${meta.title} | ${s.agencyName}`;
+  // Titre ≤ 60 caractères (affichage complet dans Google) : le nom de l'agence n'est ajouté que s'il tient.
+  const branded = meta.path === '/' ? `${s.agencyName} — ${meta.title}` : `${meta.title} | ${s.agencyName}`;
+  const fullTitle = branded.length <= 60 || meta.path === '/' ? branded : meta.title;
   const canonical = absoluteUrl(s, meta.path);
   const jsonLd: object[] = [...(meta.jsonLd ?? [])];
   if (meta.breadcrumbs?.length) {
