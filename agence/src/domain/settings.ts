@@ -60,6 +60,10 @@ export const settingsSchema = z.object({
   paymentTermsDays: z.number().int().min(0).max(60),
   latePenaltyRate: z.string().trim().max(200),
   depositPercent: z.number().int().min(0).max(100),
+  /** Abonnements : remise accordée avec engagement, durée de l'engagement et préavis de résiliation (en mois). */
+  subscriptionDiscountPercent: z.number().int().min(0).max(50),
+  subscriptionCommitmentMonths: z.number().int().min(1).max(36),
+  subscriptionNoticeMonths: z.number().int().min(0).max(3),
 
   supplierPriceValidityDays: z.number().int().min(1).max(365),
   printMarkupPercent: z.number().min(0).max(500),
@@ -123,6 +127,9 @@ export const DEFAULT_SETTINGS: Settings = {
   paymentTermsDays: 30,
   latePenaltyRate: 'trois fois le taux d’intérêt légal en vigueur',
   depositPercent: 30,
+  subscriptionDiscountPercent: 10,
+  subscriptionCommitmentMonths: 12,
+  subscriptionNoticeMonths: 1,
   supplierPriceValidityDays: 30,
   printMarkupPercent: 35,
   internalHourlyCost: 0,

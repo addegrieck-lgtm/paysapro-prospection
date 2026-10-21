@@ -316,36 +316,46 @@ export function TermsPage({ s }: { s: Settings }) {
         production intervient après validation de la recette par le client. Le nom de domaine est enregistré au nom du client, qui en reste
         propriétaire.
       </p>
-      <h2>8. Propriété intellectuelle</h2>
+      <h2>8. Abonnements (maintenance, référencement…)</h2>
+      <p>
+        Les prestations récurrentes font l’objet d’un contrat d’abonnement signé en ligne, qui précise les prestations incluses, le prix et la formule
+        choisie. <strong>Sans engagement</strong> : le contrat est conclu pour une durée indéterminée et résiliable à tout moment avec un préavis de{' '}
+        {s.subscriptionNoticeMonths} mois. <strong>Avec engagement</strong> : en contrepartie d’une remise sur le prix mensuel, le contrat est conclu pour une
+        durée initiale de {s.subscriptionCommitmentMonths} mois, puis se poursuit de mois en mois aux mêmes conditions ; une résiliation demandée pendant
+        l’engagement prend effet à la fin de celui-ci. Le client résilie en ligne depuis le lien de son contrat, par e-mail ou par courrier, et reçoit une
+        confirmation indiquant la date de fin. Le client consommateur est informé, un à trois mois avant la fin de la période d’engagement, de la
+        possibilité de ne pas reconduire le contrat (article L215-1 du Code de la consommation). L’abonnement est facturé chaque mois.
+      </p>
+      <h2>9. Propriété intellectuelle</h2>
       <p>
         Les droits d’exploitation des créations finales livrées (reproduction, représentation, adaptation, pour les supports et usages prévus au
         devis, pour la durée légale de protection et pour le monde entier, sauf stipulation contraire) sont cédés au client à compter du paiement
         intégral du prix. Les pistes non retenues, fichiers de travail et outils de l’agence restent sa propriété. Sauf refus écrit du client, l’agence
         peut mentionner la réalisation dans ses références après sa diffusion publique.
       </p>
-      <h2>9. Obligations du client</h2>
+      <h2>10. Obligations du client</h2>
       <p>
         Le client garantit disposer des droits sur les éléments qu’il fournit (textes, images, logos, marques) et l’exactitude des informations
         transmises. Il reste responsable des contenus publiés sur son site et de leur conformité légale.
       </p>
-      <h2>10. Droit de rétractation (clients consommateurs)</h2>
+      <h2>11. Droit de rétractation (clients consommateurs)</h2>
       <p>
-        Le client consommateur dispose d’un délai de 14 jours à compter de l’acceptation du devis pour se rétracter, sauf : biens confectionnés selon
+        Le client consommateur dispose d’un délai de 14 jours à compter de l’acceptation du devis ou de la signature du contrat d’abonnement pour se rétracter, sauf : biens confectionnés selon
         ses spécifications ou nettement personnalisés (article L221-28, 3° du Code de la consommation), et prestations pleinement exécutées avant la fin
         du délai avec son accord exprès et sa renonciation à ce droit. Lorsque le client demande le commencement de la prestation avant la fin du délai,
         il est redevable du montant correspondant au service fourni jusqu’à la rétractation.
       </p>
-      <h2>11. Responsabilité</h2>
+      <h2>12. Responsabilité</h2>
       <p>
         L’agence est tenue d’une obligation de moyens. Elle ne garantit aucun positionnement dans les moteurs de recherche ni aucun volume de ventes.
         Pour les clients professionnels, sa responsabilité est limitée au montant de la prestation concernée.
         {l.insurance ? ` Assurance responsabilité civile professionnelle : ${l.insurance}.` : ''}
       </p>
-      <h2>12. Données personnelles</h2>
+      <h2>13. Données personnelles</h2>
       <p>
         Voir la <a href="/confidentialite">politique de confidentialité</a>.
       </p>
-      <h2>13. Médiation et litiges</h2>
+      <h2>14. Médiation et litiges</h2>
       <p>
         Conformément aux articles L611-1 et suivants du Code de la consommation, le client consommateur peut recourir gratuitement au médiateur de la
         consommation : <V v={l.mediatorName} />

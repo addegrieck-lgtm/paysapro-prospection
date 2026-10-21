@@ -14,7 +14,7 @@ export interface MailMessage {
   subject: string;
   text: string;
   replyTo?: string;
-  kind: 'confirmation' | 'notification' | 'devis' | 'bat' | 'recette' | 'facture' | 'cahier';
+  kind: 'confirmation' | 'notification' | 'devis' | 'bat' | 'recette' | 'facture' | 'cahier' | 'contrat';
 }
 
 export interface MailConfig {

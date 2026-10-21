@@ -175,9 +175,9 @@ export const SEED_SERVICES: Service[] = [
     slug: 'maintenance', category: 'recurrent', name: 'Maintenance', billing: 'monthly',
     summary: 'Mises à jour, sauvegardes et surveillance de votre site.',
     description: 'Votre site reste à jour, sauvegardé et surveillé. En cas de problème, nous intervenons.',
-    price_mode: 'from', price_ht: 3900, lead_time: 'Mensuel, sans engagement au-delà de la durée prévue au contrat', revisions: null,
+    price_mode: 'from', price_ht: 3900, lead_time: 'Mensuel', revisions: null,
     includes: 'Mises à jour de sécurité\nSauvegarde régulière\nSurveillance de disponibilité\nRapport mensuel',
-    conditions: 'Durée et préavis précisés au contrat.',
+    conditions: 'Deux formules au choix : sans engagement, résiliable à tout moment avec un mois de préavis ; ou avec engagement d’un an à prix remisé, puis résiliable chaque mois. Tout est précisé au contrat, signé en ligne.',
     exclusions: 'Modifications de contenus, nouvelles fonctionnalités et hébergement non inclus.',
   },
   {

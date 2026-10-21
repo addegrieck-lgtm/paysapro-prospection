@@ -27,6 +27,18 @@ et reprendre avec le même lien, et joindre logo, photos et documents. Vous ête
 s'affichent dans l'administration (bouton « Imprimer / PDF »). « Rouvrir pour le client » lui permet de modifier ses réponses.
 Les questions se modifient dans `src/domain/brief.ts`.
 
+## Contrats d’abonnement (maintenance, référencement…)
+
+*Commercial → Abonnements et contrats* : choisissez le client, la prestation, le prix mensuel de base et la formule :
+- **Sans engagement** : prix de base, résiliable à tout moment avec le préavis ;
+- **Avec engagement** (12 mois par défaut) : remise sur le prix (10 % par défaut), puis reconduction de mois en mois.
+
+Remise, durée et préavis se règlent dans *Paramètres → Abonnements*. « Envoyer pour signature » adresse au client un lien où il lit,
+enregistre en PDF et signe son contrat ; l’abonnement devient alors actif. Le même lien lui permet de résilier en ligne : la date de fin
+est calculée automatiquement (préavis, et jamais avant la fin de l’engagement), et chacun reçoit une confirmation. Pour un client
+**particulier** avec engagement, le tableau de bord rappelle d’envoyer l’avis de fin d’engagement (obligation légale, 1 à 3 mois avant).
+Faites relire le modèle de contrat (`src/web/documents.tsx`) et l’article 8 des CGV par un juriste avant la première utilisation.
+
 ## Faire un devis
 
 1. Depuis une demande : *Préparer le devis* (les lignes sont préremplies : création, impression, livraison).

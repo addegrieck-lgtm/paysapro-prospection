@@ -102,6 +102,7 @@ export const INVOICE_STATUSES = [
 ] as const satisfies readonly Option[];
 
 export const SUBSCRIPTION_STATUSES = [
+  ['en_attente', 'En attente de signature'],
   ['actif', 'Actif'],
   ['suspendu', 'Suspendu'],
   ['termine', 'Terminé'],

@@ -92,6 +92,18 @@ function SettingsForm({ s, c }: { s: Settings; c: Ctx }) {
         </div>
       </div>
       <div class="panel">
+        <h2>Abonnements (maintenance, référencement…)</h2>
+        <p class="small muted">
+          Deux formules sont proposées dans chaque contrat : sans engagement (résiliable à tout moment avec le préavis) ou avec engagement, au prix remisé, puis
+          reconduction de mois en mois. Ces valeurs s’appliquent aux nouveaux contrats ; un contrat déjà établi garde les siennes.
+        </p>
+        <div class="form-grid">
+          <F label="Remise avec engagement (%)" name="subscriptionDiscountPercent" type="number" value={s.subscriptionDiscountPercent} />
+          <F label="Durée de l’engagement (mois)" name="subscriptionCommitmentMonths" type="number" value={s.subscriptionCommitmentMonths} />
+          <F label="Préavis de résiliation (mois)" name="subscriptionNoticeMonths" type="number" value={s.subscriptionNoticeMonths} />
+        </div>
+      </div>
+      <div class="panel">
         <h2>Impression et marges</h2>
         <div class="form-grid">
           <F label="Validité d’un prix fournisseur vérifié (jours)" name="supplierPriceValidityDays" type="number" value={s.supplierPriceValidityDays} help="Au-delà, le prix est considéré expiré et n’est plus affiché." />
@@ -178,6 +190,9 @@ settingsRoutes.post('/parametres', async (c) => {
     paymentTermsDays: dec('paymentTermsDays'),
     latePenaltyRate: f.get('latePenaltyRate'),
     depositPercent: dec('depositPercent'),
+    subscriptionDiscountPercent: dec('subscriptionDiscountPercent'),
+    subscriptionCommitmentMonths: dec('subscriptionCommitmentMonths'),
+    subscriptionNoticeMonths: dec('subscriptionNoticeMonths'),
     supplierPriceValidityDays: dec('supplierPriceValidityDays'),
     printMarkupPercent: dec('printMarkupPercent'),
     internalHourlyCost: f.money('internalHourlyCost') ?? 0,

@@ -352,7 +352,7 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
     serviceSlugs: ['maintenance', 'maintenance-modifications'],
     faq: [
       ['Maintenez-vous les sites que vous n’avez pas créés ?', 'Oui, après un audit de départ pour vérifier l’état du site et sa technologie.'],
-      ['Y a-t-il un engagement ?', 'La durée et le préavis sont précisés au contrat, avant toute signature.'],
+      ['Y a-t-il un engagement ?', 'Vous choisissez : sans engagement, résiliable à tout moment avec un mois de préavis, ou avec un engagement d’un an à prix remisé, résiliable ensuite chaque mois. Le contrat précise tout avant signature, et la résiliation se fait en ligne en quelques clics.'],
     ],
     faqTopics: [],
     related: ['/creation-site-internet', '/refonte-site-internet', '/referencement-seo'],

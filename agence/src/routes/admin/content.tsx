@@ -1,11 +1,10 @@
 import { Hono } from 'hono';
 import type { AppEnv, Ctx } from '../../app/context';
 import { idParam, page, readForm, type FormData } from './helpers';
-import { ActionButton, Badge, Check, Csrf, Empty, F, Money, Sel, TA, eur } from '../../web/admin/ui';
-import { PUBLISH_STATUSES, SUBSCRIPTION_STATUSES, isOneOf } from '../../domain/statuses';
+import { ActionButton, Badge, Check, Csrf, Empty, F, Sel, TA } from '../../web/admin/ui';
+import { PUBLISH_STATUSES } from '../../domain/statuses';
 import { slugify, wordCount } from '../../domain/text';
 import { formatShortDate, isIsoDate } from '../../domain/dates';
-import type { ContactRow, ServiceRow } from '../../repo/types';
 
 /**
  * Petit moteur générique d'édition de contenus (liste + formulaire), décrit par des champs.
@@ -341,110 +340,3 @@ for (const res of RESOURCES) {
   });
 }
 
-// ─── Abonnements (maintenance, SEO…) ───
-
-contentRoutes.get('/abonnements', async (c) => {
-  const { db } = c.get('deps');
-  const rows = await db.all<{ id: number; label: string; monthly_ht: number; start_date: string; end_date: string | null; status: string; name: string; contact_id: number }>(
-    'SELECT s.*, ct.name FROM subscriptions s JOIN contacts ct ON ct.id = s.contact_id ORDER BY s.status, s.start_date DESC',
-  );
-  const contacts = await db.all<ContactRow>('SELECT id, name, company FROM contacts ORDER BY name LIMIT 500');
-  const services = await db.all<ServiceRow>("SELECT slug, name, price_ht FROM services WHERE billing = 'monthly' ORDER BY sort_order");
-  const mrr = rows.filter((r) => r.status === 'actif').reduce((s, r) => s + r.monthly_ht, 0);
-  return page(
-    c,
-    'Abonnements',
-    <>
-      <p>
-        Revenu mensuel récurrent (abonnements actifs) : <strong>{eur(mrr)} HT</strong>
-      </p>
-      {rows.length === 0 ? (
-        <Empty>Aucun abonnement enregistré.</Empty>
-      ) : (
-        <div class="table-wrap">
-          <table class="data">
-            <thead>
-              <tr>
-                <th>Client</th>
-                <th>Abonnement</th>
-                <th class="num">Mensuel HT</th>
-                <th>Début</th>
-                <th>Fin</th>
-                <th>Statut</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr>
-                  <td>
-                    <a href={`/admin/crm/${r.contact_id}`}>{r.name}</a>
-                  </td>
-                  <td>{r.label}</td>
-                  <td class="num">{eur(r.monthly_ht)}</td>
-                  <td>{formatShortDate(r.start_date)}</td>
-                  <td>{formatShortDate(r.end_date)}</td>
-                  <td>
-                    <Badge options={SUBSCRIPTION_STATUSES} value={r.status} />
-                  </td>
-                  <td>
-                    <form method="post" action={`/admin/abonnements/${r.id}/statut`} class="inline-form">
-                      <Csrf token={c.get('csrf')} />
-                      <select name="status" aria-label="Statut">
-                        {SUBSCRIPTION_STATUSES.map(([v, l]) => (
-                          <option value={v} selected={v === r.status}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>{' '}
-                      <button class="btn btn-outline btn-sm">OK</button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <form method="post" action="/admin/abonnements" class="panel" id="nouveau" style="margin-top:1.25rem">
-        <Csrf token={c.get('csrf')} />
-        <h2>Nouvel abonnement</h2>
-        <div class="form-grid">
-          <Sel label="Client" name="contact_id" required value={c.req.query('contact') ?? ''} options={contacts.map((x) => [String(x.id), `${x.name}${x.company ? ` — ${x.company}` : ''}`] as const)} empty="Choisir…" />
-          <Sel label="Prestation" name="service_slug" options={services.map((x) => [x.slug, x.name] as const)} empty="Autre" />
-          <F label="Libellé" name="label" required max={160} />
-          <Money label="Montant mensuel HT" name="monthly_ht" cents={null} required />
-          <F label="Date de début" name="start_date" type="date" required />
-          <F label="Date de fin (facultatif)" name="end_date" type="date" />
-          <TA label="Notes (durée d’engagement, préavis…)" name="notes" rows={2} max={2000} />
-        </div>
-        <div class="form-actions">
-          <button class="btn btn-primary">Ajouter</button>
-        </div>
-      </form>
-    </>,
-  );
-});
-
-contentRoutes.post('/abonnements', async (c) => {
-  const f = await readForm(c);
-  const { db } = c.get('deps');
-  const ct = await db.get<{ id: number }>('SELECT id FROM contacts WHERE id = ?', [f.int('contact_id') ?? 0]);
-  const amount = f.money('monthly_ht');
-  const start = f.get('start_date');
-  const end = f.get('end_date');
-  if (!ct || !f.get('label') || amount == null || amount <= 0 || !isIsoDate(start) || (end && !isIsoDate(end))) {
-    return page(c, 'Abonnement', <div class="panel"><p>Client, libellé, montant et date de début sont obligatoires.</p><a class="btn btn-outline" href="/admin/abonnements">Retour</a></div>, { status: 422 });
-  }
-  const now = new Date().toISOString();
-  await db.run('INSERT INTO subscriptions (contact_id, service_slug, label, monthly_ht, start_date, end_date, status, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-    ct.id, f.get('service_slug').slice(0, 80), f.get('label').slice(0, 160), amount, start, end || null, 'actif', f.get('notes').slice(0, 2000), now, now,
-  ]);
-  return c.redirect('/admin/abonnements?ok=created', 303);
-});
-
-contentRoutes.post('/abonnements/:id/statut', async (c) => {
-  const f = await readForm(c);
-  if (isOneOf(SUBSCRIPTION_STATUSES, f.get('status'))) await c.get('deps').db.run('UPDATE subscriptions SET status = ?, updated_at = ? WHERE id = ?', [f.get('status'), new Date().toISOString(), idParam(c)]);
-  return c.redirect('/admin/abonnements?ok=status', 303);
-});

@@ -9,6 +9,8 @@ import { computeMargin } from '../../domain/margin';
 import { effectiveStatus, costChangedSinceValidation, type VariantRow } from '../../domain/print';
 import { hashPassword, passwordProblem, verifyPassword } from '../../lib/crypto';
 import { audit } from '../../repo/settings';
+import { renewalNoticeWindow } from '../../domain/contracts';
+import { closeEndedContracts } from '../../services/contracts';
 
 export const dashboardRoutes = new Hono<AppEnv>();
 
@@ -20,6 +22,17 @@ dashboardRoutes.get('/', async (c) => {
   const n = async (sql: string, params: (string | number)[] = []) => (await db.get<{ n: number }>(sql, params))?.n ?? 0;
   const active = ACTIVE_ORDER_STATUSES.map(() => '?').join(',');
 
+  await closeEndedContracts(c.get('deps'));
+  const contractsToSign = await n("SELECT COUNT(*) AS n FROM subscriptions WHERE contract_status = 'a_signer'");
+  const renewalNotices = (
+    await db.all<{ id: number; label: string; start_date: string; commitment_months: number }>(
+      `SELECT s.id, s.label, s.start_date, s.commitment_months FROM subscriptions s JOIN contacts ct ON ct.id = s.contact_id
+       WHERE ct.customer_type = 'particulier' AND s.contract_status = 'signe' AND s.commitment_months > 0 AND s.renewal_notice_at IS NULL`,
+    )
+  ).filter((r) => {
+    const w = renewalNoticeWindow(r.start_date, r.commitment_months);
+    return w && today >= w.from;
+  });
   const weekVisitors = await n('SELECT COUNT(*) AS n FROM (SELECT DISTINCT day, visitor FROM page_views WHERE day > ?)', [addDays(today, -7)]);
   const [contacts, newContacts, newRequests, quotesPending, quotesAccepted, ordersActive, invoicesOpen, invoicesOverdue, subs] = await Promise.all([
     n('SELECT COUNT(*) AS n FROM contacts'),
@@ -70,7 +83,7 @@ dashboardRoutes.get('/', async (c) => {
     c,
     'Tableau de bord',
     <>
-      {(!s.nameConfirmed || missing.length > 0 || mailer.provider === 'log' || toVerify + expired + costChanged > 0) && (
+      {(!s.nameConfirmed || missing.length > 0 || mailer.provider === 'log' || toVerify + expired + costChanged + contractsToSign + renewalNotices.length > 0) && (
         <div class="panel">
           <h2>À faire</h2>
           <ul>
@@ -89,6 +102,16 @@ dashboardRoutes.get('/', async (c) => {
               <li>
                 Aucun service d’e-mail n’est configuré : les e-mails sont simulés et visibles dans <a href="/admin/emails">E-mails envoyés</a> (voir la documentation de
                 déploiement).
+              </li>
+            )}
+            {renewalNotices.map((r) => (
+              <li>
+                <strong>Avis de fin d’engagement à envoyer</strong> (client particulier, obligation légale) : <a href={`/admin/abonnements/${r.id}`}>{r.label}</a>
+              </li>
+            ))}
+            {contractsToSign > 0 && (
+              <li>
+                {contractsToSign} contrat(s) d’abonnement en attente de signature. <a href="/admin/abonnements">Voir</a>
               </li>
             )}
             {toVerify > 0 && (

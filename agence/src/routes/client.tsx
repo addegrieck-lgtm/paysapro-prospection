@@ -4,7 +4,7 @@ import type { AppEnv, Ctx } from '../app/context';
 import { allowRate } from '../app/security';
 import { Layout } from '../web/layout';
 import { Notice } from '../web/components';
-import { QuoteDocument } from '../web/documents';
+import { ContractDocument, QuoteDocument } from '../web/documents';
 import type { ContactRow, OrderRow, ProjectRow, ProofRow, QuoteRow } from '../repo/types';
 import { decideQuote, quoteLines } from '../services/quotes';
 import { decideProof } from '../services/orders';
@@ -14,6 +14,8 @@ import { addContactEvent, checkUploads, storeFiles, type UploadedFile } from '..
 import { UPLOAD_LIMITS } from '../lib/storage';
 import { BRIEF_MODULES, BRIEF_SECTIONS, briefProgress, parseModules, readSectionAnswers, visibleSections } from '../domain/brief';
 import { type Brief, type BriefRow, modulesLabel, parseBrief, saveBrief, submitBrief } from '../services/briefs';
+import { type SubscriptionRow, closeEndedContracts, parseTerms, signContract, terminateContract } from '../services/contracts';
+import { terminationDate } from '../domain/contracts';
 import { BriefDocument, BriefProgressBar, BriefQuestion, type BriefStep } from '../web/brief';
 
 /**
@@ -511,4 +513,103 @@ clientRoutes.post('/cahier/:token', async (c) => {
   }
   if (go === 'pause') return c.redirect(`${base}?etape=${target.id}&ok=pause`, 303);
   return c.redirect(`${base}?etape=${target.id}`, 303);
+});
+
+// ─── Contrat d'abonnement : signature et résiliation en ligne ───
+
+async function contractByToken(c: Ctx) {
+  const token = c.req.param('token') ?? '';
+  if (!TOKEN.test(token)) return null;
+  const sub = await c.get('deps').db.get<SubscriptionRow>("SELECT * FROM subscriptions WHERE token = ? AND formula <> ''", [token]);
+  if (!sub) return null;
+  const contact = (await c.get('deps').db.get<ContactRow>('SELECT * FROM contacts WHERE id = ?', [sub.contact_id]))!;
+  return { sub, contact };
+}
+
+clientRoutes.get('/contrat/:token', async (c) => {
+  await closeEndedContracts(c.get('deps'));
+  const data = await contractByToken(c);
+  if (!data) return notFound(c);
+  const { sub, contact } = data;
+  const s = c.get('settings');
+  const base = `/client/contrat/${sub.token}`;
+  const msg = c.req.query('ok');
+  const endIfToday = terminationDate(todayParis(), sub.start_date, sub.commitment_months, sub.notice_months);
+  return c.html(
+    <Shell c={c} title={`Contrat ${sub.number}`}>
+      <p class="eyebrow">Espace client</p>
+      <h1>Votre contrat d’abonnement</h1>
+      {msg === 'signe' && <Notice kind="success">Merci ! Votre contrat est signé. Une copie reste disponible à cette adresse ; vous pouvez aussi l’enregistrer en PDF.</Notice>}
+      {msg === 'resilie' && sub.end_date && (
+        <Notice kind="success">Votre résiliation est enregistrée. L’abonnement prendra fin le {formatDate(sub.end_date)} ; une confirmation vous a été envoyée par e-mail.</Notice>
+      )}
+      {sub.contract_status === 'resiliation' && msg !== 'resilie' && sub.end_date && <Notice>Résiliation enregistrée : l’abonnement prend fin le {formatDate(sub.end_date)}.</Notice>}
+      {sub.contract_status === 'resilie' && <Notice>Ce contrat a pris fin{sub.end_date ? ` le ${formatDate(sub.end_date)}` : ''}.</Notice>}
+      <div class="doc-wrap">
+        <ContractDocument s={s} sub={sub} terms={parseTerms(sub)} contact={contact} />
+      </div>
+      <p class="small muted">Pour conserver ce contrat, utilisez la fonction « Imprimer » de votre navigateur puis « Enregistrer au format PDF ».</p>
+      {sub.contract_status === 'a_signer' && (
+        <form method="post" action={`${base}/signer`} class="form form-card">
+          <h2 class="h3">Signer le contrat</h2>
+          <div class="field">
+            <label for="sig-name">Votre nom et prénom *</label>
+            <input id="sig-name" name="name" required maxlength={120} autocomplete="name" />
+          </div>
+          <div class="field-check">
+            <input type="checkbox" id="sig-ok" name="agree" value="1" required />
+            <label for="sig-ok">J’ai lu le contrat et les conditions générales de vente et je les accepte (lu et approuvé, bon pour accord).</label>
+          </div>
+          <button class="btn btn-primary">Signer le contrat</button>
+        </form>
+      )}
+      {sub.contract_status === 'signe' && (
+        <form method="post" action={`${base}/resilier`} class="form form-card">
+          <h2 class="h3">Résilier mon abonnement</h2>
+          <p>
+            Si vous résiliez aujourd’hui, votre abonnement prendra fin le <strong>{formatDate(endIfToday)}</strong>
+            {sub.formula === 'engagement' && endIfToday > todayParis() ? ' (préavis et période d’engagement compris)' : ' (préavis compris)'}. Les prestations et la
+            facturation continuent jusqu’à cette date.
+          </p>
+          <div class="field">
+            <label for="res-name">Votre nom et prénom *</label>
+            <input id="res-name" name="name" required maxlength={120} autocomplete="name" />
+          </div>
+          <div class="field-check">
+            <input type="checkbox" id="res-ok" name="agree" value="1" required />
+            <label for="res-ok">Je confirme vouloir résilier cet abonnement.</label>
+          </div>
+          <button class="btn btn-outline">Confirmer la résiliation</button>
+        </form>
+      )}
+    </Shell>,
+  );
+});
+
+async function readSignature(c: Ctx) {
+  const b = await c.req.parseBody();
+  const name = String(b.name ?? '').trim().slice(0, 120);
+  return name.length >= 2 && b.agree === '1' ? name : null;
+}
+
+clientRoutes.post('/contrat/:token/signer', async (c) => {
+  if (!(await allowRate(c, 'client-decision', 20, 3600))) return c.text('Trop de tentatives.', 429);
+  const data = await contractByToken(c);
+  if (!data) return notFound(c);
+  const base = `/client/contrat/${data.sub.token}`;
+  const name = await readSignature(c);
+  if (!name) return c.redirect(base, 303);
+  const ok = await signContract(c.get('deps'), c.get('settings'), data.sub, name, new URL(c.req.url).origin);
+  return c.redirect(ok ? `${base}?ok=signe` : base, 303);
+});
+
+clientRoutes.post('/contrat/:token/resilier', async (c) => {
+  if (!(await allowRate(c, 'client-decision', 20, 3600))) return c.text('Trop de tentatives.', 429);
+  const data = await contractByToken(c);
+  if (!data) return notFound(c);
+  const base = `/client/contrat/${data.sub.token}`;
+  const name = await readSignature(c);
+  if (!name) return c.redirect(base, 303);
+  const end = await terminateContract(c.get('deps'), c.get('settings'), data.sub, `Client (${name})`, new URL(c.req.url).origin);
+  return c.redirect(end ? `${base}?ok=resilie` : base, 303);
 });
