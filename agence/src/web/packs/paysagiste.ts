@@ -39,7 +39,7 @@ Enfin, l’activité est saisonnière. Les demandes d’aménagement arrivent au
   },
 
   base: {
-    priceFrom: '[À COMPLÉTER : prix du pack paysagiste]',
+    priceFrom: '1 790 €',
     intro: 'Le pack de base donne à votre entreprise de paysage une présence professionnelle complète, de la carte de visite à la fiche Google.',
     site: {
       title: 'Un site de paysagiste',
@@ -63,9 +63,8 @@ Enfin, l’activité est saisonnière. Les demandes d’aménagement arrivent au
       ],
     },
     prints: [
-      ['Cartes de visite', '[À COMPLÉTER : quantité]'],
-      ['Flyers de présentation', '[À COMPLÉTER : quantité]'],
-      ['Flyers de saison', '[À COMPLÉTER : quantité]'],
+      ['Cartes de visite', '500 exemplaires'],
+      ['Flyers de présentation ou de saison', '1 000 exemplaires'],
     ],
     google: [
       'Création de la fiche Google Business Profile avec zone desservie (adresse masquée si vous travaillez de chez vous)',
@@ -78,15 +77,14 @@ Enfin, l’activité est saisonnière. Les demandes d’aménagement arrivent au
   options: {
     intro: 'Pour aller plus loin, ces options s’ajoutent au pack. Elles sont chiffrées sur devis selon l’ampleur de votre activité.',
     items: [
-      { name: 'Galerie avant / après', text: 'Comparatifs interactifs de vos chantiers, avec curseur, pour montrer la transformation d’un jardin.', price: 'Sur devis' },
-      { name: 'Demande de devis détaillée', text: 'Formulaire en plusieurs étapes : type de projet, surface, accès au terrain, budget, photos jointes.', price: 'Sur devis' },
-      { name: 'Page zone d’intervention', text: 'Une page qui décrit vos secteurs, vos délais de déplacement et vos communes prioritaires pour l’entretien.', price: 'Sur devis' },
-      { name: 'Panneaux de chantier', text: 'Panneaux rigides à planter ou fixer sur la clôture pendant les travaux, avec votre nom et votre numéro.', price: 'Sur devis' },
-      { name: 'Flocage du véhicule utilitaire', text: 'Marquage adhésif ou magnets de votre utilitaire, pour être identifié dans tout le secteur.', price: 'Sur devis' },
+      { name: 'Galerie avant / après', text: 'Comparatifs interactifs de vos chantiers, avec curseur, pour montrer la transformation d’un jardin.' },
+      { name: 'Demande de devis détaillée', text: 'Formulaire en plusieurs étapes : type de projet, surface, accès au terrain, budget, photos jointes.' },
+      { name: 'Page zone d’intervention', text: 'Une page qui décrit vos secteurs, vos délais de déplacement et vos communes prioritaires pour l’entretien.' },
+      { name: 'Panneaux de chantier', text: 'Panneaux rigides à planter ou fixer sur la clôture pendant les travaux, avec votre nom et votre numéro.' },
+      { name: 'Flocage du véhicule utilitaire', text: 'Marquage adhésif ou magnets de votre utilitaire, pour être identifié dans tout le secteur.' },
       {
         name: 'Logiciel de gestion PaysaPro',
         text: 'Solution complémentaire, indépendante du pack : un logiciel de gestion pensé pour les entreprises du paysage. Nous pouvons vous le présenter si vous souhaitez organiser votre activité au-delà de la communication.',
-        price: 'Sur demande',
       },
     ],
   },
@@ -124,11 +122,11 @@ Si votre entreprise est déclarée pour les services à la personne, certains pe
   ],
 
   steps: [
-    ['Rendez-vous de lancement', 'Échange sur vos prestations, votre secteur et vos premiers chantiers, sur un chantier ou à distance.', '[À COMPLÉTER : délai]'],
-    ['Identité', 'Logo ou mise au propre, couleurs, déclinaison sur le véhicule et les panneaux.', '[À COMPLÉTER : délai]'],
-    ['Site et galerie', 'Rédaction des prestations, tri des photos, mise en ligne du site et du formulaire de demande de visite.', '[À COMPLÉTER : délai]'],
-    ['Fiche Google et imprimés', 'Fiche avec zone desservie, bons à tirer et impression des cartes et flyers.', '[À COMPLÉTER : délai]'],
-    ['Véhicule et panneaux', 'Maquette sur photo de votre utilitaire, fabrication et pose par notre partenaire.', '[À COMPLÉTER : délai]'],
+    ['Rendez-vous de lancement', 'Échange sur vos prestations, votre secteur et vos premiers chantiers, sur un chantier ou à distance.', 'Sous une semaine'],
+    ['Identité', 'Logo ou mise au propre, couleurs, déclinaison sur le véhicule et les panneaux.', '1 à 2 semaines'],
+    ['Site et galerie', 'Rédaction des prestations, tri des photos, mise en ligne du site et du formulaire de demande de visite.', '3 à 4 semaines après réception des contenus'],
+    ['Fiche Google et imprimés', 'Fiche avec zone desservie, bons à tirer et impression des cartes et flyers.', '1 à 2 semaines après validation des BAT'],
+    ['Véhicule et panneaux', 'Maquette sur photo de votre utilitaire, fabrication et pose par notre partenaire.', 'Selon la fabrication et la date de pose'],
   ],
 
   portfolio: {

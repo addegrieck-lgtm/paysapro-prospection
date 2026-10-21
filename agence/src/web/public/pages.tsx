@@ -726,6 +726,14 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
                 <span>Zone d’intervention</span>
                 {s.serviceArea}
               </li>
+              {s.googleBusinessUrl && (
+                <li>
+                  <span>Fiche Google</span>
+                  <a href={s.googleBusinessUrl} rel="noopener" target="_blank">
+                    Voir notre fiche et laisser un avis
+                  </a>
+                </li>
+              )}
               {s.openingHours && (
                 <li>
                   <span>Horaires</span>

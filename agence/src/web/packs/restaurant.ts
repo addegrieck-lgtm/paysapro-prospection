@@ -39,7 +39,7 @@ Enfin, un restaurant a des **obligations d’affichage** que la communication do
   },
 
   base: {
-    priceFrom: '[À COMPLÉTER : prix du pack restaurant]',
+    priceFrom: '1 890 €',
     intro: 'Le pack de base couvre l’essentiel pour ouvrir avec une image professionnelle et être trouvé en ligne.',
     site: {
       title: 'Un site de restaurant',
@@ -63,9 +63,9 @@ Enfin, un restaurant a des **obligations d’affichage** que la communication do
       ],
     },
     prints: [
-      ['Cartes de visite', '[À COMPLÉTER : quantité]'],
-      ['Flyers d’ouverture', '[À COMPLÉTER : quantité]'],
-      ['Affichage extérieur du menu', '[À COMPLÉTER : quantité]'],
+      ['Cartes de visite', '500 exemplaires'],
+      ['Flyers d’ouverture', '1 000 exemplaires'],
+      ['Affichage extérieur du menu', '5 exemplaires'],
     ],
     google: [
       'Création ou reprise de la fiche Google Business Profile',
@@ -78,14 +78,14 @@ Enfin, un restaurant a des **obligations d’affichage** que la communication do
   options: {
     intro: 'Selon votre concept et votre organisation, vous pouvez ajouter les options suivantes. Les outils en ligne sont des solutions existantes que nous intégrons et configurons pour vous, pas des développements sur mesure.',
     items: [
-      { name: 'Menu en ligne facile à mettre à jour', text: 'Vous changez le plat du jour ou la carte de saison vous-même, en quelques minutes, sans nous solliciter.', price: 'Sur devis' },
-      { name: 'QR code menu', text: 'Un QR code sur les tables et en vitrine qui ouvre directement votre carte à jour.', price: '[À COMPLÉTER : tarif]' },
-      { name: 'Réservation en ligne', text: 'Intégration d’un outil de réservation existant sur votre site et votre fiche Google, avec vos créneaux et votre capacité.', price: 'Sur devis' },
-      { name: 'Click & collect ou livraison', text: 'Intégration d’une solution de commande à emporter, ou liens vers les plateformes de livraison que vous utilisez.', price: 'Sur devis' },
-      { name: 'Carte des plats imprimée', text: 'Mise en page et impression de la carte, au format et sur le papier adaptés à votre salle.', price: 'Sur devis' },
-      { name: 'Sets de table', text: 'Sets en papier personnalisés : une surface de communication que chaque client a sous les yeux.', price: 'Sur devis' },
-      { name: 'Chevalet de terrasse', text: 'Panneau stop-trottoir avec votre menu du jour ou votre offre, réutilisable.', price: 'Sur devis' },
-      { name: 'Carte de fidélité', text: 'Carte à tamponner aux couleurs du restaurant, pour faire revenir les habitués.', price: '[À COMPLÉTER : tarif]' },
+      { name: 'Menu en ligne facile à mettre à jour', text: 'Vous changez le plat du jour ou la carte de saison vous-même, en quelques minutes, sans nous solliciter.' },
+      { name: 'QR code menu', text: 'Un QR code sur les tables et en vitrine qui ouvre directement votre carte à jour.' },
+      { name: 'Réservation en ligne', text: 'Intégration d’un outil de réservation existant sur votre site et votre fiche Google, avec vos créneaux et votre capacité.' },
+      { name: 'Click & collect ou livraison', text: 'Intégration d’une solution de commande à emporter, ou liens vers les plateformes de livraison que vous utilisez.' },
+      { name: 'Carte des plats imprimée', text: 'Mise en page et impression de la carte, au format et sur le papier adaptés à votre salle.' },
+      { name: 'Sets de table', text: 'Sets en papier personnalisés : une surface de communication que chaque client a sous les yeux.' },
+      { name: 'Chevalet de terrasse', text: 'Panneau stop-trottoir avec votre menu du jour ou votre offre, réutilisable.' },
+      { name: 'Carte de fidélité', text: 'Carte à tamponner aux couleurs du restaurant, pour faire revenir les habitués.' },
     ],
   },
 
@@ -124,11 +124,11 @@ Remplacez rapidement les photos de travaux par de vraies photos de service : sal
   ],
 
   steps: [
-    ['Rendez-vous de lancement', 'Visite du local ou échange à distance : concept, cuisine, clientèle visée, date d’ouverture.', '[À COMPLÉTER : délai]'],
-    ['Identité et carte', 'Logo ou mise au propre, couleurs, mise en page de la carte et des menus affichés.', '[À COMPLÉTER : délai]'],
-    ['Site et fiche Google', 'Rédaction, photos, mise en ligne du site ; création de la fiche avec horaires et photos.', '[À COMPLÉTER : délai]'],
-    ['Imprimés et vitrine', 'Bons à tirer, impression des cartes et flyers, pose de la vitrophanie par notre partenaire.', '[À COMPLÉTER : délai]'],
-    ['Ouverture et suivi', 'Vérification des horaires partout, premières demandes d’avis, ajustements après les premiers services.', '[À COMPLÉTER : délai]'],
+    ['Rendez-vous de lancement', 'Visite du local ou échange à distance : concept, cuisine, clientèle visée, date d’ouverture.', 'Sous une semaine'],
+    ['Identité et carte', 'Logo ou mise au propre, couleurs, mise en page de la carte et des menus affichés.', '1 à 2 semaines'],
+    ['Site et fiche Google', 'Rédaction, photos, mise en ligne du site ; création de la fiche avec horaires et photos.', '3 à 4 semaines après réception des contenus'],
+    ['Imprimés et vitrine', 'Bons à tirer, impression des cartes et flyers, pose de la vitrophanie par notre partenaire.', '1 à 2 semaines après validation des BAT'],
+    ['Ouverture et suivi', 'Vérification des horaires partout, premières demandes d’avis, ajustements après les premiers services.', 'Les premières semaines après l’ouverture'],
   ],
 
   portfolio: {

@@ -39,7 +39,7 @@ La prise de rendez-vous est l’autre point clé. Un client qui ne peut réserve
   },
 
   base: {
-    priceFrom: '[À COMPLÉTER : prix du pack coiffeur / institut]',
+    priceFrom: '1 790 €',
     intro: 'Le pack de base installe votre image et votre présence en ligne, avec les supports du quotidien d’un salon.',
     site: {
       title: 'Un site de salon ou d’institut',
@@ -63,9 +63,9 @@ La prise de rendez-vous est l’autre point clé. Un client qui ne peut réserve
       ],
     },
     prints: [
-      ['Cartes de visite', '[À COMPLÉTER : quantité]'],
-      ['Flyers d’ouverture', '[À COMPLÉTER : quantité]'],
-      ['Affiche des tarifs', '[À COMPLÉTER : quantité]'],
+      ['Cartes de visite', '500 exemplaires'],
+      ['Flyers d’ouverture', '1 000 exemplaires'],
+      ['Affiche des tarifs', '5 exemplaires'],
     ],
     google: [
       'Création ou reprise de la fiche Google Business Profile du salon',
@@ -78,12 +78,12 @@ La prise de rendez-vous est l’autre point clé. Un client qui ne peut réserve
   options: {
     intro: 'Ces options complètent le pack selon votre organisation. Les outils de rendez-vous sont des solutions existantes que nous intégrons et paramétrons, pas des développements sur mesure.',
     items: [
-      { name: 'Prise de rendez-vous en ligne', text: 'Intégration d’un outil de réservation existant sur votre site et votre fiche Google : prestations, durées, collaborateurs, rappels automatiques.', price: 'Sur devis' },
-      { name: 'Page tarifs détaillée', text: 'Une grille complète et facile à mettre à jour, avec durées et prestations combinées.', price: 'Sur devis' },
-      { name: 'Galerie de réalisations', text: 'Une galerie organisée par style ou par prestation, alimentée au fil de vos créations.', price: 'Sur devis' },
-      { name: 'Cartes de rendez-vous', text: 'Cartes au format carte de visite avec emplacement pour la date du prochain rendez-vous.', price: '[À COMPLÉTER : tarif]' },
-      { name: 'Cartes de fidélité', text: 'Cartes à tamponner aux couleurs du salon, avec la récompense de votre choix.', price: '[À COMPLÉTER : tarif]' },
-      { name: 'Chèques cadeaux', text: 'Chèques numérotés et personnalisés, avec talon, pour les fêtes et les anniversaires.', price: 'Sur devis' },
+      { name: 'Prise de rendez-vous en ligne', text: 'Intégration d’un outil de réservation existant sur votre site et votre fiche Google : prestations, durées, collaborateurs, rappels automatiques.' },
+      { name: 'Page tarifs détaillée', text: 'Une grille complète et facile à mettre à jour, avec durées et prestations combinées.' },
+      { name: 'Galerie de réalisations', text: 'Une galerie organisée par style ou par prestation, alimentée au fil de vos créations.' },
+      { name: 'Cartes de rendez-vous', text: 'Cartes au format carte de visite avec emplacement pour la date du prochain rendez-vous.' },
+      { name: 'Cartes de fidélité', text: 'Cartes à tamponner aux couleurs du salon, avec la récompense de votre choix.' },
+      { name: 'Chèques cadeaux', text: 'Chèques numérotés et personnalisés, avec talon, pour les fêtes et les anniversaires.' },
     ],
   },
 
@@ -120,11 +120,11 @@ Côté numérique, les rappels automatiques de l’outil de rendez-vous réduise
   ],
 
   steps: [
-    ['Rendez-vous de lancement', 'Visite du salon ou échange à distance : univers souhaité, prestations, clientèle, date d’ouverture.', '[À COMPLÉTER : délai]'],
-    ['Identité et vitrine', 'Logo et univers graphique, maquette de la vitrine sur photo de votre façade.', '[À COMPLÉTER : délai]'],
-    ['Site, tarifs et rendez-vous', 'Rédaction, mise en ligne du site, paramétrage de l’outil de rendez-vous si vous le choisissez.', '[À COMPLÉTER : délai]'],
-    ['Fiche Google et imprimés', 'Fiche avec services et photos, impression des cartes, flyers et affiche des tarifs.', '[À COMPLÉTER : délai]'],
-    ['Pose et ouverture', 'Pose de la vitrophanie par notre partenaire, vérification des liens de réservation, premières demandes d’avis.', '[À COMPLÉTER : délai]'],
+    ['Rendez-vous de lancement', 'Visite du salon ou échange à distance : univers souhaité, prestations, clientèle, date d’ouverture.', 'Sous une semaine'],
+    ['Identité et vitrine', 'Logo et univers graphique, maquette de la vitrine sur photo de votre façade.', '1 à 2 semaines'],
+    ['Site, tarifs et rendez-vous', 'Rédaction, mise en ligne du site, paramétrage de l’outil de rendez-vous si vous le choisissez.', '3 à 4 semaines après réception des contenus'],
+    ['Fiche Google et imprimés', 'Fiche avec services et photos, impression des cartes, flyers et affiche des tarifs.', '1 à 2 semaines après validation des BAT'],
+    ['Pose et ouverture', 'Pose de la vitrophanie par notre partenaire, vérification des liens de réservation, premières demandes d’avis.', 'Selon la fabrication et la date de pose'],
   ],
 
   portfolio: {

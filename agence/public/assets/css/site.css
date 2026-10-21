@@ -3158,3 +3158,7 @@ html.js [data-reveal].is-visible {
 .header-actions .btn-sm {
   white-space: nowrap;
 }
+.option-note {
+  margin-top: 1rem;
+  color: var(--ink-2);
+}

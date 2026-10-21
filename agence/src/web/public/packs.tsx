@@ -12,6 +12,11 @@ import type { PackIcon } from '../packs/types';
 
 const md = (text: string) => raw(renderMarkdown(text));
 const toFaq = (faq: [string, string][]): FaqRow[] => faq.map(([question, answer], i) => ({ id: -i - 1, topic: 'page', question, answer, status: 'published', sort_order: i }));
+/** « 1 890 € » → « 1890.00 » (null si le prix n'est pas encore fixé). */
+const priceValue = (label: string) => {
+  const n = Number(label.replace(/[^\d,]/g, '').replace(',', '.'));
+  return label.includes('À COMPLÉTER') || !n ? null : n.toFixed(2);
+};
 const contactHref = (p: PackDef) => `/contact?pack=${p.slug}#formulaire`;
 const signageHref = (p: PackDef) => `/devis-vitrophanie-signaletique?metier=${p.slug}`;
 
@@ -92,7 +97,7 @@ function Compare({ p }: { p: PackDef }) {
       <article class="pc-col">
         <p class="pc-kicker">2 · Options métier</p>
         <h3>À ajouter selon vos besoins</h3>
-        <p class="pc-price">Tarifées ou sur devis</p>
+        <p class="pc-price">Sur devis · certaines offertes selon la prestation</p>
         <ul class="pc-list">
           {p.options.items.map((o) => (
             <li>{o.name}</li>
@@ -148,7 +153,13 @@ export function PackPage({ s, p, item }: { s: Settings; p: PackDef; item?: Portf
               '@type': 'OfferCatalog',
               name,
               itemListElement: [
-                { '@type': 'Offer', itemOffered: { '@type': 'Service', name: `${name} : pack de base` } },
+                {
+                  '@type': 'Offer',
+                  itemOffered: { '@type': 'Service', name: `${name} : pack de base` },
+                  ...(priceValue(p.base.priceFrom)
+                    ? { priceSpecification: { '@type': 'PriceSpecification', minPrice: priceValue(p.base.priceFrom), priceCurrency: 'EUR', valueAddedTaxIncluded: false } }
+                    : {}),
+                },
                 ...p.options.items.map((o) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: o.name } })),
                 { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Vitrine et signalétique (sur devis)' } },
               ],
@@ -262,10 +273,10 @@ export function PackPage({ s, p, item }: { s: Settings; p: PackDef; item?: Portf
                   <h3>{o.name}</h3>
                   <p>{o.text}</p>
                 </div>
-                <span class="option-price">{o.price}</span>
               </div>
             ))}
           </div>
+          <p class="option-note">Toutes les options sont sur devis. Selon la prestation demandée, certaines peuvent être offertes : nous vous l’indiquons sur votre devis.</p>
         </div>
       </section>
 

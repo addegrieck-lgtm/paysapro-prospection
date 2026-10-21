@@ -43,7 +43,7 @@ Le centre-ville reconstruit par Auguste Perret est inscrit au patrimoine mondial
 3. Un devis détaillé, puis des maquettes à valider en ligne.
 4. La mise en ligne du site, la livraison des supports imprimés ou la pose de la signalétique par notre poseur partenaire.
 
-Conditions de déplacement au Havre : [À COMPLÉTER : frais de déplacement éventuels pour Le Havre].
+Déplacements : nous intervenons au Havre comme partout en France ; les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.
 
 ## Et les communes voisines ?
 
@@ -80,7 +80,7 @@ Bolbec a longtemps été un centre textile important du Pays de Caux, et beaucou
 
 Appelez-nous ou écrivez-nous depuis la page [contact](/contact) : nous convenons d’un rendez-vous dans votre local ou dans un lieu qui vous arrange. Le devis est gratuit et sans engagement.
 
-Conditions de déplacement à Bolbec : [À COMPLÉTER : confirmer l’absence de frais de déplacement pour Bolbec].
+Déplacements : Bolbec est voisine de notre agence ; pour tout projet, les frais de déplacement éventuels dépendent de la prestation et sont indiqués sur le devis.
 
 Nous intervenons aussi dans les communes voisines : Gruchet-le-Valasse, Lillebonne, Saint-Jean-de-la-Neuville, Raffetot, Nointot et l’ensemble de Caux Seine Agglo. Voir notre [zone d’intervention](/zone-intervention).`,
   },
@@ -118,7 +118,7 @@ Lillebonne est connue pour son théâtre gallo-romain, vestige de l’antique Ju
 3. Un devis clair, puis des maquettes à valider.
 4. La livraison, la mise en ligne ou la pose par notre poseur partenaire.
 
-Conditions de déplacement à Lillebonne : [À COMPLÉTER : confirmer l’absence de frais de déplacement pour Lillebonne].
+Déplacements : Lillebonne est à quelques minutes de notre agence ; les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.
 
 Nous intervenons également à Port-Jérôme-sur-Seine, Saint-Antoine-la-Forêt, Tancarville, La Frénaye et dans tout le secteur. Voir notre [zone d’intervention](/zone-intervention).`,
   },
