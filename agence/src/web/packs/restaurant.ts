@@ -42,7 +42,7 @@ Enfin, un restaurant a des **obligations d’affichage** que la communication do
     priceFrom: '1 890 €',
     intro: 'Le pack de base couvre l’essentiel pour ouvrir avec une image professionnelle et être trouvé en ligne.',
     site: {
-      title: 'Un site de restaurant',
+      title: 'Le site internet de votre restaurant',
       items: [
         'Page d’accueil avec ambiance, type de cuisine, adresse et horaires visibles immédiatement',
         'Carte et menus lisibles sur téléphone (texte, pas un PDF scanné)',

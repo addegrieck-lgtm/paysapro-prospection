@@ -42,7 +42,7 @@ Le bouche-à-oreille fera le reste, à condition de lui donner un support : un s
     priceFrom: '1 790 €',
     intro: 'Le pack de base installe votre entreprise dans le paysage local : identité, site, imprimés et fiche Google.',
     site: {
-      title: 'Un site d’artisan du bâtiment',
+      title: 'Le site internet de votre entreprise',
       items: [
         'Page d’accueil avec votre métier, votre secteur et un bouton d’appel visibles immédiatement',
         'Une page par grand type de travaux (rénovation, dépannage, installation, neuf…)',

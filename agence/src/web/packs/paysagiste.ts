@@ -42,7 +42,7 @@ Enfin, l’activité est saisonnière. Les demandes d’aménagement arrivent au
     priceFrom: '1 790 €',
     intro: 'Le pack de base donne à votre entreprise de paysage une présence professionnelle complète, de la carte de visite à la fiche Google.',
     site: {
-      title: 'Un site de paysagiste',
+      title: 'Le site internet de votre entreprise de paysage',
       items: [
         'Page d’accueil construite autour de grandes photos de jardins',
         'Une page par prestation : création, entretien, taille et élagage, clôtures, terrasses et allées',
