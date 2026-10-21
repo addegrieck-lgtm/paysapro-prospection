@@ -77,6 +77,9 @@ const ART = {
   })(),
   contact: `<div style="position:absolute;top:60px;left:0;width:470px;background:#fff;border-radius:22px;${shadow};padding:44px;display:flex;flex-direction:column;gap:26px">
     ${[['Appel ou SMS', PHONE], ['E-mail', 'contact@signeetseine.fr'], ['Horaires', 'Lun.–sam. · 8 h 30 – 20 h'], ['Devis', 'Gratuit · réponse sous 48 h ouvrées']].map(([k, v]) => `<div><div style="font-family:Inter;font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:#67625a">${k}</div><div style="font-family:Josefin;font-weight:600;font-size:${v.length > 20 ? 30 : 38}px;color:${INK};margin-top:6px">${v}</div></div>`).join('<div style="height:2px;background:#ece6db"></div>')}</div>`,
+  offres: `<div style="position:absolute;top:10px;left:0;width:470px;background:#fff;border-radius:22px;${shadow};padding:40px 40px 34px;display:flex;flex-direction:column;gap:22px">
+    ${[['Site internet', 'dès 690 € HT'], ['Logo & identité', 'dès 199 € HT'], ['Flyer + carte de visite', '99 € HT'], ['Vitrine & enseigne', 'sur devis']].map(([k, v]) => `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px"><span style="font-family:Inter;font-weight:600;font-size:25px;color:${INK}">${k}</span><span style="font-family:Josefin;font-weight:600;font-size:27px;color:${ACCENT};white-space:nowrap">${v}</span></div>`).join('<div style="height:2px;background:#ece6db"></div>')}
+    <div style="margin-top:8px;height:64px;border-radius:32px;background:${ACCENT};display:grid;place-items:center;font-family:Inter;font-weight:700;font-size:24px;color:#fff">Devis gratuit · réponse sous 48 h</div></div>`,
 };
 
 const PHOTOS = [
@@ -85,6 +88,7 @@ const PHOTOS = [
   ['03-impression', { kicker: 'Impression', title: 'Flyers, cartes, <em>dépliants.</em>', text: 'Conception et impression de vos supports, livrés chez vous. Impressions incluses dans les packs.', art: ART.impression }],
   ['04-vitrophanie-signaletique', { kicker: 'Vitrophanie & signalétique', title: 'Une vitrine <em>qui se remarque.</em>', text: 'Lettrage adhésif, vitrines, panneaux : conception et pose dans le Pays de Caux.', art: ART.vitrine }],
   ['05-zone-intervention', { kicker: 'Zone d’intervention', title: 'Près de chez vous, <em>en Pays de Caux.</em>', text: 'Rendez-vous sur place du Havre à Yvetot, de Fécamp à Lillebonne. Partout en France à distance.', art: ART.zone }],
+  ['post-01-presentation', { kicker: 'Agence web & print', title: 'Une image à la hauteur de <em>votre <span style="white-space:nowrap">savoir-faire.</span></em>', text: 'Site, logo, imprimés, vitrine : un seul interlocuteur et des prix affichés pour les artisans et commerces.', art: ART.offres }],
   ['06-devis-contact', { kicker: 'Parlons de votre projet', title: 'Un devis <em>clair et gratuit.</em>', text: 'Un échange simple pour comprendre votre besoin, puis une proposition chiffrée sans surprise.', art: ART.contact }],
 ];
 
