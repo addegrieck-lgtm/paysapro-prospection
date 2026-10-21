@@ -1,16 +1,19 @@
 /**
- * Point d'entrée Cloudflare Workers (offre gratuite) : base D1, fichiers privés dans R2,
+ * Point d'entrée Cloudflare Workers (offre gratuite) : base D1, fichiers privés dans KV (ou R2),
  * fichiers statiques (public/) servis directement par Cloudflare (Workers Static Assets).
  * Déploiement : voir docs/DEPLOIEMENT.md.
  */
 import { createApp, prepareDatabase } from '../app';
 import { openD1, type D1Like } from '../db/d1';
 import { r2Storage, type R2Like } from '../lib/storage-r2';
+import { kvStorage, type KVLike } from '../lib/storage-kv';
 import { createMailer, type MailConfig } from '../lib/mail';
 
 interface Env {
   DB: D1Like;
-  FILES: R2Like;
+  /** Fichiers privés : KV (par défaut, gratuit sans carte) ou R2 (si lié). */
+  FILES_KV?: KVLike;
+  FILES?: R2Like;
   APP_SECRET?: string;
   ADMIN_SETUP_TOKEN?: string;
   MAIL_PROVIDER?: string;
@@ -25,6 +28,7 @@ let ready: Promise<void> | null = null;
 
 export default {
   async fetch(request: Request, env: Env, ctx: unknown): Promise<Response> {
+    if (!env.FILES && !env.FILES_KV) return new Response('Configuration incomplète : aucun stockage de fichiers lié (FILES_KV ou FILES).', { status: 500 });
     if (!env.APP_SECRET || env.APP_SECRET.length < 32) {
       return new Response('Configuration incomplète : secret APP_SECRET manquant (voir docs/DEPLOIEMENT.md).', { status: 500 });
     }
@@ -38,7 +42,7 @@ export default {
     const provider = (['log', 'brevo', 'resend'].includes(env.MAIL_PROVIDER ?? '') ? env.MAIL_PROVIDER : 'log') as MailConfig['provider'];
     const app = createApp({
       db,
-      storage: r2Storage(env.FILES),
+      storage: env.FILES ? r2Storage(env.FILES) : kvStorage(env.FILES_KV!),
       mailer: createMailer(db, {
         provider,
         apiKey: provider === 'brevo' ? env.BREVO_API_KEY : env.RESEND_API_KEY,

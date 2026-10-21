@@ -9,7 +9,7 @@
 | Base de données | SQLite (`node:sqlite`) ou Cloudflare D1, derrière une interface commune (`src/db/types.ts`) | gratuit, simple à sauvegarder, migrations versionnées (`src/db/migrations.ts`) |
 | Validation | zod | validation serveur de tous les formulaires |
 | Front | CSS écrit à la main, ~15 Ko de JS (esbuild), polices auto-hébergées (OFL) | performance (Core Web Vitals), direction artistique propre, CSP stricte |
-| Fichiers privés | disque (Node) ou R2 (Workers), interface `FileStorage` | jamais servis en direct |
+| Fichiers privés | disque (Node) ou KV / R2 (Workers), interface `FileStorage` | jamais servis en direct |
 | E-mails | API Brevo ou Resend via `fetch`, ou simulation | aucun SDK, fonctionne partout |
 | Tests | Vitest (unitaires + intégration HTTP), Playwright + axe-core (recette navigateur) | |
 
