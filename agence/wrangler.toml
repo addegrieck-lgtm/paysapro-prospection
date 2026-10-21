@@ -5,13 +5,24 @@ name = "agence-web"
 main = "src/server/worker.ts"
 compatibility_date = "2026-09-01"
 
+# Nom de domaine (zone gérée par Cloudflare) : les deux adresses sont reliées au Worker à chaque déploiement, certificat HTTPS
+# automatique. Le domaine sans « www » redirige vers www (SITE_HOST). L'adresse *.workers.dev reste active en secours.
+workers_dev = true
+routes = [
+  { pattern = "www.signeetseine.fr", custom_domain = true },
+  { pattern = "signeetseine.fr", custom_domain = true },
+]
+
 # Fichiers statiques (CSS, JS, polices) servis directement par Cloudflare.
 [assets]
 directory = "./public"
 
 [vars]
 ENVIRONMENT = "production"
-MAIL_PROVIDER = "log"   # « brevo » ou « resend » une fois le service configuré
+SITE_HOST = "www.signeetseine.fr"
+MAIL_PROVIDER = "log"   # « brevo » ou « resend » une fois le service configuré (secret BREVO_API_KEY ou RESEND_API_KEY)
+MAIL_FROM = "contact@signeetseine.fr"
+MAIL_FROM_NAME = "Signe & Seine"
 
 [[d1_databases]]
 binding = "DB"

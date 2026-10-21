@@ -13,6 +13,9 @@ export interface AppConfig {
   setupToken: string;
   /** Redirige HTTP → HTTPS (Cloudflare Workers). Ne pas activer derrière un proxy qui termine le TLS en local. */
   forceHttps?: boolean;
+  /** Domaine principal (ex. www.signeetseine.fr, variable SITE_HOST) : le domaine sans « www » y redirige en 301, et il sert
+   *  d'adresse du site tant qu'aucune n'est enregistrée dans Paramètres. */
+  canonicalHost?: string;
 }
 
 export interface Deps {

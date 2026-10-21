@@ -42,7 +42,11 @@ L’adresse du site s’affiche à la fin du journal de l’étape « Déployer 
 1. Ouvrez `https://agence-web.<votre-sous-domaine>.workers.dev/admin/installation`, saisissez la phrase `AGENCE_SETUP_TOKEN`
    et créez votre compte. Supprimez ensuite le secret `AGENCE_SETUP_TOKEN` dans GitHub, et dans Cloudflare :
    *Workers & Pages → agence-web → Settings → Variables and Secrets* → supprimer `ADMIN_SETUP_TOKEN`.
-2. Nom de domaine : *Workers & Pages → agence-web → Settings → Domains & Routes → Add custom domain*.
+2. Nom de domaine : déclaré dans `wrangler.toml` (`routes`, `custom_domain = true`) et relié automatiquement à chaque
+   déploiement, à condition que le domaine soit **actif** dans Cloudflare et sans enregistrement DNS A/AAAA/CNAME existant pour
+   ces noms. `SITE_HOST` (section `[vars]`) désigne l'adresse principale : le domaine sans « www » y redirige en 301.
+   Si le déploiement refuse le domaine (erreur d'autorisation), ajoutez au jeton Cloudflare la permission **Zone › DNS › Edit**,
+   ou ajoutez le domaine à la main : *Workers & Pages → agence-web → Settings → Domains & Routes → Add custom domain*.
 3. *Administration → Paramètres* : adresse du site et informations légales.
 
 E-mails (voir [SERVICES-EXTERNES.md](SERVICES-EXTERNES.md)) : dans Cloudflare, *agence-web → Settings → Variables and Secrets* :
