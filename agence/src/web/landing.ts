@@ -152,6 +152,7 @@ Conditions de déplacement : [À COMPLÉTER : rayon d’intervention pour la pos
       ['Faites-vous le marquage des véhicules ?', 'Oui : lettrage adhésif, visuel imprimé ou magnets amovibles. Indiquez le modèle et l’année du véhicule et joignez des photos de chaque côté pour que nous préparions la maquette aux bonnes dimensions.'],
     ],
     links: [
+      ['/packs', 'Packs Bien démarrer par métier'],
       ['/vitrophanie-vitrine-commerce', 'Vitrophanie de vitrine pour commerces'],
       ['/identite-visuelle-logo', 'Création de logo et identité visuelle'],
       ['/flyers-depliants', 'Création de flyers'],
@@ -240,6 +241,7 @@ Nous détaillons cette démarche sur la page [référencement local pour artisan
       ['Pourrai-je modifier mon site moi-même ?', 'Oui pour ajouter des réalisations ou modifier des textes simples. Si vous préférez ne pas vous en occuper, l’offre de maintenance inclut les petites modifications.'],
     ],
     links: [
+      ['/packs/artisan-batiment', 'Pack Bien démarrer — artisan du bâtiment'],
       ['/creation-site-internet', 'Création de site internet'],
       ['/referencement-local-artisan', 'Référencement local pour artisans'],
       ['/creation-site-internet-paysagiste', 'Site internet pour paysagistes'],
@@ -320,6 +322,7 @@ Pour aller plus loin, consultez notre démarche de [référencement local](/refe
       ['Pouvez-vous gérer mes publications sur les réseaux sociaux ?', 'Nous créons des [gabarits de publications](/reseaux-sociaux) à vos couleurs pour publier facilement vos chantiers. La publication régulière reste de votre côté ou peut faire l’objet d’un accompagnement.'],
     ],
     links: [
+      ['/packs/paysagiste', 'Pack Bien démarrer — paysagiste'],
       ['/creation-site-internet', 'Création de site internet'],
       ['/creation-site-internet-artisan', 'Site internet pour artisans'],
       ['/referencement-local-artisan', 'Référencement local'],
@@ -414,6 +417,7 @@ Les tarifs de l’accompagnement sont affichés sur la page [référencement SEO
       ['Puis-je faire ce travail moi-même ?', 'En grande partie, oui. Notre diagnostic vous donne une liste d’actions concrètes ; vous pouvez les réaliser vous-même ou nous les confier.'],
     ],
     links: [
+      ['/packs/artisan-batiment', 'Pack Bien démarrer — artisan du bâtiment'],
       ['/referencement-seo', 'Référencement naturel et local'],
       ['/creation-site-internet-artisan', 'Site internet pour artisans'],
       ['/creation-site-internet-paysagiste', 'Site internet pour paysagistes'],
@@ -516,6 +520,8 @@ Conditions de déplacement : [À COMPLÉTER : rayon d’intervention pour la pos
       ['Quel est le prix d’un habillage de vitrine ?', 'Il dépend de la surface, du type d’adhésif, de la création et de la pose. Chaque projet est chiffré sur devis gratuit, à partir de vos photos et de vos mesures.'],
     ],
     links: [
+      ['/packs/coiffeur', 'Pack Bien démarrer — coiffeur et institut'],
+      ['/packs/restaurant', 'Pack Bien démarrer — restaurant'],
       ['/vitrophanie-signaletique', 'Vitrophanie et signalétique'],
       ['/identite-visuelle-logo', 'Création de logo'],
       ['/flyers-depliants', 'Flyers d’ouverture'],

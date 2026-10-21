@@ -1,3 +1,4 @@
+import { packBySlug } from '../web/packs';
 import { z } from 'zod';
 import type { Deps } from '../app/context';
 import type { Settings } from '../domain/settings';
@@ -247,10 +248,19 @@ export const contactSchema = z.object({
   email: z.string().trim().toLowerCase().email('Adresse e-mail invalide.').max(200),
   phone: z.string().trim().max(40).regex(/^[0-9+().\s-]*$/, 'Numéro de téléphone invalide.').optional().default(''),
   message: z.string().trim().min(10, 'Votre message est trop court.').max(5000),
+  /** Pack « Bien démarrer » pré-sélectionné (identifiant du métier). */
+  pack: z
+    .string()
+    .trim()
+    .max(40)
+    .regex(/^[a-z-]*$/)
+    .optional()
+    .default(''),
   privacy: z.literal('1', { message: 'Vous devez accepter la politique de confidentialité.' }),
 });
 
 export async function submitContact(deps: Deps, s: Settings, input: z.infer<typeof contactSchema>, origin: string): Promise<number> {
+  const packLabel = input.pack ? `Pack Bien démarrer — ${packBySlug(input.pack)?.metier ?? 'autre métier'}` : '';
   const contact = await upsertContact(deps, {
     name: input.name,
     company: input.company,
@@ -259,12 +269,12 @@ export async function submitContact(deps: Deps, s: Settings, input: z.infer<type
     postal_code: '',
     city: '',
     customer_type: 'pro',
-    need: input.message.slice(0, 200),
+    need: (packLabel ? `${packLabel} : ${input.message}` : input.message).slice(0, 200),
     budget: '',
     source: 'site_contact',
     marketing: false,
   });
-  await addContactEvent(deps, contact.id, 'email', `Message reçu via le formulaire de contact :\n${input.message}`);
+  await addContactEvent(deps, contact.id, 'email', `Message reçu via le formulaire de contact${packLabel ? ` (${packLabel})` : ''} :\n${input.message}`);
   await deps.mailer.send({
     to: input.email,
     subject: `${s.agencyName} — message bien reçu`,
@@ -275,7 +285,7 @@ export async function submitContact(deps: Deps, s: Settings, input: z.infer<type
   if (s.notifyEmail) {
     await deps.mailer.send({
       to: s.notifyEmail,
-      subject: `Nouveau message : ${input.name}${input.company ? ` (${input.company})` : ''}`,
+      subject: `Nouveau message${packLabel ? ` — ${packLabel}` : ''} : ${input.name}${input.company ? ` (${input.company})` : ''}`,
       kind: 'notification',
       text: `${input.message}\n\nFiche contact : ${siteLink(s, origin, `/admin/crm/${contact.id}`)}`,
     });

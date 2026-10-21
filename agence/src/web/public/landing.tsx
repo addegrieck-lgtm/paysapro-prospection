@@ -160,6 +160,8 @@ export const SIGNAGE_NEEDS: [string, string][] = [
   ['bache', 'Bâche publicitaire'],
   ['vehicule', 'Marquage de véhicule ou magnets'],
   ['kakemono', 'Kakémono / roll-up'],
+  ['beachflag', 'Beach flag / chevalet de trottoir'],
+  ['autocollants', 'Autocollants « intervention réalisée par »'],
   ['interieur', 'Signalétique intérieure'],
   ['pack-ouverture', 'Pack ouverture de commerce'],
   ['autre', 'Autre'],

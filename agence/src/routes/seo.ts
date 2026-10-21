@@ -3,6 +3,7 @@ import type { AppEnv } from '../app/context';
 import { publishedLocalPages, publishedPortfolio, publishedPosts, publishedProducts } from '../repo/catalog';
 import { SERVICE_PAGES } from '../web/content';
 import { LANDING_PAGES } from '../web/landing';
+import { PACKS } from '../web/packs';
 import { escapeHtml } from '../domain/text';
 
 export const seoRoutes = new Hono<AppEnv>();
@@ -17,6 +18,8 @@ export async function publicUrls(db: AppEnv['Variables']['deps']['db']): Promise
     ...SERVICE_PAGES.map((p) => ({ path: p.path })),
     ...LANDING_PAGES.map((p) => ({ path: p.path })),
     { path: '/devis-vitrophanie-signaletique' },
+    { path: '/packs' },
+    ...PACKS.map((p) => ({ path: `/packs/${p.slug}` })),
     ...products.map((p) => ({ path: `/impression/${p.slug}`, lastmod: p.updated_at })),
     ...items.map((p) => ({ path: `/realisations/${p.slug}` })),
     ...posts.map((p) => ({ path: `/blog/${p.slug}`, lastmod: p.updated_at })),

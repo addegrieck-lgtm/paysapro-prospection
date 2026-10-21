@@ -313,7 +313,26 @@ En phase 2, il faudra ajouter dans les paramètres :
 >
 > **Proposition** : renforcer `/flyers-depliants` en page « Création de flyers » (mot-clé principal) et `/cartes-de-visite` en page « Création de cartes de visite ». Chacune atteint 900 mots ou plus, avec des liens croisés et un renvoi vers le pack flyer + carte.
 
----
+### 5.3 Packs « Bien démarrer » (phase 6) : répartition des mots-clés
+
+Les packs visent l’intention **« j’ouvre / je lance mon activité »** (métier + ouverture ou création). Les pages prestations visent l’intention **« je cherche une prestation »**. Chaque mot-clé n’a qu’une page cible.
+
+| Page | Mot-clé principal | Variantes naturelles (dont locales) | Page à ne pas concurrencer, et sa cible |
+|---|---|---|---|
+| `/packs` | pack communication création d’entreprise | pack ouverture d’activité · communication par métier · lancer son activité Pays de Caux | — |
+| `/packs/restaurant` | communication ouverture restaurant | ouvrir un restaurant · menu en ligne · carte des plats · restaurant Bolbec, Le Havre, Fécamp | `/vitrophanie-vitrine-commerce` (vitrophanie vitrine) · `/creation-site-internet` (création de site, générique) |
+| `/packs/paysagiste` | communication paysagiste création d’entreprise | lancer son entreprise de paysage · flocage utilitaire paysagiste · flyers entretien de jardin · Pays de Caux | `/creation-site-internet-paysagiste` (création site internet paysagiste) |
+| `/packs/coiffeur` | communication ouverture salon de coiffure | ouverture institut de beauté · cartes de fidélité salon · prise de rendez-vous en ligne · Lillebonne, Bolbec | `/vitrophanie-vitrine-commerce` · `/cartes-de-visite` |
+| `/packs/artisan-batiment` | communication création entreprise artisan bâtiment | s’installer artisan · panneau de chantier · flocage véhicule artisan · devis à en-tête | `/creation-site-internet-artisan` (création site internet artisan) · `/referencement-local-artisan` (référencement local artisan) |
+
+**Arbitrage.** L’exemple « site internet paysagiste » proposé pour le pack paysagiste aurait concurrencé directement la page `/creation-site-internet-paysagiste` (phase 4). Le pack vise donc la **création d’entreprise** (« lancer son entreprise de paysage », « communication paysagiste »), et la page prestation garde « création site internet paysagiste ».
+
+**Garde-fous appliqués :**
+
+- **Titres et H1 des packs** formulés autour de l’ouverture (« Vous ouvrez votre restaurant ? »), jamais autour d’une prestation seule.
+- **Liens croisés avec des ancres distinctes** : la page prestation renvoie vers « Pack Bien démarrer — Paysagiste », et le pack renvoie vers « Site internet pour paysagistes ».
+- **Contenu propre à chaque pack** : un test automatique refuse toute phrase de plus de 50 caractères présente dans deux packs.
+- **À surveiller dans la Search Console**, une fois en ligne : si une requête affiche alternativement deux de ces pages, renforcer l’ancrage de la page cible et retirer le terme de l’autre.
 
 ## 6. Plan d’action priorisé
 

@@ -98,6 +98,33 @@ Flyers et cartes de visite : les deux pages existantes ont été **renforcées**
 - **Deux nouveaux concepts** : **Fournil du Caux** (boulangerie, vitrine et pack ouverture) et **Jardins de la Valmont** (site de paysagiste).
 - Les six concepts existants ont été enrichis : type de client, besoin, prestations, objectifs.
 
+### Phase 6 — Packs « Bien démarrer » par métier
+
+- **Hub `/packs`** : la page garde son adresse et devient le hub. Elle présente le principe en trois niveaux, les 4 packs métiers et une carte « autre métier ». Les packs transversaux existants restent visibles, avec une FAQ.
+- **Pages `/packs/restaurant`, `/packs/paysagiste`, `/packs/coiffeur` et `/packs/artisan-batiment`** : environ 1 700 à 1 950 mots chacune. Chaque page suit les 9 sections demandées :
+  1. enjeux et erreurs fréquentes ;
+  2. comparatif visuel en trois colonnes (pack de base, options métier, vitrine recommandée) ;
+  3. pack de base détaillé ;
+  4. options métier ;
+  5. vitrine et signalétique ;
+  6. approfondissements propres au métier ;
+  7. déroulé ;
+  8. concept du portfolio ;
+  9. FAQ, section locale, liens vers les prestations et CTA « Je lance mon activité ».
+- **Concepts du portfolio réutilisés** (déjà marqués « concept ») : Le Comptoir du Marché (restaurant), Jardins de la Valmont (paysagiste), Studio Mèche (coiffure) et Atelier Chêne & Fil (artisan menuisier).
+- **Formulaires** :
+  - « Je lance mon activité » mène à `/contact?pack=<métier>` : le pack y est pré-sélectionné et enregistré dans la fiche CRM et la notification ;
+  - « Demander un devis pour ma vitrine » mène à `/devis-vitrophanie-signaletique?metier=<métier>` : l’activité et les besoins typiques sont pré-cochés.
+- **Visibilité des packs** :
+  - menu (lien « Packs », menu Prestations, menu mobile) ;
+  - accueil (cartes des packs) ;
+  - pied de page (nouvelle colonne) ;
+  - sitemap et plan du site ;
+  - liens dans les deux sens avec les pages prestations.
+- **Données structurées** : `Service` avec `areaServed` et `hasOfferCatalog` (pack de base, options, vitrine), `BreadcrumbList`, `FAQPage`, et `ItemList` sur le hub.
+- **Ajouter un métier** (boulangerie, boutique…) : créer `src/web/packs/<metier>.ts` en copiant un pack existant, puis l’ajouter à la liste dans `src/web/packs/index.ts`. Aucun autre code n’est à modifier : menu, accueil, pied de page, sitemap et formulaires suivent automatiquement.
+- **Mots-clés** : la répartition entre packs et prestations est documentée dans [AUDIT-SEO.md, § 5.3](AUDIT-SEO.md).
+
 ---
 
 ## 2. Fichiers créés ou modifiés
@@ -115,6 +142,9 @@ Flyers et cartes de visite : les deux pages existantes ont été **renforcées**
 - `public/assets/img/og-default.png`, `public/assets/img/logo-512.png`
 - `public/assets/fonts/josefin-sans-latin-wght-normal.woff2`, `…-italic.woff2` (licence SIL OFL)
 - `tests/pages-v3.test.ts` — tests des phases 3 à 5, dont la migration sur une base existante
+- `src/web/packs/types.ts`, `index.ts`, `restaurant.ts`, `paysagiste.ts`, `coiffeur.ts`, `artisan-batiment.ts` — données des packs (un fichier par métier)
+- `src/web/public/packs.tsx` — hub, gabarit des pages packs, comparatif, cartes
+- `tests/packs.test.ts` — tests des packs (contenu, données structurées, formulaires, maillage, absence de texte recopié)
 
 **Modifiés**
 
@@ -153,6 +183,22 @@ Flyers et cartes de visite : les deux pages existantes ont été **renforcées**
 | `/agence-web/le-havre` | frais de déplacement éventuels pour Le Havre | Administration → Contenus → Pages locales |
 | `/agence-web/bolbec` | confirmer l’absence de frais de déplacement pour Bolbec | Idem |
 | `/agence-web/lillebonne` | confirmer l’absence de frais de déplacement pour Lillebonne | Idem |
+
+### Packs Bien démarrer (affichés sur les pages packs)
+
+Ils se modifient dans les fichiers `src/web/packs/<métier>.ts` : donnez-moi les valeurs et je les remplace.
+
+| Pack | Prix « à partir de » | Quantités d’impression incluses | Tarifs d’options | Délais du déroulé |
+|---|---|---|---|---|
+| Restaurant | [À COMPLÉTER] | cartes de visite, flyers d’ouverture, affichage du menu (3) | QR code menu, carte de fidélité (2) | 5 étapes |
+| Paysagiste | [À COMPLÉTER] | cartes de visite, flyers de présentation, flyers de saison (3) | — (tout sur devis) | 5 étapes |
+| Coiffeur & institut | [À COMPLÉTER] | cartes de visite, flyers d’ouverture, affiche des tarifs (3) | cartes de rendez-vous, cartes de fidélité (2) | 5 étapes |
+| Artisan du bâtiment | [À COMPLÉTER] | cartes de visite, flyers, autocollants (3) | autocollants « intervention réalisée par » (1) | 5 étapes |
+
+Autres informations à fournir :
+
+- [À COMPLÉTER : lien et présentation de PaysaPro], si vous souhaitez un lien vers sa page. Aujourd’hui, l’option est présentée sobrement, « sur demande », sans lien.
+- Les options marquées « Sur devis » peuvent recevoir un tarif dès que vous le fixez.
 
 ### Informations manquantes, non affichées tant qu’elles sont vides
 
@@ -238,7 +284,7 @@ Une fois des images réelles disponibles, il faudra ajouter dans l’administrat
 cd agence
 npm install
 npm run typecheck        # vérification TypeScript
-npm test                 # 81 tests automatisés (domaine, site, administration, phases 3 à 5)
+npm test                 # 87 tests automatisés (domaine, site, administration, phases 3 à 6)
 npm run build            # compilation + contrôle du bundle Cloudflare Workers
 npm run check:public     # aucune donnée sensible dans les ressources publiques
 

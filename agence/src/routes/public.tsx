@@ -34,6 +34,8 @@ import { QuoteWizard, type QuoteFormState } from '../web/public/quote';
 import { CookiesPage, LegalNotice, PrivacyPolicy, TermsPage } from '../web/public/legal';
 import { SERVICE_PAGES } from '../web/content';
 import { LANDING_PAGES } from '../web/landing';
+import { packBySlug } from '../web/packs';
+import { PackPage, PacksHub } from '../web/public/packs';
 import { LandingPage, SIGNAGE_DESIGN, SIGNAGE_NEEDS, SIGNAGE_POSE, SignageQuotePage } from '../web/public/landing';
 import { estimateFor } from '../services/estimate';
 import { ATTRS, parseOptions, type PrintConfig, type PublicEstimate } from '../domain/print';
@@ -71,6 +73,15 @@ for (const def of SERVICE_PAGES) {
 for (const def of LANDING_PAGES) {
   publicRoutes.get(def.path, async (c) => c.html(<LandingPage s={c.get('settings')} def={def} localPages={await publishedLocalPages(c.get('deps').db)} />));
 }
+
+// ─── Packs « Bien démarrer » par métier (hub à l'adresse historique /packs) ───
+publicRoutes.get('/packs', async (c) => c.html(<PacksHub s={c.get('settings')} packs={await publishedServices(c.get('deps').db, { categories: ['pack'] })} />));
+publicRoutes.get('/packs/:slug', async (c) => {
+  const pack = packBySlug(c.req.param('slug'));
+  if (!pack) return c.notFound();
+  const item = await portfolioBySlug(c.get('deps').db, pack.portfolio.slug);
+  return c.html(<PackPage s={c.get('settings')} p={pack} item={item ?? undefined} />);
+});
 
 publicRoutes.get('/tarifs', async (c) => c.html(<PricingPage s={c.get('settings')} services={await publishedServices(c.get('deps').db)} />));
 
@@ -193,7 +204,11 @@ function flatten(body: Record<string, unknown>, arrays: string[]): Record<string
   return out;
 }
 
-publicRoutes.get('/contact', async (c) => c.html(<ContactPage s={c.get('settings')} token={await token(c)} sent={c.req.query('envoye') === '1'} />));
+publicRoutes.get('/contact', async (c) => {
+  const pack = c.req.query('pack');
+  const values = pack && (packBySlug(pack) || pack === 'autre-metier') ? { pack } : undefined;
+  return c.html(<ContactPage s={c.get('settings')} token={await token(c)} sent={c.req.query('envoye') === '1'} values={values} />);
+});
 
 publicRoutes.post('/contact', async (c) => {
   const body = flatten(await c.req.parseBody({ all: true }), []);
@@ -270,7 +285,10 @@ publicRoutes.post('/devis', async (c) => {
 
 publicRoutes.get('/devis-vitrophanie-signaletique', async (c) => {
   const besoin = c.req.query('besoin');
-  const values: Record<string, string[]> = besoin && SIGNAGE_NEEDS.some(([v]) => v === besoin) ? { needs: [besoin] } : {};
+  const values: Record<string, string | string[]> = besoin && SIGNAGE_NEEDS.some(([v]) => v === besoin) ? { needs: [besoin] } : {};
+  // Depuis une page pack : métier et besoins typiques pré-remplis.
+  const pack = packBySlug(c.req.query('metier'));
+  if (pack) Object.assign(values, { activity: pack.activity, needs: pack.signage.needs, description: `Pack Bien démarrer — ${pack.metier} : offre vitrine & signalétique recommandée. ` });
   return c.html(<SignageQuotePage s={c.get('settings')} token={await token(c)} values={values} />);
 });
 

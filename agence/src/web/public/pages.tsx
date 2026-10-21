@@ -5,6 +5,7 @@ import { Layout, absoluteUrl } from '../layout';
 import { areaServed, businessJsonLd, localityLabel, providerRef, telHref } from '../seo';
 import { CATEGORY_LABELS, SERVICE_PAGES, type ServicePageDef, type VisualKind } from '../content';
 import { LANDING_PAGES } from '../landing';
+import { PACKS, packBySlug } from '../packs';
 import { ConceptBadge, ContactForm, CtaBand, FaqList, MapEmbed, Notice, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
 import { BrochureMock, BrowserMock, OldSiteMock, StorefrontMock, HeroComposition, IdentityBoard, MaintenanceMock, PortfolioVisual, PrintComposition, ProductVisual, SeoMock, SocialMock } from '../illustrations';
 import { formatEuros, ttcOf } from '../../domain/money';
@@ -194,7 +195,7 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
         </section>
       )}
 
-      {related.length > 0 && (
+      {related.length + (def.packs?.length ?? 0) > 0 && (
         <section class="section section-tight">
           <div class="container">
             <p class="eyebrow">À découvrir aussi</p>
@@ -205,6 +206,15 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
                   <span aria-hidden="true">→</span>
                 </a>
               ))}
+              {(def.packs ?? []).map((slug) => {
+                const pk = packBySlug(slug);
+                return pk ? (
+                  <a href={`/packs/${pk.slug}`} class="related-link related-pack">
+                    <span>Pack Bien démarrer — {pk.metier}</span>
+                    <span aria-hidden="true">→</span>
+                  </a>
+                ) : null;
+              })}
             </div>
           </div>
         </section>
@@ -669,6 +679,7 @@ export function AboutPage({ s }: { s: Settings }) {
 }
 
 export function ContactPage({ s, token, sent, error, values }: { s: Settings; token: string; sent?: boolean; error?: string; values?: Record<string, string> }) {
+  const pack = packBySlug(values?.pack);
   return (
     <Layout
       s={s}
@@ -742,7 +753,11 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
             ) : (
               <>
                 {error && <Notice kind="error">{error}</Notice>}
-                <ContactForm token={token} subjectDefault={values?.message ?? ''} />
+                <ContactForm
+                  token={token}
+                  pack={values?.pack ?? ''}
+                  subjectDefault={values?.message ?? (pack ? `Bonjour, je lance mon activité (${pack.metier.toLowerCase()}) et le pack Bien démarrer m’intéresse. ` : '')}
+                />
               </>
             )}
           </div>
@@ -982,6 +997,8 @@ export function SitePlan({ s, posts, products, items, local }: { s: Settings; po
     ['/', 'Accueil'],
     ...SERVICE_PAGES.map((p) => [p.path, p.name] as [string, string]),
     ...LANDING_PAGES.map((p) => [p.path, p.name] as [string, string]),
+    ['/packs', 'Packs Bien démarrer'],
+    ...PACKS.map((p) => [`/packs/${p.slug}`, `Pack Bien démarrer — ${p.metier}`] as [string, string]),
     ['/tarifs', 'Tarifs'],
     ['/impression', 'Catalogue d’impression'],
     ['/configurateur', 'Configurateur'],

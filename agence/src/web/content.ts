@@ -18,6 +18,8 @@ export interface ServicePageDef {
   details?: { title: string; items: string[] }[];
   /** Contenu éditorial complémentaire (Markdown), affiché avant le déroulement. */
   article?: { eyebrow?: string; title: string; body: string }[];
+  /** Packs « Bien démarrer » liés (identifiants), affichés dans « À découvrir aussi ». */
+  packs?: string[];
   steps?: [string, string][];
   faq: [string, string][];
   faqTopics: string[];
@@ -70,6 +72,7 @@ export const SERVICE_PAGES: ServicePageDef[] = [
     ],
     faqTopics: ['general'],
     related: ['/refonte-site-internet', '/referencement-seo', '/maintenance-site-internet'],
+    packs: ['restaurant', 'coiffeur', 'artisan-batiment'],
   },
   {
     path: '/refonte-site-internet',
@@ -157,6 +160,7 @@ Le tarif de création est indiqué ci-dessus ; l’impression et la livraison so
     ],
     faqTopics: ['impression'],
     related: ['/cartes-de-visite', '/affiches-brochures', '/impression'],
+    packs: ['restaurant', 'coiffeur'],
   },
   {
     path: '/cartes-de-visite',
@@ -217,6 +221,7 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
     ],
     faqTopics: ['impression'],
     related: ['/identite-visuelle-logo', '/flyers-depliants', '/impression'],
+    packs: ['coiffeur', 'artisan-batiment'],
   },
   {
     path: '/affiches-brochures',
@@ -240,6 +245,7 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
     ],
     faqTopics: ['impression'],
     related: ['/flyers-depliants', '/identite-visuelle-logo', '/impression'],
+    packs: ['restaurant'],
   },
   {
     path: '/identite-visuelle-logo',
@@ -269,6 +275,7 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
     ],
     faqTopics: [],
     related: ['/cartes-de-visite', '/flyers-depliants', '/creation-site-internet'],
+    packs: ['restaurant', 'paysagiste', 'coiffeur', 'artisan-batiment'],
   },
   {
     path: '/reseaux-sociaux',
@@ -291,6 +298,7 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
     ],
     faqTopics: [],
     related: ['/identite-visuelle-logo', '/flyers-depliants', '/referencement-seo'],
+    packs: ['restaurant'],
   },
   {
     path: '/referencement-seo',
@@ -323,7 +331,8 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
       ['Faut-il une fiche Google ?', 'Pour une activité locale, une fiche d’établissement à jour est souvent l’un des leviers les plus efficaces.'],
     ],
     faqTopics: [],
-    related: ['/creation-site-internet', '/maintenance-site-internet', '/packs'],
+    related: ['/creation-site-internet', '/maintenance-site-internet'],
+    packs: ['artisan-batiment', 'paysagiste'],
   },
   {
     path: '/maintenance-site-internet',
@@ -348,28 +357,7 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
     faqTopics: [],
     related: ['/creation-site-internet', '/refonte-site-internet', '/referencement-seo'],
   },
-  {
-    path: '/packs',
-    name: 'Packs professionnels',
-    h1: 'Packs communication',
-    h1em: 'plusieurs besoins, un seul interlocuteur.',
-    metaTitle: 'Packs communication pour TPE',
-    metaDescription: 'Packs regroupant site internet, identité visuelle et supports imprimés pour lancer ou relancer votre activité, avec un seul devis et un seul planning.',
-    eyebrow: 'Packs',
-    intro: 'Les packs regroupent des prestations complémentaires pour une communication cohérente, avec un seul devis et un seul planning.',
-    visual: 'packs',
-    benefits: [
-      ['Cohérence', 'Tous vos supports partagent la même identité.'],
-      ['Simplicité', 'Un devis, un planning, un interlocuteur.'],
-      ['Transparence', 'Ce qui est inclus et ce qui ne l’est pas (impression, hébergement) est toujours précisé.'],
-    ],
-    serviceSlugs: ['pack-flyer-carte', 'pack-visibilite', 'site-business'],
-    faq: [
-      ['Puis-je composer mon propre pack ?', 'Oui : décrivez vos besoins dans le formulaire de devis, nous vous proposons une combinaison adaptée.'],
-    ],
-    faqTopics: ['general'],
-    related: ['/tarifs', '/creation-site-internet', '/identite-visuelle-logo'],
-  },
+
 ];
 
 export const pageByPath = (path: string) => SERVICE_PAGES.find((p) => p.path === path);

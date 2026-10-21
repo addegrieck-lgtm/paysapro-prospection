@@ -2,7 +2,9 @@ import type { Settings } from '../../domain/settings';
 import type { FaqRow, PortfolioRow, ProductRow, ServiceRow } from '../../repo/types';
 import { Layout } from '../layout';
 import { businessJsonLd, websiteJsonLd } from '../seo';
-import { ConceptBadge, ContactForm, FaqList, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
+import { ConceptBadge, ContactForm, FaqList, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
+import { PACKS } from '../packs';
+import { PackCard } from './packs';
 import { CoastLine, HeroComposition, PortfolioVisual, ProductVisual, SeoMock } from '../illustrations';
 
 const SERVICE_TILES: [string, string, string, string][] = [
@@ -226,30 +228,24 @@ export function HomePage(p: {
         </div>
       </section>
 
-      {p.packs.length > 0 && (
-        <section class="section section-sand" aria-labelledby="packs">
-          <div class="container">
-            <SectionHead id="packs" eyebrow="Packs" title="Lancer votre activité avec une communication cohérente." />
-            <div class="pack-grid">
-              {p.packs.map((svc) => (
-                <article class="pack" data-reveal>
-                  <div>
-                    <h3>{svc.name}</h3>
-                    <p class="muted">{svc.summary}</p>
-                  </div>
-                  <Price svc={svc} s={s} size="lg" />
-                  <a href={`/devis?prestation=${svc.slug}`} class="btn btn-primary">
-                    Demander ce pack
-                  </a>
-                </article>
-              ))}
-            </div>
-            <p class="mt-lg">
-              <a href="/packs" class="link-arrow">Détail des packs</a>
-            </p>
+      <section class="section section-sand" aria-labelledby="packs">
+        <div class="container">
+          <SectionHead
+            id="packs"
+            eyebrow="Packs Bien démarrer"
+            title="Vous ouvrez ou relancez votre activité ?"
+            intro="Un pack par métier, avec tout le marketing nécessaire pour bien commencer : site, identité, imprimés, fiche Google et une vitrine qui se voit."
+          />
+          <div class="packm-grid">
+            {PACKS.map((pk) => (
+              <PackCard p={pk} />
+            ))}
           </div>
-        </section>
-      )}
+          <p class="mt-lg">
+            <a href="/packs" class="link-arrow">Découvrir les packs Bien démarrer</a>
+          </p>
+        </div>
+      </section>
 
       {p.faqs.length > 0 && (
         <section class="section" aria-labelledby="faq">

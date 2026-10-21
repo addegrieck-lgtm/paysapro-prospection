@@ -1,3 +1,4 @@
+import { PACKS } from './packs';
 import type { Child } from 'hono/jsx';
 import type { Settings } from '../domain/settings';
 import type { FaqRow, ServiceRow } from '../repo/types';
@@ -173,9 +174,9 @@ export function SpamGuard({ token }: { token: string }) {
   );
 }
 
-export function ContactForm({ token, compact = false, subjectDefault = '' }: { token: string; compact?: boolean; subjectDefault?: string }) {
+export function ContactForm({ token, compact = false, subjectDefault = '', pack = '' }: { token: string; compact?: boolean; subjectDefault?: string; pack?: string }) {
   return (
-    <form method="post" action="/contact" class={`form ${compact ? 'form-compact' : ''}`} data-enhance>
+    <form method="post" action="/contact" class={`form ${compact ? 'form-compact' : ''}`} id="formulaire" data-enhance>
       <SpamGuard token={token} />
       <div class="grid-2">
         <div class="field">
@@ -195,6 +196,22 @@ export function ContactForm({ token, compact = false, subjectDefault = '' }: { t
           <input id="cf-phone" name="phone" type="tel" maxlength={40} autocomplete="tel" inputmode="tel" />
         </div>
       </div>
+      {!compact && (
+        <div class="field">
+          <label for="cf-pack">Votre projet concerne</label>
+          <select id="cf-pack" name="pack">
+            <option value="">— Choisir (facultatif)</option>
+            {PACKS.map((p) => (
+              <option value={p.slug} selected={pack === p.slug}>
+                Pack Bien démarrer — {p.metier}
+              </option>
+            ))}
+            <option value="autre-metier" selected={pack === 'autre-metier'}>
+              Pack Bien démarrer — autre métier
+            </option>
+          </select>
+        </div>
+      )}
       <div class="field">
         <label for="cf-message">Votre message *</label>
         <textarea id="cf-message" name="message" required minlength={10} maxlength={5000} rows={compact ? 4 : 6}>

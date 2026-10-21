@@ -1,3 +1,4 @@
+import { PACKS } from './packs';
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
 import type { Settings } from '../domain/settings';
@@ -110,13 +111,19 @@ function Header({ s, path }: { s: Settings; path: string }) {
               <div class="mega-col mega-feature">
                 <p class="mega-title">Pour aller vite</p>
                 <a href="/packs" class="mega-card">
-                  <span>Packs professionnels</span>
-                  <small>Plusieurs prestations, un seul interlocuteur.</small>
+                  <span>Packs Bien démarrer</span>
+                  <small>Tout le marketing pour ouvrir votre activité, par métier.</small>
                 </a>
+                {PACKS.map((p) => (
+                  <a href={`/packs/${p.slug}`} class="mega-link">
+                    {p.metier} →
+                  </a>
+                ))}
                 <a href="/tarifs" class="mega-link">Voir tous les tarifs →</a>
               </div>
             </div>
           </details>
+          <a href="/packs" aria-current={current('/packs')}>Packs</a>
           <a href="/impression" aria-current={current('/impression')}>Impression</a>
           <a href="/realisations" aria-current={current('/realisations')}>Réalisations</a>
           <a href="/tarifs" aria-current={current('/tarifs')}>Tarifs</a>
@@ -148,8 +155,14 @@ function Header({ s, path }: { s: Settings; path: string }) {
                 </div>
               ))}
               <div>
+                <p class="mega-title">Packs Bien démarrer</p>
+                <a href="/packs">Tous les packs</a>
+                {PACKS.map((p) => (
+                  <a href={`/packs/${p.slug}`}>{p.metier}</a>
+                ))}
+              </div>
+              <div>
                 <p class="mega-title">Agence</p>
-                <a href="/packs">Packs</a>
                 <a href="/impression">Impression</a>
                 <a href="/configurateur">Configurateur d’impression</a>
                 <a href="/realisations">Réalisations</a>
@@ -212,7 +225,7 @@ function Footer({ s }: { s: Settings }) {
             <a href="/refonte-site-internet">Refonte</a>
             <a href="/referencement-seo">Référencement SEO</a>
             <a href="/maintenance-site-internet">Maintenance</a>
-            <a href="/packs">Packs professionnels</a>
+
             <a href="/creation-site-internet-artisan">Site internet pour artisans</a>
             <a href="/creation-site-internet-paysagiste">Site internet pour paysagistes</a>
             <a href="/referencement-local-artisan">Référencement local des artisans</a>
@@ -228,6 +241,13 @@ function Footer({ s }: { s: Settings }) {
             <a href="/vitrophanie-vitrine-commerce">Vitrines de commerce</a>
             <a href="/impression">Catalogue d’impression</a>
             <a href="/configurateur">Configurateur</a>
+          </div>
+          <div>
+            <p class="footer-title">Packs Bien démarrer</p>
+            <a href="/packs">Tous les packs</a>
+            {PACKS.map((p) => (
+              <a href={`/packs/${p.slug}`}>{p.card.title}</a>
+            ))}
           </div>
           <div>
             <p class="footer-title">L’agence</p>
