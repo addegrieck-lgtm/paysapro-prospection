@@ -10,7 +10,11 @@ import { decideQuote, quoteLines } from '../services/quotes';
 import { decideProof } from '../services/orders';
 import { formatDate, formatDateTime, todayParis } from '../domain/dates';
 import { ACCEPTANCE_STATUSES, ORDER_STATUSES, PROJECT_STATUSES, labelOf } from '../domain/statuses';
-import { addContactEvent } from '../services/requests';
+import { addContactEvent, checkUploads, storeFiles, type UploadedFile } from '../services/requests';
+import { UPLOAD_LIMITS } from '../lib/storage';
+import { BRIEF_MODULES, BRIEF_SECTIONS, briefProgress, parseModules, readSectionAnswers, visibleSections } from '../domain/brief';
+import { type Brief, type BriefRow, modulesLabel, parseBrief, saveBrief, submitBrief } from '../services/briefs';
+import { BriefDocument, BriefProgressBar, BriefQuestion, type BriefStep } from '../web/brief';
 
 /**
  * Espace client « sans compte » : chaque document est accessible par un lien personnel contenant
@@ -298,4 +302,213 @@ clientRoutes.post('/projet/:token', async (c) => {
   const s = c.get('settings');
   if (s.notifyEmail) await c.get('deps').mailer.send({ to: s.notifyEmail, subject: `Recette ${d.decision === 'accepte' ? 'validée' : 'refusée'} : ${p.name}`, kind: 'notification', text: `${d.name} : ${d.comment || '(sans commentaire)'}` });
   return c.redirect(`/client/projet/${token}?ok=${d.decision}`, 303);
+});
+
+// ─── Cahier des charges ───
+
+async function briefByToken(c: Ctx): Promise<Brief | null> {
+  const token = c.req.param('token') ?? '';
+  if (!TOKEN.test(token)) return null;
+  const row = await c.get('deps').db.get<BriefRow>('SELECT * FROM briefs WHERE token = ?', [token]);
+  return row ? parseBrief(row) : null;
+}
+
+function briefSteps(b: Pick<Brief, 'modules' | 'answers'>): BriefStep[] {
+  return [
+    { id: 'projet', title: 'Votre projet' },
+    ...visibleSections(b.modules, b.answers).map((s) => ({ id: s.id, title: s.title, section: s })),
+    { id: 'fin', title: 'Fichiers et envoi' },
+  ];
+}
+
+clientRoutes.get('/cahier/:token', async (c) => {
+  const b = await briefByToken(c);
+  if (!b) return notFound(c);
+  const s = c.get('settings');
+  const base = `/client/cahier/${b.token}`;
+  const contact = await c.get('deps').db.get<{ name: string }>('SELECT name FROM contacts WHERE id = ?', [b.contact_id]);
+  const steps = briefSteps(b);
+  const progress = briefProgress(b.modules, b.answers);
+  const sections = visibleSections(b.modules, b.answers);
+
+  if (b.status === 'termine') {
+    return c.html(
+      <Shell c={c} title="Votre cahier des charges">
+        <p class="eyebrow">Espace client</p>
+        <h1>{b.title}</h1>
+        <Notice kind="success">
+          Merci ! Votre cahier des charges nous a bien été transmis{b.submitted_at ? ` le ${formatDate(b.submitted_at)}` : ''}. Nous l’étudions et revenons vers vous
+          rapidement. Pour modifier une réponse, contactez-nous{s.contactEmail ? ` à ${s.contactEmail}` : ''}.
+        </Notice>
+        <BriefDocument sections={sections} a={b.answers} modulesText={modulesLabel(b.modules)} showEmpty={false} />
+        <p class="small muted">Pour conserver une copie, utilisez la fonction « Imprimer » de votre navigateur puis « Enregistrer au format PDF ».</p>
+      </Shell>,
+    );
+  }
+
+  const wanted = c.req.query('etape') ?? b.step;
+  const current = Math.max(0, steps.findIndex((x) => x.id === wanted));
+  const step = steps[current]!;
+  const msg = c.req.query('ok');
+  const error = c.req.query('erreur');
+  return c.html(
+    <Shell c={c} title="Votre cahier des charges">
+      <p class="eyebrow">Cahier des charges · {s.agencyName}</p>
+      <h1>{b.title}</h1>
+      {msg === 'pause' && (
+        <Notice kind="success">
+          Vos réponses sont enregistrées. Pour reprendre plus tard, rouvrez simplement le lien reçu par e-mail : vous retrouverez le cahier là où vous l’avez laissé.
+        </Notice>
+      )}
+      {error && <Notice kind="warning">{error}</Notice>}
+      <BriefProgressBar steps={steps} current={current} percent={progress.percent} />
+      <form method="post" action={base} enctype="multipart/form-data" class="form brief-form">
+        <input type="hidden" name="etape" value={step.id} />
+        <fieldset class="step">
+          <legend>
+            <span class="step-num">
+              Étape {current + 1} sur {steps.length}
+            </span>{' '}
+            {step.title}
+          </legend>
+          {step.id === 'projet' && (
+            <>
+              <p>
+                Bonjour{contact ? ` ${contact.name}` : ''}, ce questionnaire nous permet de préparer votre projet sans rien oublier. La plupart des réponses sont à cocher ;
+                si une question ne vous parle pas, <strong>laissez-la vide</strong>, nous en parlerons ensemble.
+              </p>
+              <p class="small muted">Comptez 15 à 20 minutes. Vos réponses sont enregistrées à chaque étape : vous pouvez vous arrêter et reprendre plus tard avec le même lien.</p>
+              <fieldset class="chips-field">
+                <legend>Ce que nous allons préparer ensemble (vous pouvez ajuster)</legend>
+                <div class="type-grid">
+                  {BRIEF_MODULES.map((m) => (
+                    <label class="type-card">
+                      <input type="checkbox" name="modules" value={m.id} checked={b.modules.includes(m.id)} />
+                      <span class="type-label">{m.label}</span>
+                      <small>{m.hint}</small>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div class="field">
+                <label for="q-projet_resume">Votre projet en une ou deux phrases</label>
+                <textarea id="q-projet_resume" name="projet_resume" rows={3} maxlength={2000} placeholder="Ex. : je m’installe à mon compte en avril et j’ai besoin d’un logo, de cartes de visite et d’un site simple.">
+                  {String(b.answers.projet_resume ?? '')}
+                </textarea>
+              </div>
+            </>
+          )}
+          {step.section && (
+            <>
+              {step.section.intro && <p class="muted">{step.section.intro}</p>}
+              {step.section.questions.map((q) => (
+                <BriefQuestion q={q} a={b.answers} />
+              ))}
+            </>
+          )}
+          {step.id === 'fin' && (
+            <>
+              <p>
+                Dernière étape ! Ajoutez si vous le souhaitez votre logo actuel, des photos (de vos réalisations, de votre local, de votre véhicule…) ou tout document
+                utile. Vérifiez ensuite vos réponses ci-dessous, puis envoyez votre cahier des charges.
+              </p>
+              <div class="field">
+                <label for="f-fichiers">Fichiers (PDF, JPG, PNG ou WebP · {UPLOAD_LIMITS.maxFiles} fichiers de 10 Mo maximum par envoi)</label>
+                <input type="file" id="f-fichiers" name="fichiers" multiple accept=".pdf,.jpg,.jpeg,.png,.webp" />
+              </div>
+              {b.files.length > 0 && (
+                <ul class="small">
+                  {b.files.map((f) => (
+                    <li>{f.name}</li>
+                  ))}
+                </ul>
+              )}
+              <p class="small">
+                Avancement : {progress.answered} réponses sur {progress.total} questions ({progress.percent} %). Ce n’est pas grave s’il reste des questions vides.
+              </p>
+            </>
+          )}
+        </fieldset>
+        {/* Le bouton principal est le premier du formulaire : la touche Entrée passe à l'étape suivante (ordre visuel fixé en CSS). */}
+        <div class="wizard-nav brief-nav">
+          {step.id === 'fin' ? (
+            <button class="btn btn-primary" name="aller" value="envoyer" data-submit>
+              Envoyer mon cahier des charges
+            </button>
+          ) : (
+            <button class="btn btn-primary" name="aller" value="suivant" data-submit>
+              Suivant →
+            </button>
+          )}
+          {step.id === 'fin' && (
+            <button class="btn btn-outline" name="aller" value="fichiers">
+              Ajouter les fichiers
+            </button>
+          )}
+          <button class="brief-pause" name="aller" value="pause">
+            Enregistrer et finir plus tard
+          </button>
+          {current > 0 && (
+            <button class="btn btn-outline brief-prev" name="aller" value="precedent">
+              ← Précédent
+            </button>
+          )}
+        </div>
+      </form>
+      {step.id === 'fin' && (
+        <div class="brief-recap">
+          <h2 class="h3">Vos réponses</h2>
+          <BriefDocument sections={sections} a={b.answers} modulesText={modulesLabel(b.modules)} edit={(id) => `${base}?etape=${id}`} />
+        </div>
+      )}
+    </Shell>,
+  );
+});
+
+clientRoutes.post('/cahier/:token', async (c) => {
+  const b = await briefByToken(c);
+  if (!b) return notFound(c);
+  const base = `/client/cahier/${b.token}`;
+  if (b.status === 'termine') return c.redirect(base, 303);
+  if (!(await allowRate(c, 'client-cahier', 300, 3600))) return c.text('Trop de tentatives.', 429);
+  const deps = c.get('deps');
+  const raw = (await c.req.parseBody({ all: true })) as Record<string, string | File | (string | File)[]>;
+  const all = (k: string) => {
+    const v = raw[k];
+    return (Array.isArray(v) ? v : v == null ? [] : [v]).filter((x): x is string => typeof x === 'string');
+  };
+  const form = { all, get: (k: string) => (all(k).at(-1) ?? '').trim() };
+  const stepId = form.get('etape');
+  const go = form.get('aller');
+
+  let { answers, modules, files } = b;
+  if (stepId === 'projet') {
+    modules = parseModules(all('modules'));
+    answers = { ...answers, projet_resume: form.get('projet_resume').slice(0, 2000) };
+    if (!modules.length) return c.redirect(`${base}?etape=projet&erreur=${encodeURIComponent('Choisissez au moins une prestation.')}`, 303);
+  } else if (stepId === 'fin') {
+    const uploads: UploadedFile[] = [];
+    const list = (Array.isArray(raw.fichiers) ? raw.fichiers : raw.fichiers ? [raw.fichiers] : []).filter((f): f is File => typeof f !== 'string');
+    for (const f of list) uploads.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+    const checked = checkUploads(uploads);
+    if (!checked.ok) return c.redirect(`${base}?etape=fin&erreur=${encodeURIComponent(checked.error)}`, 303);
+    if (files.length + checked.files.length > 20) return c.redirect(`${base}?etape=fin&erreur=${encodeURIComponent('20 fichiers maximum au total.')}`, 303);
+    if (checked.files.length) files = [...files, ...(await storeFiles(deps, checked.files, 'brief', b.id))];
+  } else {
+    const section = BRIEF_SECTIONS.find((x) => x.id === stepId);
+    if (section) answers = readSectionAnswers(section, form, answers);
+  }
+
+  // Les étapes visibles peuvent changer selon les réponses : la navigation se fait sur la liste à jour.
+  const steps = briefSteps({ modules, answers });
+  const index = Math.max(0, steps.findIndex((x) => x.id === stepId));
+  const target = go === 'precedent' ? steps[Math.max(0, index - 1)]! : go === 'suivant' ? steps[Math.min(steps.length - 1, index + 1)]! : steps[index]!;
+  await saveBrief(deps, b, { answers, modules, files, step: target.id, status: 'en_cours' });
+
+  if (go === 'envoyer') {
+    await submitBrief(deps, c.get('settings'), { ...b, answers, modules, files }, new URL(c.req.url).origin);
+    return c.redirect(base, 303);
+  }
+  if (go === 'pause') return c.redirect(`${base}?etape=${target.id}&ok=pause`, 303);
+  return c.redirect(`${base}?etape=${target.id}`, 303);
 });

@@ -581,6 +581,28 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       `CREATE INDEX idx_conversions_day ON conversions(day)`,
     ],
   },
+  {
+    version: 9,
+    name: 'cahiers des charges remplis par les clients',
+    statements: [
+      `CREATE TABLE briefs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contact_id INTEGER NOT NULL REFERENCES contacts(id),
+        title TEXT NOT NULL,
+        modules TEXT NOT NULL DEFAULT '[]',
+        answers TEXT NOT NULL DEFAULT '{}',
+        files TEXT NOT NULL DEFAULT '[]',
+        step TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'brouillon',
+        token TEXT NOT NULL UNIQUE,
+        sent_at TEXT,
+        submitted_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX idx_briefs_contact ON briefs(contact_id)`,
+    ],
+  },
 ];
 
 /** Applique les migrations manquantes, dans l'ordre. Idempotent. */

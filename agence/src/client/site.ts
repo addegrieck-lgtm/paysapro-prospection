@@ -111,3 +111,20 @@ for (const ba of document.querySelectorAll<HTMLElement>('[data-ba]')) {
   const range = ba.querySelector<HTMLInputElement>('.ba-range');
   range?.addEventListener('input', () => ba.style.setProperty('--pos', `${range.value}%`));
 }
+
+// Cahier des charges : questions affichées selon une réponse de la même étape (data-show-if="question:valeur1|valeur2").
+for (const form of document.querySelectorAll<HTMLFormElement>('.brief-form')) {
+  const update = () => {
+    for (const el of form.querySelectorAll<HTMLElement>('[data-show-if]')) {
+      const [q, values] = (el.dataset.showIf ?? '').split(':');
+      const wanted = (values ?? '').split('|');
+      const inputs = [...form.querySelectorAll<HTMLInputElement>(`[name="${q}"]`)];
+      // Question dépendant d'une autre étape : l'état calculé par le serveur est conservé.
+      if (!inputs.length) continue;
+      const on = inputs.some((i) => i.checked && wanted.includes(i.value));
+      el.toggleAttribute('data-off', !on);
+    }
+  };
+  form.addEventListener('change', update);
+  update();
+}

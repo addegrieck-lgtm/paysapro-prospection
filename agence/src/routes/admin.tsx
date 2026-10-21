@@ -12,6 +12,7 @@ import { catalogRoutes } from './admin/catalog';
 import { contentRoutes } from './admin/content';
 import { settingsRoutes } from './admin/settings';
 import { statsRoutes } from './admin/stats';
+import { briefRoutes } from './admin/briefs';
 
 /** Administration : seules /connexion et /installation sont accessibles sans session. */
 export const adminRoutes = new Hono<AppEnv>();
@@ -19,5 +20,5 @@ adminRoutes.route('/', authRoutes);
 
 const secured = new Hono<AppEnv>();
 secured.use('*', requireAdmin);
-for (const r of [logoutRoutes, dashboardRoutes, statsRoutes, crmRoutes, quoteRoutes, orderRoutes, projectRoutes, invoiceRoutes, catalogRoutes, contentRoutes, settingsRoutes]) secured.route('/', r);
+for (const r of [logoutRoutes, dashboardRoutes, statsRoutes, crmRoutes, briefRoutes, quoteRoutes, orderRoutes, projectRoutes, invoiceRoutes, catalogRoutes, contentRoutes, settingsRoutes]) secured.route('/', r);
 adminRoutes.route('/', secured);
