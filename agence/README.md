@@ -6,8 +6,10 @@ sites internet, refontes, identité visuelle, flyers, cartes de visite, supports
 > **Projet indépendant de Paysapro AI / Paysapro Prospection.** Il vit dans ce dossier `agence/`, avec ses propres dépendances,
 > sa propre base de données et son propre déploiement. Aucune donnée, aucun compte et aucune ressource Cloudflare n’est partagé.
 
-Nom provisoire : **Atelier Sillage** — modifiable dans *Administration → Paramètres* (le logo provisoire, le favicon, les e-mails
+Nom : **Signe & Seine** (Gruchet-le-Valasse) — modifiable dans *Administration → Paramètres* (le logo provisoire, le favicon, les e-mails
 et les documents suivent automatiquement).
+
+SEO : [AUDIT-SEO.md](AUDIT-SEO.md) (audit) et [LIVRABLE-SEO.md](LIVRABLE-SEO.md) (travaux réalisés, placeholders, actions hors site).
 
 ## Ce qui est livré
 
@@ -46,6 +48,7 @@ Administration : http://localhost:3000/admin
 | `npm run check:public` | vérifie l’absence de données sensibles dans les ressources publiques |
 | `node scripts/a11y.mjs` | accessibilité (axe-core) et responsive sur mobile, tablette, ordinateur (`BASE_URL`) |
 | `npm run admin:create` | crée un administrateur ou réinitialise un mot de passe |
+| `CHROMIUM_PATH=/chemin/chromium node scripts/og-image.mjs` | régénère l’image de partage (1200×630) et le logo 512 px |
 
 ## Documentation
 

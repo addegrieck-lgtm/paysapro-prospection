@@ -27,7 +27,7 @@ export const securityHeaders: MiddlewareHandler<AppEnv> = async (c, next) => {
       "img-src 'self' data: blob:",
       "font-src 'self'",
       `connect-src ${connectSrc.join(' ')}`,
-      "frame-src 'self'",
+      "frame-src 'self' https://www.openstreetmap.org",
       "frame-ancestors 'self'",
       "form-action 'self'",
       "base-uri 'self'",

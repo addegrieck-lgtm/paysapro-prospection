@@ -91,3 +91,23 @@ document.querySelector('[data-consent="reset"]')?.addEventListener('click', () =
   if (banner) banner.hidden = false;
   else location.reload();
 });
+
+// Carte OpenStreetMap chargée uniquement à la demande du visiteur (aucun appel à un tiers avant).
+for (const box of document.querySelectorAll<HTMLElement>('[data-map]')) {
+  box.querySelector('[data-map-load]')?.addEventListener('click', () => {
+    const src = box.dataset.map ?? '';
+    if (!src.startsWith('https://www.openstreetmap.org/')) return;
+    const frame = document.createElement('iframe');
+    frame.src = src;
+    frame.title = box.dataset.mapTitle ?? 'Carte';
+    frame.loading = 'lazy';
+    frame.referrerPolicy = 'no-referrer';
+    box.replaceChildren(frame);
+  });
+}
+
+// Comparatif avant / après : le curseur déplace la séparation.
+for (const ba of document.querySelectorAll<HTMLElement>('[data-ba]')) {
+  const range = ba.querySelector<HTMLInputElement>('.ba-range');
+  range?.addEventListener('input', () => ba.style.setProperty('--pos', `${range.value}%`));
+}

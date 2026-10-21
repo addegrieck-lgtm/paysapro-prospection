@@ -1,25 +1,11 @@
 import type { Settings } from '../../domain/settings';
 import type { FaqRow, PortfolioRow, ProductRow, ServiceRow } from '../../repo/types';
-import { Layout, absoluteUrl } from '../layout';
-import { ConceptBadge, ContactForm, FaqList, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
-import { HeroComposition, PortfolioVisual, ProductVisual, SeoMock } from '../illustrations';
-
-export function organizationJsonLd(s: Settings) {
-  const org: Record<string, unknown> = {
-    '@context': 'https://schema.org',
-    '@type': 'ProfessionalService',
-    name: s.agencyName,
-    description: s.tagline,
-    areaServed: { '@type': 'Country', name: 'France' },
-    knowsAbout: ['Création de sites internet', 'Identité visuelle', 'Impression', 'Référencement naturel'],
-  };
-  if (s.siteUrl) org.url = absoluteUrl(s, '/');
-  if (s.contactEmail) org.email = s.contactEmail;
-  if (s.contactPhone) org.telephone = s.contactPhone;
-  // L'adresse n'est publiée que si elle a été renseignée (jamais inventée).
-  if (s.legal.address) org.address = { '@type': 'PostalAddress', streetAddress: s.legal.address, addressCountry: 'FR' };
-  return org;
-}
+import { Layout } from '../layout';
+import { businessJsonLd, websiteJsonLd } from '../seo';
+import { ConceptBadge, ContactForm, FaqList, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
+import { PACKS } from '../packs';
+import { PackCard } from './packs';
+import { CoastLine, HeroComposition, PortfolioVisual, ProductVisual, SeoMock } from '../illustrations';
 
 const SERVICE_TILES: [string, string, string, string][] = [
   ['/creation-site-internet', 'Création de site', 'Des sites vitrines rapides, clairs et pensés pour le mobile.', '01'],
@@ -31,7 +17,10 @@ const SERVICE_TILES: [string, string, string, string][] = [
   ['/reseaux-sociaux', 'Réseaux sociaux', 'Des visuels prêts à publier, aux bons formats.', '07'],
   ['/referencement-seo', 'Référencement SEO', 'Être trouvé par les clients de votre zone.', '08'],
   ['/maintenance-site-internet', 'Maintenance', 'Mises à jour, sauvegardes, petites modifications.', '09'],
+  ['/vitrophanie-signaletique', 'Vitrophanie & signalétique', 'Vitrines, enseignes, panneaux de chantier et véhicules.', '10'],
 ];
+
+const RIBBON = ['Sites internet', 'Logos & identité', 'Flyers', 'Cartes de visite', 'Vitrophanie', 'Enseignes & panneaux', 'Réseaux sociaux', 'Référencement local'];
 
 export function HomePage(p: {
   s: Settings;
@@ -47,22 +36,23 @@ export function HomePage(p: {
     <Layout
       s={s}
       meta={{
-        title: 'Sites internet, identité visuelle et impression pour TPE',
-        description: `${s.agencyName} conçoit des sites internet, logos, flyers, cartes de visite et supports imprimés pour les indépendants, artisans, commerçants et petites entreprises. Devis gratuit.`,
+        title: s.city ? `Agence web & print à ${s.city}` : 'Agence web et print pour TPE',
+        description: `${s.agencyName}${s.city ? `, agence web et print à ${s.city} (Pays de Caux)` : ''} : sites internet, logos, flyers, cartes de visite et vitrines pour artisans et TPE. Devis gratuit.`,
         path: '/',
-        jsonLd: [organizationJsonLd(s), ...(p.faqs.length ? [faqJsonLd(p.faqs)] : [])],
+        jsonLd: [businessJsonLd(s), websiteJsonLd(s), ...(p.faqs.length ? [faqJsonLd(p.faqs)] : [])],
       }}
     >
       <section class="hero">
         <div class="container hero-grid">
           <div class="hero-copy">
-            <p class="eyebrow">Agence web & communication · Indépendants, artisans, TPE</p>
+            <p class="eyebrow">Agence web & communication{s.city ? ` · ${s.city}, Pays de Caux` : ''}</p>
             <h1>
-              Des sites et des imprimés qui font <em>venir des clients.</em>
+              Une image à la hauteur de <em>votre savoir-faire.</em>
             </h1>
             <p class="hero-lead">
-              Site internet, logo, flyers, cartes de visite, visibilité locale : nous créons une communication claire et cohérente, avec des prix
-              affichés et un interlocuteur unique, du premier échange à la livraison.
+              Site internet, logo, flyers, cartes de visite, visibilité locale : nous créons une communication claire et cohérente pour les artisans,
+              commerçants et TPE, avec des prix affichés et un interlocuteur unique.
+              {s.city ? ` Basés à ${s.city}, nous nous déplaçons dans le Pays de Caux et travaillons à distance partout en France.` : ''}
             </p>
             <div class="btn-row">
               <a href="/devis" class="btn btn-primary btn-lg">Obtenir mon devis gratuit</a>
@@ -76,7 +66,20 @@ export function HomePage(p: {
           </div>
           <HeroComposition accent={s.accentColor} />
         </div>
+        <CoastLine />
       </section>
+
+      <div class="ribbon" aria-label="Nos métiers">
+        <div class="ribbon-track">
+          {[0, 1].map((dup) => (
+            <ul aria-hidden={dup ? 'true' : undefined}>
+              {RIBBON.map((w) => (
+                <li>{w}</li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </div>
 
       <section class="section" aria-labelledby="prestations">
         <div class="container">
@@ -225,30 +228,24 @@ export function HomePage(p: {
         </div>
       </section>
 
-      {p.packs.length > 0 && (
-        <section class="section section-sand" aria-labelledby="packs">
-          <div class="container">
-            <SectionHead id="packs" eyebrow="Packs" title="Lancer votre activité avec une communication cohérente." />
-            <div class="pack-grid">
-              {p.packs.map((svc) => (
-                <article class="pack" data-reveal>
-                  <div>
-                    <h3>{svc.name}</h3>
-                    <p class="muted">{svc.summary}</p>
-                  </div>
-                  <Price svc={svc} s={s} size="lg" />
-                  <a href={`/devis?prestation=${svc.slug}`} class="btn btn-primary">
-                    Demander ce pack
-                  </a>
-                </article>
-              ))}
-            </div>
-            <p class="mt-lg">
-              <a href="/packs" class="link-arrow">Détail des packs</a>
-            </p>
+      <section class="section section-sand" aria-labelledby="packs">
+        <div class="container">
+          <SectionHead
+            id="packs"
+            eyebrow="Packs Bien démarrer"
+            title="Vous ouvrez ou relancez votre activité ?"
+            intro="Un pack par métier, avec tout le marketing nécessaire pour bien commencer : site, identité, imprimés, fiche Google et une vitrine qui se voit."
+          />
+          <div class="packm-grid">
+            {PACKS.map((pk) => (
+              <PackCard p={pk} />
+            ))}
           </div>
-        </section>
-      )}
+          <p class="mt-lg">
+            <a href="/packs" class="link-arrow">Découvrir les packs Bien démarrer</a>
+          </p>
+        </div>
+      </section>
 
       {p.faqs.length > 0 && (
         <section class="section" aria-labelledby="faq">

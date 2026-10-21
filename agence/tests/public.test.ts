@@ -9,7 +9,7 @@ const oldToken = () => formToken(SECRET, Date.now() - 10_000);
 const PUBLIC_PATHS = [
   '/', '/tarifs', '/impression', '/configurateur', '/devis', '/realisations', '/etudes-de-cas', '/a-propos', '/contact', '/blog',
   '/mentions-legales', '/confidentialite', '/cookies', '/cgv', '/espace-client', '/plan-du-site', '/impression/flyers', '/impression/cartes-de-visite',
-  '/impression/autocollants', '/realisations/atelier-chene-et-fil', '/etudes-de-cas/les-pages-lentes', '/blog/flyer-points-a-verifier-avant-impression',
+  '/impression/autocollants', '/realisations/atelier-chene-et-fil', '/realisations/les-pages-lentes', '/blog/flyer-points-a-verifier-avant-impression',
   ...SERVICE_PAGES.map((p) => p.path),
 ];
 
@@ -74,7 +74,7 @@ describe('pages publiques', () => {
     const home = await (await req(app, '/')).text();
     expect(home).toContain('"@type":"ProfessionalService"');
     expect(home).not.toContain('aggregateRating');
-    expect(home).not.toContain('"address"'); // adresse non renseignée : non publiée
+    expect(home).not.toContain('"streetAddress"'); // rue non renseignée : seule la commune est publiée
     const svc = await (await req(app, '/creation-site-internet')).text();
     expect(svc).toContain('"@type":"BreadcrumbList"');
   });
@@ -258,3 +258,78 @@ describe('formulaires', () => {
 });
 
 export { ORIGIN };
+
+describe('SEO technique et local (phase 2)', () => {
+  const jsonLd = (html: string) =>
+    [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => {
+      const v = JSON.parse(m[1]!);
+      return Array.isArray(v) ? v : [v];
+    });
+
+  it('canonique et og:url absolues, image de partage présente', async () => {
+    const { app } = await makeApp();
+    const html = await (await req(app, '/creation-site-internet')).text();
+    expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/creation-site-internet"`);
+    expect(html).toContain(`<meta property="og:url" content="${ORIGIN}/creation-site-internet"`);
+    expect(html).toContain(`${ORIGIN}/assets/img/og-default.png`);
+  });
+
+  it('accueil : ProfessionalService avec localité, géolocalisation, zone desservie et horaires', async () => {
+    const { app } = await makeApp();
+    const html = await (await req(app, '/')).text();
+    const biz = jsonLd(html).find((x) => x['@type'] === 'ProfessionalService');
+    expect(biz).toBeTruthy();
+    expect(biz.name).toBe('Signe & Seine');
+    expect(biz.address.addressLocality).toBe('Gruchet-le-Valasse');
+    expect(biz.address.postalCode).toBe('76210');
+    expect(biz.address.streetAddress).toBeUndefined();
+    expect(biz.geo.latitude).toBeCloseTo(49.5473);
+    expect(biz.telephone).toBe('+33647414224');
+    expect(biz.areaServed.map((a: { name: string }) => a.name)).toEqual(expect.arrayContaining(['Bolbec', 'Lillebonne', 'Le Havre', 'France']));
+    expect(biz.openingHoursSpecification[0].opens).toBe('08:30');
+    expect(biz).not.toHaveProperty('aggregateRating');
+    expect(html).toContain('href="tel:+33647414224"');
+  });
+
+  it('pages de prestation : Service relié à l’entreprise, fil d’Ariane absolu', async () => {
+    const { app } = await makeApp();
+    const items = jsonLd(await (await req(app, '/referencement-seo')).text());
+    const service = items.find((x) => x['@type'] === 'Service');
+    expect(service.provider['@id']).toBe(`${ORIGIN}/#entreprise`);
+    const crumbs = items.find((x) => x['@type'] === 'BreadcrumbList');
+    for (const el of crumbs.itemListElement) expect(el.item).toMatch(/^http:\/\/localhost\//);
+  });
+
+  it('fiches produit d’impression : FAQPage et un seul bouton de configuration', async () => {
+    const { app } = await makeApp();
+    const html = await (await req(app, '/impression/flyers')).text();
+    expect(jsonLd(html).some((x) => x['@type'] === 'FAQPage')).toBe(true);
+  });
+
+  it('page contact : localité, carte chargée au clic uniquement', async () => {
+    const { app } = await makeApp();
+    const html = await (await req(app, '/contact')).text();
+    expect(html).toContain('Gruchet-le-Valasse (76210)');
+    expect(html).toContain('data-map-load');
+    expect(html).not.toMatch(/<iframe/);
+  });
+
+  it('les anciennes URL d’études de cas redirigent en 301 vers la réalisation', async () => {
+    const { app } = await makeApp();
+    const r = await req(app, '/etudes-de-cas/les-pages-lentes');
+    expect(r.status).toBe(301);
+    expect(r.headers.get('location')).toBe('/realisations/les-pages-lentes');
+    const sitemap = await (await req(app, '/sitemap.xml')).text();
+    expect(sitemap).not.toContain('/etudes-de-cas/les-pages-lentes');
+    expect(sitemap).toContain('/realisations/les-pages-lentes');
+  });
+
+  it('redirige HTTP vers HTTPS en production', async () => {
+    const { app } = await makeApp({
+      config: { appSecret: SECRET, production: true, setupToken: 'x', forceHttps: true },
+    });
+    const r = await app.request('http://exemple.fr/tarifs?x=1');
+    expect(r.status).toBe(301);
+    expect(r.headers.get('location')).toBe('https://exemple.fr/tarifs?x=1');
+  });
+});

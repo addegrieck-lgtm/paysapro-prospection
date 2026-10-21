@@ -85,9 +85,9 @@ describe('paramètres', () => {
     expect(r.status).toBe(303);
     const home = await (await req(app, '/')).text();
     expect(home).toContain('Maison Lumière');
-    expect(home).toContain('>ML<');
+    expect(home).toContain('class="logo-name"');
     const fav = await (await req(app, '/favicon.svg')).text();
-    expect(fav).toContain('>ML<');
+    expect(fav).toContain('<svg');
   });
 });
 
@@ -318,7 +318,8 @@ describe('contenus et SEO', () => {
   it('une prestation désactivée disparaît du site', async () => {
     const { app, db } = await makeApp();
     const s = await adminSession(app, db);
-    const html = await (await s.get('/admin/prestations/1')).text();
+    const { id } = (await db.get<{ id: number }>("SELECT id FROM services WHERE slug = 'flyer-personnalise'"))!;
+    const html = await (await s.get(`/admin/prestations/${id}`)).text();
     expect(html).toContain('Flyer personnalisé');
     await db.run("UPDATE services SET status = 'disabled' WHERE slug = 'flyer-personnalise'");
     expect(await (await req(app, '/tarifs')).text()).not.toContain('Flyer personnalisé');

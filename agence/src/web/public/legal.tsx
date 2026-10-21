@@ -163,6 +163,10 @@ export function PrivacyPolicy({ s, mailProvider }: { s: Settings; mailProvider: 
           la fabrication et à l’expédition.
         </li>
         {s.analyticsProvider === 'plausible' && <li>Plausible Analytics (Estonie, UE) pour la mesure d’audience sans cookie.</li>}
+        <li>
+          OpenStreetMap Foundation (Royaume-Uni), uniquement si vous cliquez sur « Afficher la carte » de la page contact : votre adresse IP est alors
+          transmise à leurs serveurs pour afficher la carte. Rien n’est chargé sans votre action.
+        </li>
         {s.analyticsProvider === 'ga4' && <li>Google Ireland Ltd. (Google Analytics), uniquement si vous y consentez.</li>}
       </ul>
       {(mailProvider === 'resend' || s.analyticsProvider === 'ga4') && (
@@ -242,6 +246,10 @@ export function CookiesPage({ s }: { s: Settings }) {
           </button>
         </p>
       )}
+      <p>
+        La carte de la page contact (OpenStreetMap) n’est chargée que si vous cliquez sur « Afficher la carte » ; aucun contenu tiers n’est chargé
+        avant votre action.
+      </p>
       <p>Vous pouvez aussi supprimer les cookies à tout moment depuis les réglages de votre navigateur.</p>
     </LegalShell>
   );

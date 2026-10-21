@@ -1,7 +1,8 @@
+import { PACKS } from './packs';
 import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
 import type { Settings } from '../domain/settings';
-import { initials } from '../domain/settings';
+import { localityLabel, telHref } from './seo';
 
 export interface Crumb {
   name: string;
@@ -18,29 +19,41 @@ export interface PageMeta {
   scripts?: string[];
   bodyClass?: string;
   ogType?: string;
+  /** Image de partage propre à la page (chemin), sinon l'image par défaut. */
+  ogImage?: string;
 }
+
+const OG_IMAGE = '/assets/img/og-default.png';
 
 /** JSON pour <script type="application/ld+json"> : « < » échappé pour empêcher toute sortie de balise. */
 export function jsonForScript(data: unknown): string {
   return JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
 }
 
+/** URL absolue. L'adresse du site vient des paramètres, sinon de l'origine de la requête (voir app.tsx). */
 export function absoluteUrl(s: Settings, path: string): string {
   const base = s.siteUrl.replace(/\/+$/, '');
   return base ? `${base}${path}` : path;
 }
 
+/** Symbole de la marque : les falaises du Pays de Caux (arche et aiguille) au-dessus de la Seine. */
+export function CliffMark({ width = 48 }: { width?: number }) {
+  return (
+    <svg class="logo-mark" width={width} height={Math.round((width * 44) / 64)} viewBox="0 0 64 44" aria-hidden="true">
+      <path fill="currentColor" d="M2 34V9Q16 7 28 11Q38 14 42 19Q44 23 43 34H37Q37 25 32 25Q27 25 27 34Z" />
+      <path fill="currentColor" d="M49 34L51.5 15L54.5 34Z" />
+      <path d="M2 40c5-3 10-3 15 0s10 3 15 0 10-3 15 0 10 3 15 0" stroke="var(--accent)" stroke-width="2.6" fill="none" stroke-linecap="round" />
+    </svg>
+  );
+}
+
 export function Logo({ s, size = 34 }: { s: Settings; size?: number }) {
   return (
     <span class="logo">
-      <svg class="logo-mark" width={size} height={size} viewBox="0 0 40 40" aria-hidden="true">
-        <rect x="1" y="1" width="38" height="38" rx="11" fill="var(--ink)" />
-        <path d="M11 31.5c6-2.2 12-2.2 18 0" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" />
-        <text x="20" y="24" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="14" font-weight="500" fill="#fff">
-          {initials(s.agencyName)}
-        </text>
-      </svg>
-      <span class="logo-name">{s.agencyName}</span>
+      <CliffMark width={Math.round(size * 1.45)} />
+      <span class="logo-name">
+        {s.agencyName.split(/(\s*&\s*)/).map((part) => (part.trim() === '&' ? <span class="amp">&amp;</span> : part))}
+      </span>
     </span>
   );
 }
@@ -63,6 +76,7 @@ const NAV_SERVICES: { group: string; items: [string, string, string][] }[] = [
       ['/cartes-de-visite', 'Cartes de visite', 'Classiques ou premium'],
       ['/affiches-brochures', 'Affiches & brochures', 'Grands formats et multipages'],
       ['/reseaux-sociaux', 'Réseaux sociaux', 'Visuels prêts à publier'],
+      ['/vitrophanie-signaletique', 'Vitrophanie & signalétique', 'Vitrines, enseignes, panneaux'],
     ],
   },
 ];
@@ -97,13 +111,19 @@ function Header({ s, path }: { s: Settings; path: string }) {
               <div class="mega-col mega-feature">
                 <p class="mega-title">Pour aller vite</p>
                 <a href="/packs" class="mega-card">
-                  <span>Packs professionnels</span>
-                  <small>Plusieurs prestations, un seul interlocuteur.</small>
+                  <span>Packs Bien démarrer</span>
+                  <small>Tout le marketing pour ouvrir votre activité, par métier.</small>
                 </a>
+                {PACKS.map((p) => (
+                  <a href={`/packs/${p.slug}`} class="mega-link">
+                    {p.metier} →
+                  </a>
+                ))}
                 <a href="/tarifs" class="mega-link">Voir tous les tarifs →</a>
               </div>
             </div>
           </details>
+          <a href="/packs" aria-current={current('/packs')}>Packs</a>
           <a href="/impression" aria-current={current('/impression')}>Impression</a>
           <a href="/realisations" aria-current={current('/realisations')}>Réalisations</a>
           <a href="/tarifs" aria-current={current('/tarifs')}>Tarifs</a>
@@ -111,6 +131,14 @@ function Header({ s, path }: { s: Settings; path: string }) {
           <a href="/blog" aria-current={current('/blog')}>Blog</a>
         </nav>
         <div class="header-actions">
+          {s.contactPhone && (
+            <a href={telHref(s.contactPhone)} class="header-call" aria-label={`Appeler le ${s.contactPhone}`}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z" fill="currentColor" />
+              </svg>
+              <span>{s.contactPhone}</span>
+            </a>
+          )}
           <a href="/contact" class="link-quiet hide-sm">Contact</a>
           <a href="/devis" class="btn btn-primary btn-sm">Devis gratuit</a>
           <details class="mobile-nav">
@@ -127,8 +155,14 @@ function Header({ s, path }: { s: Settings; path: string }) {
                 </div>
               ))}
               <div>
+                <p class="mega-title">Packs Bien démarrer</p>
+                <a href="/packs">Tous les packs</a>
+                {PACKS.map((p) => (
+                  <a href={`/packs/${p.slug}`}>{p.metier}</a>
+                ))}
+              </div>
+              <div>
                 <p class="mega-title">Agence</p>
-                <a href="/packs">Packs</a>
                 <a href="/impression">Impression</a>
                 <a href="/configurateur">Configurateur d’impression</a>
                 <a href="/realisations">Réalisations</a>
@@ -171,7 +205,14 @@ function Footer({ s }: { s: Settings }) {
               )}
               {s.contactPhone && (
                 <li>
-                  <a href={`tel:${s.contactPhone.replace(/\s/g, '')}`}>{s.contactPhone}</a>
+                  <a href={telHref(s.contactPhone)}>{s.contactPhone}</a>
+                </li>
+              )}
+              {s.city && (
+                <li>
+                  {s.streetAddress ? `${s.streetAddress}, ` : ''}
+                  {localityLabel(s)}
+                  {s.department ? `, ${s.department}` : ''}
                 </li>
               )}
               <li>{s.serviceArea}</li>
@@ -184,7 +225,10 @@ function Footer({ s }: { s: Settings }) {
             <a href="/refonte-site-internet">Refonte</a>
             <a href="/referencement-seo">Référencement SEO</a>
             <a href="/maintenance-site-internet">Maintenance</a>
-            <a href="/packs">Packs professionnels</a>
+
+            <a href="/creation-site-internet-artisan">Site internet pour artisans</a>
+            <a href="/creation-site-internet-paysagiste">Site internet pour paysagistes</a>
+            <a href="/referencement-local-artisan">Référencement local des artisans</a>
           </div>
           <div>
             <p class="footer-title">Graphisme & impression</p>
@@ -193,12 +237,22 @@ function Footer({ s }: { s: Settings }) {
             <a href="/cartes-de-visite">Cartes de visite</a>
             <a href="/affiches-brochures">Affiches & brochures</a>
             <a href="/reseaux-sociaux">Réseaux sociaux</a>
+            <a href="/vitrophanie-signaletique">Vitrophanie & signalétique</a>
+            <a href="/vitrophanie-vitrine-commerce">Vitrines de commerce</a>
             <a href="/impression">Catalogue d’impression</a>
             <a href="/configurateur">Configurateur</a>
           </div>
           <div>
+            <p class="footer-title">Packs Bien démarrer</p>
+            <a href="/packs">Tous les packs</a>
+            {PACKS.map((p) => (
+              <a href={`/packs/${p.slug}`}>{p.card.title}</a>
+            ))}
+          </div>
+          <div>
             <p class="footer-title">L’agence</p>
             <a href="/a-propos">À propos</a>
+            <a href="/zone-intervention">Zone d’intervention</a>
             <a href="/realisations">Réalisations</a>
             <a href="/etudes-de-cas">Études de cas</a>
             <a href="/tarifs">Tarifs</a>
@@ -288,12 +342,18 @@ export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) 
         <meta property="og:description" content={meta.description} />
         <meta property="og:locale" content="fr_FR" />
         <meta property="og:site_name" content={s.agencyName} />
-        {s.siteUrl && <meta property="og:url" content={canonical} />}
+        <meta property="og:url" content={canonical} />
+        <meta property="og:image" content={absoluteUrl(s, meta.ogImage ?? OG_IMAGE)} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={`${s.agencyName} — ${s.tagline}`} />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="theme-color" content="#F6F3EE" />
         {s.searchConsoleToken && <meta name="google-site-verification" content={s.searchConsoleToken} />}
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="preload" href="/assets/fonts/inter-tight-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
-        <link rel="preload" href="/assets/fonts/fraunces-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+        <link rel="preload" href="/assets/fonts/josefin-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
+        <link rel="apple-touch-icon" href="/assets/img/logo-512.png" />
         <link rel="stylesheet" href="/assets/css/site.css" />
         <style>{raw(`:root{--accent:${s.accentColor}}`)}</style>
         {jsonLd.map((d) => (

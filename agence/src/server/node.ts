@@ -67,8 +67,9 @@ root.use(
   '/assets/*',
   serveStatic({
     root: './public',
-    onFound: (_path, c) => {
-      c.header('Cache-Control', production ? 'public, max-age=604800' : 'no-cache');
+    onFound: (path, c) => {
+      const long = path.includes('/fonts/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600, stale-while-revalidate=86400';
+      c.header('Cache-Control', production ? long : 'no-cache');
       c.header('X-Content-Type-Options', 'nosniff');
     },
   }),

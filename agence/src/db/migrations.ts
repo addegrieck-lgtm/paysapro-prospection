@@ -1,4 +1,16 @@
 import type { Db } from './types';
+import { LOCAL_PAGES_V3, PORTFOLIO_ENRICH_V3, PORTFOLIO_NEW_V3, SERVICES_V3 } from './content-v3';
+
+/** Littéral SQL échappé (les migrations sont des instructions SQL brutes). */
+const q = (v: string | number) => (typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
+const NOW = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+
+/** Mise à jour des champs commerciaux d'un concept existant (sans écraser une saisie faite dans l'administration). */
+export const portfolioEnrichStatements = (): string[] =>
+  Object.entries(PORTFOLIO_ENRICH_V3).map(
+    ([slug, e]) =>
+      `UPDATE portfolio_items SET client_type = ${q(e.client_type)}, need = ${q(e.need)}, services = ${q(e.services)}, objectives = ${q(e.objectives)}, before_label = ${q(e.before_label)}, after_label = ${q(e.after_label)} WHERE slug = ${q(slug)} AND client_type = ''`,
+  );
 
 /**
  * Migrations versionnées. Chaque migration est une liste d'instructions SQL indépendantes
@@ -432,6 +444,48 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
         body TEXT,
         created_at TEXT NOT NULL
       )`,
+    ],
+  },
+  {
+    version: 2,
+    name: 'coordonnées de Signe & Seine (Gruchet-le-Valasse)',
+    // Données fournies par l'exploitant le 21/10/2026. Chaque valeur n'est écrite que si le champ est vide
+    // ou encore à sa valeur provisoire : une modification faite dans l'administration n'est jamais écrasée.
+    statements: [
+      `UPDATE settings SET value = json_set(value, '$.agencyName', 'Signe & Seine') WHERE key = 'site' AND json_extract(value, '$.agencyName') = 'Atelier Sillage'`,
+      `UPDATE settings SET value = json_set(value, '$.tagline', 'Sites internet, identité visuelle, impression et vitrines pour les entreprises du Pays de Caux et d’ailleurs.') WHERE key = 'site' AND json_extract(value, '$.tagline') = 'Sites internet, identité visuelle et impression pour les entreprises qui veulent être vues.'`,
+      `UPDATE settings SET value = json_set(value, '$.contactEmail', 'contact@signeetseine.fr') WHERE key = 'site' AND COALESCE(json_extract(value, '$.contactEmail'), '') = ''`,
+      `UPDATE settings SET value = json_set(value, '$.notifyEmail', 'contact@signeetseine.fr') WHERE key = 'site' AND COALESCE(json_extract(value, '$.notifyEmail'), '') = ''`,
+      `UPDATE settings SET value = json_set(value, '$.contactPhone', '06 47 41 42 24') WHERE key = 'site' AND COALESCE(json_extract(value, '$.contactPhone'), '') = ''`,
+      `UPDATE settings SET value = json_set(value, '$.openingHours', 'Du lundi au samedi, 8 h 30 – 20 h') WHERE key = 'site' AND json_extract(value, '$.openingHours') IN ('Du lundi au vendredi, 9 h – 18 h', '')`,
+      `UPDATE settings SET value = json_set(value, '$.serviceArea', 'Pays de Caux et Seine-Maritime — partout en France à distance') WHERE key = 'site' AND json_extract(value, '$.serviceArea') IN ('Partout en France, à distance', '')`,
+    ],
+  },
+  {
+    version: 3,
+    name: 'vitrophanie & signalétique, pages locales, portfolio commercial',
+    statements: [
+      ...['client_type', 'need', 'services', 'objectives', 'before_label', 'after_label', 'testimonial', 'testimonial_author'].map(
+        (col) => `ALTER TABLE portfolio_items ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`,
+      ),
+      `ALTER TABLE portfolio_items ADD COLUMN testimonial_authorized INTEGER NOT NULL DEFAULT 0`,
+      ...portfolioEnrichStatements(),
+      ...PORTFOLIO_NEW_V3.map(
+        (p) => `INSERT OR IGNORE INTO portfolio_items (slug, title, category, is_concept, client_label, summary, challenge, solution, outcome, deliverables, visual, accent,
+          is_case_study, featured, status, sort_order, client_type, need, services, objectives, before_label, after_label, created_at, updated_at)
+          VALUES (${[p.slug, p.title, p.category, 1, 'Projet fictif — concept de démonstration', p.summary, p.challenge, p.solution, p.outcome, p.deliverables, p.visual, p.accent,
+            p.is_case_study, p.featured, 'published', p.sort_order, p.client_type, p.need, p.services, p.objectives, p.before_label, p.after_label].map(q).join(', ')}, ${NOW}, ${NOW})`,
+      ),
+      ...SERVICES_V3.map(
+        (s, i) => `INSERT OR IGNORE INTO services (slug, category, name, summary, description, price_mode, price_ht, billing, lead_time, revisions, options, includes,
+          conditions, exclusions, status, featured, sort_order, created_at, updated_at)
+          VALUES (${[s.slug, s.category, s.name, s.summary, s.description].map(q).join(', ')}, 'quote', NULL, 'once', ${q(s.lead_time)}, NULL, '[]',
+          ${[s.includes, s.conditions, s.exclusions].map(q).join(', ')}, 'published', 0, ${300 + i * 10}, ${NOW}, ${NOW})`,
+      ),
+      ...LOCAL_PAGES_V3.map(
+        (l) => `INSERT OR IGNORE INTO local_pages (slug, city, title, intro, body, meta_description, status, created_at, updated_at)
+          VALUES (${[l.slug, l.city, l.title, l.intro, l.body, l.meta_description].map(q).join(', ')}, 'published', ${NOW}, ${NOW})`,
+      ),
     ],
   },
 ];

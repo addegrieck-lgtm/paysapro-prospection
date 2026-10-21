@@ -11,6 +11,8 @@ export interface AppConfig {
   production: boolean;
   /** Jeton à usage unique pour créer le premier compte administrateur (ADMIN_SETUP_TOKEN). Vide = désactivé. */
   setupToken: string;
+  /** Redirige HTTP → HTTPS (Cloudflare Workers). Ne pas activer derrière un proxy qui termine le TLS en local. */
+  forceHttps?: boolean;
 }
 
 export interface Deps {

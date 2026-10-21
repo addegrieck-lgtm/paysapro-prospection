@@ -2,20 +2,27 @@ import { raw } from 'hono/html';
 import type { Settings } from '../../domain/settings';
 import type { FaqRow, LocalPageRow, PortfolioRow, PostRow, ProductRow, ServiceRow } from '../../repo/types';
 import { Layout, absoluteUrl } from '../layout';
+import { areaServed, businessJsonLd, localityLabel, providerRef, telHref } from '../seo';
 import { CATEGORY_LABELS, SERVICE_PAGES, type ServicePageDef, type VisualKind } from '../content';
-import { ConceptBadge, ContactForm, CtaBand, FaqList, Notice, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
-import { BrochureMock, BrowserMock, HeroComposition, IdentityBoard, MaintenanceMock, PortfolioVisual, PrintComposition, ProductVisual, SeoMock, SocialMock } from '../illustrations';
+import { LANDING_PAGES } from '../landing';
+import { PACKS, packBySlug } from '../packs';
+import { ConceptBadge, ContactForm, CtaBand, FaqList, MapEmbed, Notice, Price, Process, SectionHead, ServiceCard, faqJsonLd } from '../components';
+import { BrochureMock, BrowserMock, OldSiteMock, StorefrontMock, HeroComposition, IdentityBoard, MaintenanceMock, PortfolioVisual, PrintComposition, ProductVisual, SeoMock, SocialMock } from '../illustrations';
 import { formatEuros, ttcOf } from '../../domain/money';
 import { formatDate } from '../../domain/dates';
 import { lines, renderMarkdown } from '../../domain/text';
 
-function PageVisual({ kind, s }: { kind: VisualKind; s: Settings }) {
+export function PageVisual({ kind, s }: { kind: VisualKind; s: Settings }) {
   const a = s.accentColor;
   switch (kind) {
     case 'site':
       return <BrowserMock accent={a} />;
     case 'site-sante':
       return <BrowserMock accent="#2D6A4F" title="Cabinet Mouvement" variant="sante" />;
+    case 'site-paysage':
+      return <BrowserMock accent="#5B8C3A" title="Jardins de la Valmont" variant="paysage" />;
+    case 'storefront':
+      return <StorefrontMock accent={a} />;
     case 'print':
       return <PrintComposition accent={a} />;
     case 'identity':
@@ -35,7 +42,7 @@ function PageVisual({ kind, s }: { kind: VisualKind; s: Settings }) {
   }
 }
 
-function PageHero({ eyebrow, h1, h1em, intro, children }: { eyebrow: string; h1: string; h1em?: string; intro: string; children?: unknown }) {
+export function PageHero({ eyebrow, h1, h1em, intro, children }: { eyebrow: string; h1: string; h1em?: string; intro: string; children?: unknown }) {
   return (
     <section class="page-hero">
       <div class="container page-hero-grid">
@@ -82,8 +89,9 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
             '@type': 'Service',
             name: def.name,
             description: def.metaDescription,
-            provider: { '@type': 'Organization', name: s.agencyName, ...(s.siteUrl ? { url: absoluteUrl(s, '/') } : {}) },
-            areaServed: { '@type': 'Country', name: 'France' },
+            provider: providerRef(s),
+            areaServed: areaServed(s),
+            url: absoluteUrl(s, def.path),
             ...(offers.length ? { offers } : {}),
           },
           ...(pageFaqs.length ? [faqJsonLd(pageFaqs)] : []),
@@ -147,6 +155,17 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
         </section>
       ) : null}
 
+      {def.article?.map((a, i) => (
+        <section class={`section ${i % 2 ? 'section-sand' : ''}`}>
+          <div class="container">
+            <div class="narrow-left">
+              <SectionHead eyebrow={a.eyebrow} title={a.title} />
+              <div class="prose landing-prose">{raw(renderMarkdown(a.body))}</div>
+            </div>
+          </div>
+        </section>
+      ))}
+
       {p.products.length > 0 && (
         <section class="section" aria-labelledby="impression">
           <div class="container">
@@ -176,7 +195,7 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
         </section>
       )}
 
-      {related.length > 0 && (
+      {related.length + (def.packs?.length ?? 0) > 0 && (
         <section class="section section-tight">
           <div class="container">
             <p class="eyebrow">À découvrir aussi</p>
@@ -187,6 +206,15 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
                   <span aria-hidden="true">→</span>
                 </a>
               ))}
+              {(def.packs ?? []).map((slug) => {
+                const pk = packBySlug(slug);
+                return pk ? (
+                  <a href={`/packs/${pk.slug}`} class="related-link related-pack">
+                    <span>Pack Bien démarrer — {pk.metier}</span>
+                    <span aria-hidden="true">→</span>
+                  </a>
+                ) : null;
+              })}
             </div>
           </div>
         </section>
@@ -213,14 +241,14 @@ export function ProductCard({ product, s }: { product: ProductRow; s: Settings }
 
 export function PricingPage(p: { s: Settings; services: ServiceRow[] }) {
   const { s } = p;
-  const order = ['web', 'pack', 'graphisme', 'recurrent', 'accompagnement'];
+  const order = ['web', 'pack', 'graphisme', 'signaletique', 'recurrent', 'accompagnement'];
   const groups = order.map((cat) => [cat, p.services.filter((x) => x.category === cat)] as const).filter(([, list]) => list.length);
   return (
     <Layout
       s={s}
       meta={{
-        title: 'Tarifs : sites internet, création graphique, maintenance et SEO',
-        description: 'Tous nos tarifs de départ : sites internet, identité visuelle, flyers, cartes de visite, maintenance et référencement. Prix HT, ce qui est inclus et ce qui ne l’est pas.',
+        title: 'Tarifs : site internet, logo, print et SEO',
+        description: 'Prix de départ HT des sites internet, logos, flyers, cartes de visite, maintenance et référencement : ce qui est inclus, les délais et les options.',
         path: '/tarifs',
         breadcrumbs: [{ name: 'Tarifs', path: '/tarifs' }],
       }}
@@ -326,7 +354,7 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
     <Layout
       s={s}
       meta={{
-        title: cs ? 'Études de cas' : 'Réalisations et portfolio',
+        title: cs ? 'Études de cas : démarche et livrables' : 'Réalisations : sites, logos et print',
         description: cs
           ? 'Études de cas détaillées : problématique, démarche et livrables. Projets de démonstration clairement identifiés.'
           : 'Sites internet, identités visuelles, flyers, cartes de visite et brochures : découvrez notre travail à travers des projets de démonstration.',
@@ -354,16 +382,18 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
           ) : (
             <div class="work-grid work-grid-2">
               {p.items.map((w) => (
-                <a href={`/${cs ? 'etudes-de-cas' : 'realisations'}/${w.slug}`} class="work-card" data-reveal>
+                <a href={`/realisations/${w.slug}`} class="work-card" data-reveal>
                   <div class="work-visual">
                     <PortfolioVisual visual={w.visual} accent={w.accent || s.accentColor} title={w.title} />
                   </div>
                   <div class="work-body">
                     <p class="work-cat">
-                      {w.category} {w.is_concept ? <ConceptBadge /> : null}
+                      {w.category} {w.is_concept ? <ConceptBadge /> : <RealClientBadge />}
                     </p>
                     <h2 class="h3">{w.title}</h2>
-                    <p class="muted">{w.summary}</p>
+                    {w.client_type && <p class="work-client">{w.client_type}</p>}
+                    <p class="muted">{w.need ? `Besoin : ${w.need}.` : w.summary}</p>
+                    <span class="link-arrow">Voir le projet</span>
                   </div>
                 </a>
               ))}
@@ -381,15 +411,55 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
   );
 }
 
+/** Prestations liées : lignes « /chemin | Libellé » (chemins internes uniquement). */
+export function serviceLinks(text: string): [string, string][] {
+  return lines(text)
+    .map((l) => l.split('|').map((x) => x.trim()) as [string, string?])
+    .filter(([href, label]) => /^\/[a-z0-9/#?=_-]*$/i.test(href) && !!label)
+    .map(([href, label]) => [href, label!]);
+}
+
+function BeforeVisual({ item }: { item: PortfolioRow }) {
+  return item.visual === 'vitrine-commerce' ? <StorefrontMock bare /> : <OldSiteMock />;
+}
+
+/** Comparatif avant / après : curseur avec JavaScript, deux moitiés visibles sans. */
+function BeforeAfter({ item, accent }: { item: PortfolioRow; accent: string }) {
+  return (
+    <figure class="ba-figure">
+      <div class={`ba ${item.visual === 'vitrine-commerce' ? 'ba-portrait' : ''}`} data-ba>
+        <div class="ba-layer ba-before">
+          <BeforeVisual item={item} />
+          <span class="ba-tag">Avant</span>
+        </div>
+        <div class="ba-layer ba-after">
+          <PortfolioVisual visual={item.visual} accent={accent} title={item.title} />
+          <span class="ba-tag ba-tag-after">Après</span>
+        </div>
+        <input type="range" class="ba-range" min="0" max="100" value="50" aria-label="Comparer l’avant et l’après" />
+      </div>
+      <figcaption class={`ba-caption ${item.visual === 'vitrine-commerce' ? 'ba-portrait' : ''}`}>
+        <span>{item.before_label}</span>
+        <span>{item.after_label}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: PortfolioRow[]; base: 'realisations' | 'etudes-de-cas' }) {
   const { s, item } = p;
   const label = p.base === 'realisations' ? 'Réalisations' : 'Études de cas';
+  const accent = item.accent || s.accentColor;
+  const links = serviceLinks(item.services);
+  const objectives = lines(item.objectives);
+  const hasBA = !!(item.before_label && item.after_label);
+  const showTestimonial = !item.is_concept && !!item.testimonial && !!item.testimonial_authorized;
   return (
     <Layout
       s={s}
       meta={{
-        title: `${item.title} — ${item.category}${item.is_concept ? ' (concept)' : ''}`,
-        description: item.summary,
+        title: `${item.title} : ${item.category.toLowerCase()}${item.is_concept ? ' (concept)' : ''}`,
+        description: item.summary.length >= 110 ? item.summary : `${item.summary} ${item.is_concept ? 'Projet de démonstration' : 'Réalisation'} ${s.agencyName}, agence web et print en Pays de Caux.`,
         path: `/${p.base}/${item.slug}`,
         breadcrumbs: [
           { name: label, path: `/${p.base}` },
@@ -400,7 +470,7 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
       <section class="page-hero">
         <div class="container narrow">
           <p class="work-cat">
-            {item.category} {item.is_concept ? <ConceptBadge /> : null}
+            {item.category} {item.is_concept ? <ConceptBadge /> : <RealClientBadge />}
           </p>
           <h1>{item.title}</h1>
           <p class="hero-lead">{item.summary}</p>
@@ -412,17 +482,60 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
           ) : null}
         </div>
       </section>
-      <div class="container">
-        <div class="case-visual">
-          <PortfolioVisual visual={item.visual} accent={item.accent || s.accentColor} title={item.title} />
+
+      {(item.client_type || item.need || links.length > 0) && (
+        <div class="container narrow">
+          <dl class="case-facts">
+            {item.client_type && (
+              <div>
+                <dt>Type de client</dt>
+                <dd>{item.client_type}</dd>
+              </div>
+            )}
+            {item.need && (
+              <div>
+                <dt>Besoin</dt>
+                <dd>{item.need}</dd>
+              </div>
+            )}
+            {links.length > 0 && (
+              <div>
+                <dt>Prestations</dt>
+                <dd>
+                  <ul class="case-services">
+                    {links.map(([href, l]) => (
+                      <li>
+                        <a href={href}>{l}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              </div>
+            )}
+          </dl>
         </div>
+      )}
+
+      <div class="container">
+        <div class="case-visual">{hasBA ? <BeforeAfter item={item} accent={accent} /> : <PortfolioVisual visual={item.visual} accent={accent} title={item.title} />}</div>
       </div>
+
       <section class="section">
         <div class="container narrow case-body">
           {item.challenge && (
             <div>
               <h2>Le besoin</h2>
               <p>{item.challenge}</p>
+            </div>
+          )}
+          {objectives.length > 0 && (
+            <div>
+              <h2>Les objectifs</h2>
+              <ul class="checks">
+                {objectives.map((o) => (
+                  <li>{o}</li>
+                ))}
+              </ul>
             </div>
           )}
           {item.solution && (
@@ -447,8 +560,37 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
               <p>{item.outcome}</p>
             </div>
           )}
+          {showTestimonial && (
+            <figure class="testimonial">
+              <blockquote>
+                <p>{item.testimonial}</p>
+              </blockquote>
+              {item.testimonial_author && <figcaption>— {item.testimonial_author}</figcaption>}
+            </figure>
+          )}
         </div>
       </section>
+
+      <section class="section section-ink section-tight">
+        <div class="container case-cta">
+          <div>
+            <p class="eyebrow">{item.client_type || 'Un projet similaire ?'}</p>
+            <h2>Un projet comparable pour votre entreprise ?</h2>
+            <p>Décrivez-nous votre besoin : nous vous répondons sous 48 h ouvrées avec des questions et un devis gratuit.</p>
+          </div>
+          <div class="btn-row">
+            <a href={links.some(([h]) => h.startsWith('/vitrophanie')) ? '/devis-vitrophanie-signaletique' : '/devis'} class="btn btn-light">
+              Demander un devis
+            </a>
+            {links[0] && (
+              <a href={links[0][0]} class="btn btn-ghost-light">
+                {links[0][1]}
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
+
       {p.others.length > 0 && (
         <section class="section section-sand">
           <div class="container">
@@ -469,9 +611,12 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
           </div>
         </section>
       )}
-      <CtaBand />
     </Layout>
   );
+}
+
+function RealClientBadge() {
+  return <span class="badge-real">Client réel</span>;
 }
 
 export function AboutPage({ s }: { s: Settings }) {
@@ -479,8 +624,8 @@ export function AboutPage({ s }: { s: Settings }) {
     <Layout
       s={s}
       meta={{
-        title: 'À propos de l’agence',
-        description: `${s.agencyName} accompagne les indépendants, artisans, commerçants et TPE dans leur communication : site internet, identité visuelle, impression et visibilité locale.`,
+        title: s.city ? `L’agence web et print à ${s.city}` : 'À propos de l’agence',
+        description: `${s.agencyName}${s.city ? `, agence installée à ${s.city},` : ''} accompagne artisans, commerçants et TPE : site internet, identité visuelle, impression et visibilité locale.`,
         path: '/a-propos',
         breadcrumbs: [{ name: 'À propos', path: '/a-propos' }],
       }}
@@ -534,17 +679,24 @@ export function AboutPage({ s }: { s: Settings }) {
 }
 
 export function ContactPage({ s, token, sent, error, values }: { s: Settings; token: string; sent?: boolean; error?: string; values?: Record<string, string> }) {
+  const pack = packBySlug(values?.pack);
   return (
     <Layout
       s={s}
       meta={{
-        title: 'Contact',
-        description: `Contactez ${s.agencyName} pour votre site internet, votre identité visuelle ou vos impressions. Réponse sous 48 h ouvrées.`,
+        title: s.city ? `Contact : agence web à ${s.city}` : 'Contact',
+        description: `Contactez ${s.agencyName}${s.city ? ` à ${s.city} (${s.department})` : ''} par téléphone, e-mail ou formulaire pour votre site, votre logo ou vos impressions. Réponse sous 48 h.`,
         path: '/contact',
         breadcrumbs: [{ name: 'Contact', path: '/contact' }],
+        jsonLd: [businessJsonLd(s)],
       }}
     >
-      <PageHero eyebrow="Contact" h1="Parlons de" h1em="votre projet." intro="Une question, un projet, un besoin urgent ? Écrivez-nous : nous répondons sous 48 h ouvrées. Pour un chiffrage, le formulaire de devis est plus rapide." />
+      <PageHero
+        eyebrow="Contact"
+        h1={s.city ? 'Votre agence web et print' : 'Parlons de'}
+        h1em={s.city ? `à ${s.city}.` : 'votre projet.'}
+        intro={`Une question, un projet, un besoin urgent ? Appelez-nous ou écrivez-nous : nous répondons sous 48 h ouvrées.${s.city ? ` Nous nous déplaçons dans le Pays de Caux et travaillons à distance partout en France.` : ''}`}
+      />
       <section class="section section-tight">
         <div class="container split">
           <div>
@@ -558,7 +710,16 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
               {s.contactPhone && (
                 <li>
                   <span>Téléphone</span>
-                  <a href={`tel:${s.contactPhone.replace(/\s/g, '')}`}>{s.contactPhone}</a>
+                  <a href={telHref(s.contactPhone)}>{s.contactPhone}</a>
+                </li>
+              )}
+              {s.city && (
+                <li>
+                  <span>Localisation</span>
+                  {s.streetAddress ? `${s.streetAddress}, ` : ''}
+                  {localityLabel(s)}
+                  {s.department ? `, ${s.department}` : ''}
+                  {s.region ? ` (${s.region})` : ''}
                 </li>
               )}
               <li>
@@ -572,6 +733,12 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
                 </li>
               )}
             </ul>
+            {s.contactPhone && (
+              <p>
+                <a href={telHref(s.contactPhone)} class="btn btn-outline btn-lg">Appeler le {s.contactPhone}</a>
+              </p>
+            )}
+            {s.latitude != null && s.longitude != null && <MapEmbed s={s} />}
             <div class="aside-card">
               <p class="strong">Besoin d’un prix ?</p>
               <p class="muted">Le formulaire de devis vous guide en 6 étapes et nous donne toutes les informations utiles.</p>
@@ -586,7 +753,11 @@ export function ContactPage({ s, token, sent, error, values }: { s: Settings; to
             ) : (
               <>
                 {error && <Notice kind="error">{error}</Notice>}
-                <ContactForm token={token} subjectDefault={values?.message ?? ''} />
+                <ContactForm
+                  token={token}
+                  pack={values?.pack ?? ''}
+                  subjectDefault={values?.message ?? (pack ? `Bonjour, je lance mon activité (${pack.metier.toLowerCase()}) et le pack Bien démarrer m’intéresse. ` : '')}
+                />
               </>
             )}
           </div>
@@ -601,8 +772,8 @@ export function BlogList({ s, posts }: { s: Settings; posts: PostRow[] }) {
     <Layout
       s={s}
       meta={{
-        title: 'Blog : conseils site internet, impression et visibilité locale',
-        description: 'Conseils pratiques pour les petites entreprises : sites internet, supports imprimés, identité visuelle et référencement local.',
+        title: 'Blog : conseils web, print et visibilité',
+        description: 'Conseils pratiques et sans jargon pour les artisans, commerçants et petites entreprises : sites internet, supports imprimés, identité visuelle et visibilité locale.',
         path: '/blog',
         breadcrumbs: [{ name: 'Blog', path: '/blog' }],
       }}
@@ -704,14 +875,37 @@ export function LocalPage({ s, page }: { s: Settings; page: LocalPageRow }) {
         title: page.title,
         description: page.meta_description || page.intro,
         path: `/agence-web/${page.slug}`,
-        breadcrumbs: [{ name: page.title, path: `/agence-web/${page.slug}` }],
+        breadcrumbs: [
+          { name: 'Zone d’intervention', path: '/zone-intervention' },
+          { name: page.city, path: `/agence-web/${page.slug}` },
+        ],
+        jsonLd: [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            name: page.title,
+            serviceType: 'Agence web, graphisme, impression et signalétique',
+            description: page.meta_description || page.intro,
+            provider: providerRef(s),
+            areaServed: { '@type': 'City', name: page.city },
+            url: absoluteUrl(s, `/agence-web/${page.slug}`),
+          },
+        ],
       }}
     >
-      <PageHero eyebrow={page.city} h1={page.title} intro={page.intro} />
+      <PageHero eyebrow={`Zone d’intervention · ${page.city}`} h1={page.title} intro={page.intro} />
+      <div class="container hero-ctas">
+        <a href="/devis" class="btn btn-primary btn-lg">Demander un devis gratuit</a>
+        {s.contactPhone && (
+          <a href={telHref(s.contactPhone)} class="btn btn-outline btn-lg">
+            Appeler le {s.contactPhone}
+          </a>
+        )}
+      </div>
       <section class="section section-tight">
-        <div class="container narrow prose">{raw(renderMarkdown(page.body))}</div>
+        <div class="container narrow prose landing-prose">{raw(renderMarkdown(page.body))}</div>
       </section>
-      <CtaBand />
+      <CtaBand title={`Un projet à ${page.city} ?`} text="Rendez-vous sur place ou à distance, devis gratuit et sans engagement." />
     </Layout>
   );
 }
@@ -771,7 +965,7 @@ export function ClientSpaceInfo({ s }: { s: Settings }) {
       s={s}
       meta={{
         title: 'Espace client',
-        description: 'Consultez et validez vos devis, bons à tirer et recettes de site via vos liens sécurisés.',
+        description: 'Consultez et validez vos devis, bons à tirer (BAT) et recettes de site grâce aux liens personnels et sécurisés reçus par e-mail. Aucun mot de passe à retenir.',
         path: '/espace-client',
         breadcrumbs: [{ name: 'Espace client', path: '/espace-client' }],
       }}
@@ -802,6 +996,9 @@ export function SitePlan({ s, posts, products, items, local }: { s: Settings; po
   const main: [string, string][] = [
     ['/', 'Accueil'],
     ...SERVICE_PAGES.map((p) => [p.path, p.name] as [string, string]),
+    ...LANDING_PAGES.map((p) => [p.path, p.name] as [string, string]),
+    ['/packs', 'Packs Bien démarrer'],
+    ...PACKS.map((p) => [`/packs/${p.slug}`, `Pack Bien démarrer — ${p.metier}`] as [string, string]),
     ['/tarifs', 'Tarifs'],
     ['/impression', 'Catalogue d’impression'],
     ['/configurateur', 'Configurateur'],
@@ -818,7 +1015,7 @@ export function SitePlan({ s, posts, products, items, local }: { s: Settings; po
     ['/cgv', 'Conditions générales de vente'],
   ];
   return (
-    <Layout s={s} meta={{ title: 'Plan du site', description: 'Toutes les pages du site.', path: '/plan-du-site', breadcrumbs: [{ name: 'Plan du site', path: '/plan-du-site' }] }}>
+    <Layout s={s} meta={{ title: 'Plan du site', description: `Toutes les pages du site ${s.agencyName} : prestations web et print, impression, réalisations, articles de blog et informations légales.`, path: '/plan-du-site', breadcrumbs: [{ name: 'Plan du site', path: '/plan-du-site' }] }}>
       <section class="page-hero">
         <div class="container">
           <h1>Plan du site</h1>
@@ -882,4 +1079,3 @@ export function SitePlan({ s, posts, products, items, local }: { s: Settings; po
   );
 }
 
-export { PageHero };
