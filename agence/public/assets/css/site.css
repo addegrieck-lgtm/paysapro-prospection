@@ -326,11 +326,20 @@ a:hover .link-arrow::after {
   position: sticky;
   top: 0;
   z-index: 50;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s;
+}
+/* Le flou est porté par une couche décorative : un backdrop-filter sur l'en-tête lui-même en ferait
+   le bloc conteneur des éléments « position: fixed » (le menu mobile serait réduit à sa hauteur). */
+.site-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background: color-mix(in oklab, var(--paper) 86%, transparent);
   backdrop-filter: saturate(1.4) blur(14px);
   -webkit-backdrop-filter: saturate(1.4) blur(14px);
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.3s, background 0.3s;
+  pointer-events: none;
 }
 .site-header.is-scrolled {
   border-bottom-color: var(--line);
