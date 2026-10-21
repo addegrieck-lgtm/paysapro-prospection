@@ -9,4 +9,4 @@ Format 85 × 55 mm, recto bleu Seine `#0E4A57`, verso crème `#F6F1E8`, accent o
 
 Régénérer : `pip install qrcode && python3 -I build.py`, ce qui produit `maquette.html` et `carte-impression.html` (fichiers non versionnés), à ouvrir dans Chromium pour la capture ou l'export PDF.
 
-Avant l'envoi chez l'imprimeur : remplacer `[Prénom Nom]` dans `build.py`, puis demander à l'imprimeur s'il veut un fond perdu (en général 2 à 3 mm) et des traits de coupe.
+Avant l'envoi chez l'imprimeur : demander à l'imprimeur s'il veut un fond perdu (en général 2 à 3 mm) et des traits de coupe.

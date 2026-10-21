@@ -126,7 +126,7 @@ def verso():
   <svg class="carte" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">
     <rect width="{W}" height="{H}" fill="{CREME}"/>
     <text x="{m}" y="{m + 24}" font-family="Josefin Sans" font-weight="600"
-      font-size="23" letter-spacing="2.2" fill="{BLEU}">[Prénom Nom]</text>
+      font-size="23" letter-spacing="2.2" fill="{BLEU}">Adrien DEGRIECK</text>
     <text x="{m}" y="{m + 48}" font-family="Inter" font-weight="400" font-size="12"
       letter-spacing="0.5" fill="{BLEU}" fill-opacity="0.75">Fondateur · Création web &amp; graphique</text>
     <line x1="{m}" x2="{m + 28}" y1="{m + 68}" y2="{m + 68}" stroke="{BLEU}"
