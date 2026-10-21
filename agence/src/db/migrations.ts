@@ -1,5 +1,6 @@
 import type { Db } from './types';
 import { LOCAL_PAGES_V3, PORTFOLIO_ENRICH_V3, PORTFOLIO_NEW_V3, SERVICES_V3 } from './content-v3';
+import { POSTS_V5 } from './posts-v5';
 
 /** Littéral SQL échappé (les migrations sont des instructions SQL brutes). */
 const q = (v: string | number) => (typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
@@ -498,6 +499,16 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       `UPDATE local_pages SET body = replace(body, ${q('Conditions de déplacement à Bolbec : [À COMPLÉTER : confirmer l’absence de frais de déplacement pour Bolbec].')}, ${q('Déplacements : Bolbec est voisine de notre agence ; pour tout projet, les frais de déplacement éventuels dépendent de la prestation et sont indiqués sur le devis.')}) WHERE slug = 'bolbec'`,
       `UPDATE local_pages SET body = replace(body, ${q('Conditions de déplacement à Lillebonne : [À COMPLÉTER : confirmer l’absence de frais de déplacement pour Lillebonne].')}, ${q('Déplacements : Lillebonne est à quelques minutes de notre agence ; les frais de déplacement éventuels dépendent du projet et sont indiqués sur le devis.')}) WHERE slug = 'lillebonne'`,
     ],
+  },
+  {
+    version: 5,
+    name: 'blog : 12 articles programmés (un par semaine)',
+    // Publiés à leur date : un article dont published_at est dans le futur n'apparaît nulle part sur le site.
+    // INSERT OR IGNORE : un article déjà créé ou modifié dans l'administration n'est jamais écrasé.
+    statements: POSTS_V5.map(
+      (p) => `INSERT OR IGNORE INTO posts (slug, title, excerpt, body, category, status, published_at, meta_title, meta_description, created_at, updated_at)
+        VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`,
+    ),
   },
 ];
 
