@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 44" width="640" height="440">
+  <!-- Pictogramme officiel du site (agence/src/web/layout.tsx) -->
+  <path fill="#0E4A57" d="M2 34V9Q16 7 28 11Q38 14 42 19Q44 23 43 34H37Q37 25 32 25Q27 25 27 34Z"/>
+  <path fill="#0E4A57" d="M49 34L51.5 15L54.5 34Z"/>
+  <path d="M2 40c5-3 10-3 15 0s10 3 15 0 10-3 15 0 10 3 15 0" stroke="#C2410C" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+</svg>
