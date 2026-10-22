@@ -3,7 +3,9 @@
 Film publicitaire de 50 s et ses déclinaisons, entièrement procédural : React + TypeScript, CSS 3D, SVG, rendu par Remotion.
 Projet autonome : il a ses propres dépendances et ne touche ni au site de l'agence (`agence/src`) ni à l'appli de prospection.
 
-## Livrables (`out/`, après rendu)
+## Livrables
+
+Les versions rendues sont dans `livrables/`. Un nouveau rendu écrit dans `out/` (non versionné).
 
 | Fichier | Format | Durée | Contenu |
 |---|---|---|---|
