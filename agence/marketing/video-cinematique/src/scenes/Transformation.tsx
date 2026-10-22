@@ -114,7 +114,7 @@ export const Transformation: React.FC<SceneProps> = ({ duration, titles }) => {
               position: 'absolute',
               left: portrait ? lw * 0.12 : lw * 0.44,
               top: portrait ? lw * 0.36 : -pw * 0.55,
-              transform: `translateZ(${portrait ? 260 : 220}px) rotateY(${-orbit * 0.4 - 8}deg)`,
+              transform: `translateZ(${portrait ? 260 : 460}px) rotateY(${-orbit * 0.4 - 8}deg)`,
             }}
           >
             <Phone width={pw} angle={orbit}>
@@ -124,8 +124,8 @@ export const Transformation: React.FC<SceneProps> = ({ duration, titles }) => {
           {/* éléments d'interface flottants */}
           <div style={{ transformStyle: 'preserve-3d', transform: `translateZ(${portrait ? 340 : 300}px)` }}>
             <Chip label="Pensé mobile" o={chips} style={{ left: portrait ? -lw * 0.52 : -lw * 0.78, top: portrait ? -lw * 0.48 : -lw * 0.28 }} />
-            <Chip label="Rapide et sécurisé" o={chips} style={{ left: portrait ? lw * 0.02 : -lw * 0.72, top: portrait ? -lw * 0.62 : lw * 0.12 }} />
-            <Chip label="Demande de devis en ligne" o={chips} style={{ left: portrait ? -lw * 0.6 : lw * 0.3, top: portrait ? lw * 0.62 : lw * 0.38 }} />
+            <Chip label="Rapide et sécurisé" o={chips} style={{ left: portrait ? lw * 0.02 : -lw * 0.92, top: portrait ? -lw * 0.62 : lw * 0.02 }} />
+            <Chip label="Demande de devis en ligne" o={chips} style={{ left: portrait ? -lw * 0.6 : lw * 0.3, top: portrait ? lw * 0.62 : -lw * 0.48 }} />
           </div>
         </div>
       </AbsoluteFill>
