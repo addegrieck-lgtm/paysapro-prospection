@@ -2,7 +2,7 @@ import React from 'react';
 import { AbsoluteFill } from 'remotion';
 import { NightBackground, Particles } from '../components/Atmosphere';
 import { Laptop, Phone } from '../components/Devices';
-import { easeInOut, easeOut, lerp, prog, sceneOpacity, useScene } from '../components/motion';
+import { easeInOut, easeOut, lerp, prog, sceneOpacity, useBottom, useScene } from '../components/motion';
 import { Title } from '../components/Title';
 import { SITES, WebsitePage } from '../components/Website';
 import { COLORS, FONTS } from '../config/brand';
@@ -77,6 +77,7 @@ export const Transformation: React.FC<SceneProps> = ({ duration, titles }) => {
   const pw = portrait ? width * 0.3 : width * 0.12;
   const sw = lw * (1 - 0.036);
   const chips = prog(k, 0.3, 0.42, easeOut) * (1 - prog(k, 0.86, 0.95));
+  const bottom = useBottom(portrait ? 10 : 9);
   return (
     <AbsoluteFill style={{ opacity: sceneOpacity(k, 0.03, 0.96) }}>
       <NightBackground glow={0.9} beams={0.75 * lights} />
@@ -134,7 +135,7 @@ export const Transformation: React.FC<SceneProps> = ({ duration, titles }) => {
           position: 'absolute',
           left: portrait ? '8%' : '7%',
           right: portrait ? '8%' : undefined,
-          bottom: portrait ? '10%' : '9%',
+          bottom: bottom,
         }}
       >
         <Title

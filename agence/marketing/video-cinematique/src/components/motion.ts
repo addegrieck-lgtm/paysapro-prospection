@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
 export const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
@@ -22,3 +23,9 @@ export function useScene(duration: number) {
 /** Fondu d'entrée et de sortie d'une scène (en fraction de sa durée ; outStart ≥ 1 : pas de sortie). */
 export const sceneOpacity = (k: number, inEnd = 0.04, outStart = 0.95) =>
   Math.min(prog(k, 0, inEnd, easeOut), outStart >= 1 ? 1 : 1 - prog(k, outStart, 1, easeInOut));
+
+/** Hauteur (fraction de l'écran) réservée en bas aux sous-titres incrustés. */
+export const SubtitleSpace = createContext(0);
+
+/** Position basse d'un titre (en %), relevée quand des sous-titres occupent le bas de l'écran. */
+export const useBottom = (base: number) => `${base + useContext(SubtitleSpace) * 100}%`;

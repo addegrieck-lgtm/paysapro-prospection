@@ -2,7 +2,7 @@ import React from 'react';
 import { AbsoluteFill, random, spring } from 'remotion';
 import { NightBackground, Particles } from '../components/Atmosphere';
 import { CliffMark, Wordmark } from '../components/Logo';
-import { easeInOut, easeOut, lerp, prog, sceneOpacity, useScene } from '../components/motion';
+import { easeInOut, easeOut, lerp, prog, sceneOpacity, useBottom, useScene } from '../components/motion';
 import { Title } from '../components/Title';
 import { COLORS, FONTS } from '../config/brand';
 import type { SceneProps } from './types';
@@ -155,6 +155,7 @@ export const Identite: React.FC<SceneProps> = ({ duration, titles }) => {
   const camY = lerp(-14, 9, prog(k, 0, 1, easeInOut));
   const camX = lerp(10, 3, prog(k, 0, 1, easeInOut));
   const two = titles.length > 1 && titles[1];
+  const bottom = useBottom(portrait ? 5 : 7);
   return (
     <AbsoluteFill style={{ opacity: sceneOpacity(k, 0.02, 0.96) }}>
       <NightBackground glow={1} beams={0.5} tint="#0A2B35" />
@@ -218,7 +219,7 @@ export const Identite: React.FC<SceneProps> = ({ duration, titles }) => {
           mixBlendMode: 'screen',
         }}
       />
-      <div style={{ position: 'absolute', left: '6%', right: '6%', bottom: portrait ? '5%' : '7%', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', left: '6%', right: '6%', bottom: bottom, display: 'flex', justifyContent: 'center' }}>
         <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
           <Title text={titles[0]} t={t} from={duration * 0.1} to={two ? duration * 0.5 : duration * 0.94} size={portrait ? width * 0.07 : width * 0.031} />
           {two && (

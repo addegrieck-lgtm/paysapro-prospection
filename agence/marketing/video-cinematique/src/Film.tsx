@@ -2,7 +2,7 @@ import React from 'react';
 import { AbsoluteFill, Audio, Sequence, getStaticFiles, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { Finish } from './components/Atmosphere';
 import { loadFonts } from './components/fonts';
-import { prog } from './components/motion';
+import { SubtitleSpace, prog } from './components/motion';
 import { COLORS, FONTS } from './config/brand';
 import { COURTE, LONGUE, VOIX_OFF, sec, type SceneId } from './config/timeline';
 import { Identite } from './scenes/Identite';
@@ -92,14 +92,16 @@ export const Film: React.FC<FilmProps> = ({ cut, voiceOver, subtitles, music }) 
   const track = `audio/musique-${c.duration}s.wav`;
   return (
     <AbsoluteFill style={{ background: COLORS.night }}>
-      {c.scenes.map((s) => {
-        const Scene = SCENES[s.id];
-        return (
-          <Sequence key={s.id} from={sec(s.start)} durationInFrames={sec(s.duration)} name={s.id}>
-            <Scene duration={s.duration} titles={s.titles} />
-          </Sequence>
-        );
-      })}
+      <SubtitleSpace.Provider value={subtitles && cut === 'longue' ? 0.1 : 0}>
+        {c.scenes.map((s) => {
+          const Scene = SCENES[s.id];
+          return (
+            <Sequence key={s.id} from={sec(s.start)} durationInFrames={sec(s.duration)} name={s.id}>
+              <Scene duration={s.duration} titles={s.titles} />
+            </Sequence>
+          );
+        })}
+      </SubtitleSpace.Provider>
       {c.scenes.slice(1).map((s) => (
         <Sequence key={`flash-${s.id}`} from={sec(s.start) - 3} durationInFrames={sec(0.6)}>
           <Flash />
