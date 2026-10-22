@@ -1,6 +1,7 @@
 import type { Db } from './types';
 import { LOCAL_PAGES_V3, PORTFOLIO_ENRICH_V3, PORTFOLIO_NEW_V3, SERVICES_V3 } from './content-v3';
 import { POSTS_V5 } from './posts-v5';
+import { LOCAL_PAGES_V11 } from './local-pages-v11';
 
 /** Littéral SQL échappé (les migrations sont des instructions SQL brutes). */
 const q = (v: string | number) => (typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
@@ -628,6 +629,15 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       `UPDATE services SET conditions = ${q('Deux formules au choix : sans engagement, résiliable à tout moment avec un mois de préavis ; ou avec engagement d’un an à prix remisé, puis résiliable chaque mois. Tout est précisé au contrat, signé en ligne.')} WHERE slug = 'maintenance' AND conditions = ${q('Durée et préavis précisés au contrat.')}`,
       `UPDATE services SET lead_time = 'Mensuel' WHERE slug = 'maintenance' AND lead_time = ${q('Mensuel, sans engagement au-delà de la durée prévue au contrat')}`,
     ],
+  },
+  {
+    version: 11,
+    name: 'pages locales Fécamp, Yvetot, Saint-Romain-de-Colbosc',
+    // INSERT OR IGNORE : une page déjà créée ou modifiée dans l'administration n'est jamais écrasée.
+    statements: LOCAL_PAGES_V11.map(
+      (l) => `INSERT OR IGNORE INTO local_pages (slug, city, title, intro, body, meta_description, status, created_at, updated_at)
+        VALUES (${[l.slug, l.city, l.title, l.intro, l.body, l.meta_description].map(q).join(', ')}, 'published', ${NOW}, ${NOW})`,
+    ),
   },
 ];
 
