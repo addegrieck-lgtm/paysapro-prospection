@@ -38,7 +38,7 @@ Logo vectoriel fourni : `logo-symbole-blanc.svg` et `logo-symbole-bleu.svg` (dan
 > | **12,5–15 s** | Des formes géométriques se rassemblent en logo sur une carte de visite. La carte se retourne : recto bleu, verso crème. | IDENTITÉ VISUELLE | Bruit de carton |
 > | **15–17,5 s** | Des feuilles crème glissent et s'empilent : flyer, dépliant qui s'ouvre, affiche. | IMPRESSION | Froissement de papier |
 > | **17,5–20 s** | Une vitrine de commerce en aplat. Une raclette passe et révèle un lettrage adhésif blanc sur la vitre. | VITROPHANIE | Glissement de raclette |
-> | **20–25 s** | Retour à la ligne de vague, qui dessine le trait de côte simplifié du Pays de Caux (Le Havre → Étretat → Fécamp). Un point orange pulse sur Gruchet-le-Valasse. | Basé à Gruchet-le-Valasse · J'interviens dans tout le Pays de Caux | Ressac, la musique respire |
+> | **20–25 s** | Retour à la ligne de vague, qui dessine le trait de côte simplifié du Pays de Caux (Le Havre → Étretat → Fécamp). Un point blanc pulse sur Gruchet-le-Valasse. | Basé à Gruchet-le-Valasse · J'interviens dans tout le Pays de Caux | Ressac, la musique respire |
 > | **25–30 s** | Plan final sur fond bleu : logo blanc, nom, coordonnées. La vague continue d'onduler doucement sous le texte. Image fixe au moins 2,5 s. | SIGNE & SEINE / 06 47 41 42 24 / signeetseine.fr | Accord final, fondu |
 >
 > **Lisibilité :** chaque texte reste au moins 1,5 s à l'écran, sans mouvement pendant la lecture. Taille minimale de 48 px en 1080p.
@@ -74,6 +74,6 @@ Flat 2D geometric motion graphics, minimal and premium, lots of negative space, 
    `Cream paper sheets slide in and stack neatly: a flyer, then a tri-fold leaflet that unfolds. Transition: a flat shop window front; a squeegee swipes across the glass revealing white adhesive lettering shapes.`
 
 6. **Littoral et fin (5 s)**
-   `The orange wave line traces a simplified coastline of white chalk cliffs seen from above, a small orange dot pulses inland, then the camera eases out to a calm teal background with the gentle wave undulating at the bottom, leaving centered empty space for a logo.`
+   `The orange wave line traces a simplified coastline of white chalk cliffs seen from above, a small white dot pulses inland, then the camera eases out to a calm teal background with the gentle wave undulating at the bottom, leaving centered empty space for a logo.`
 
 **Montage :** sur les plans 2 et 6, poser `logo-symbole-blanc.svg`, puis « SIGNE & SEINE » (Josefin Sans SemiBold, espacement large, « & » en `#C2410C`), puis les coordonnées. Ajouter les titres de métiers sur les plans 3 à 5.
