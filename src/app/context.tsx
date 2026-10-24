@@ -7,6 +7,8 @@ import { dbCache } from '../data/cache';
 import { RechercheEntreprisesProvider } from '../providers/company/RechercheEntreprisesProvider';
 import { OpenStreetMapProvider, localBusinessQuery } from '../providers/company/OpenStreetMapProvider';
 import { WebsiteProvider } from '../providers/company/WebsiteProvider';
+import { GooglePlacesProvider } from '../providers/company/GooglePlacesProvider';
+import { RelaySearchProvider } from '../providers/search/RelaySearchProvider';
 import { EnrichmentEngine } from '../data/enrichmentEngine';
 import { ENRICHMENT_CONFIG } from '../config';
 import type { CompanyDataProvider } from '../providers/company/CompanyDataProvider';
@@ -21,6 +23,11 @@ import { applyOfferLabels } from '../domain/offerLabels';
 export const LOCAL_WORKSPACE = PAYSAPRO_WORKSPACE;
 
 const WORKSPACE_STORE = 'paysapro.workspace';
+
+/** Instantané OpenStreetMap d'un département, généré à la mise en ligne (npm run osm:local) ; sinon requête en direct. */
+function localSnapshotUrl(departments: string[]): string | null {
+  return departments.length === 1 ? `${import.meta.env?.BASE_URL ?? './'}data/osm-local-${departments[0]}.json` : null;
+}
 
 /** Espace choisi sur cet appareil (Paysapro par défaut). */
 function storedWorkspace(): string {
@@ -92,10 +99,13 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
         const departments = settings.targetDepartments.length ? settings.targetDepartments : offer.defaultDepartments;
         const directory =
           offer.id === 'agence'
-            ? new OpenStreetMapProvider({ cache: dbCache(db, 'data_cache'), cacheDays: 30, snapshotUrl: null, query: localBusinessQuery(departments), cacheKey: `osm:local:${[...departments].sort().join(',')}`, timeoutMs: 120_000 })
+            ? new OpenStreetMapProvider({ cache: dbCache(db, 'data_cache'), cacheDays: 30, snapshotUrl: localSnapshotUrl(departments), query: localBusinessQuery(departments), cacheKey: `osm:local:${[...departments].sort().join(',')}`, timeoutMs: 120_000 })
             : new OpenStreetMapProvider({ cache: dbCache(db, 'data_cache'), cacheDays: 30 });
         const website = new WebsiteProvider(ENRICHMENT_CONFIG.webProxyUrl, { cache: dbCache(db, 'company_enrichment_cache'), cacheDays: ENRICHMENT_CONFIG.cacheDays });
-        const engine = new EnrichmentEngine(api, { official: companyProvider, directory, website });
+        // Services facultatifs du relais (clés côté relais) : désactivés d'eux-mêmes si la clé n'y est pas
+        const search = new RelaySearchProvider(ENRICHMENT_CONFIG.webProxyUrl);
+        const places = new GooglePlacesProvider(ENRICHMENT_CONFIG.webProxyUrl, { cache: dbCache(db, 'company_enrichment_cache'), cacheDays: ENRICHMENT_CONFIG.cacheDays });
+        const engine = new EnrichmentEngine(api, { official: companyProvider, directory, website, search, places });
         const queue = new EnrichmentQueue(api, engine);
         apiRef.current = { offer, switchWorkspace, api, companyProvider, queue, engine };
         await api.listTemplates(); // modèles intégrés au premier lancement

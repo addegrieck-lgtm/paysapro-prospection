@@ -147,6 +147,27 @@ export interface Prospect extends Tracked {
   qualifiedAt: ISODate | null;
   /** Dernière recherche de coordonnées (annuaire, site) — cache ENRICHMENT_CACHE_DAYS */
   contactsCheckedAt: ISODate | null;
+  /** Diagnostic du site vérifié (HTTPS, téléphone, copyright…) — absent tant que le site n'a pas été lu */
+  websiteQuality?: SiteQuality | null;
+  /** Identifiant de la fiche Google (Google Places) */
+  googlePlaceId?: string | null;
+}
+
+/** Signaux constatés sur la page d'accueil du site (domain/siteQuality.ts). */
+export interface SiteQuality {
+  checkedAt: ISODate;
+  https: boolean;
+  /** Balise viewport présente (site prévu pour le téléphone) */
+  mobile: boolean;
+  copyrightYear: number | null;
+  /** Wix, Jimdo, WordPress… (information) */
+  builder: string | null;
+  /** Sous-domaine d'un hébergeur gratuit (pas de nom de domaine propre) */
+  freeHost: boolean;
+  /** Défauts constatés, en clair */
+  reasons: string[];
+  /** Au moins un défaut : site à moderniser */
+  weak: boolean;
 }
 
 // ─── V2 : coordonnées multi-sources ───
@@ -258,6 +279,8 @@ export interface ProspectRow {
   phoneConfidence: number | null;
   phoneStatus: ContactStatus | null;
   headcountBand: string | null;
+  /** Site vérifié avec au moins un défaut constaté (à moderniser) */
+  weakSite?: boolean;
   /** Texte normalisé pour la recherche instantanée */
   search: string;
 }
@@ -405,6 +428,8 @@ export interface ProspectFilter {
   hasEmail?: Presence;
   hasGoogle?: Presence;
   hasSocial?: Presence;
+  /** Site à moderniser (diagnostic du site) */
+  weakSite?: Presence;
   active?: Presence;
   enrichment?: EnrichmentStatus[];
   /** Niveau du meilleur téléphone */
@@ -543,7 +568,16 @@ export interface Settings {
   /** Ajoute automatiquement au CRM (statut « À contacter ») les prospects actifs avec un téléphone vérifié */
   autoQualify: boolean;
   /** Sources activées pour l'enrichissement */
-  providers: { official: boolean; directory: boolean; website: boolean; websiteDiscovery: boolean };
+  providers: {
+    official: boolean;
+    directory: boolean;
+    website: boolean;
+    websiteDiscovery: boolean;
+    /** Recherche web via le relais (clé Brave Search côté relais) — absent = activé */
+    webSearch?: boolean;
+    /** Fiches Google via le relais (clé Google Places côté relais) — absent = activé */
+    googlePlaces?: boolean;
+  };
   /** Part d'exploration du moteur auto-apprenant (0,2 = 20 % des choix testent des stratégies moins connues) */
   exploration?: number;
   /** Assistant commercial : base de connaissances, scripts, tarifs, liens, image (absent = contenu par défaut) */

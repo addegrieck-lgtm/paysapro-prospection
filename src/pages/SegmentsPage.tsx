@@ -38,6 +38,7 @@ function agencySuggestions(offer: Offer): Suggestion[] {
     { name: 'Sans site internet', description: 'Site absent', filter: { hasWebsite: 'no' } },
     { name: 'Sans site, avec téléphone', description: 'À appeler', filter: { hasWebsite: 'no', hasPhone: 'yes' } },
     { name: 'Entreprises récentes', description: `Créées depuis le ${since.split('-').reverse().join('/')}`, filter: { createdAfter: since } },
+    { name: 'Site à moderniser', description: 'Pas de HTTPS, pas adapté au téléphone, copyright ancien…', filter: { weakSite: 'yes' } },
     { name: 'Sans fiche Google', description: 'Aucune fiche Google renseignée', filter: { hasGoogle: 'no' } },
     ...offer.sectors.map((s) => ({ name: `${s.emoji} ${s.label}`, description: `${s.naf.length} métiers`, filter: { nafCodes: s.naf.map((n) => n.code) } })),
     { name: 'À relancer', description: "Prochaine relance ≤ aujourd'hui", filter: { followUpDue: true } },

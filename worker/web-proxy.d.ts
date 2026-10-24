@@ -6,6 +6,10 @@ export interface BackupStore {
 export interface RelayEnv {
   ALLOWED_ORIGINS?: string;
   BACKUPS?: BackupStore;
+  /** Clé de l'API Brave Search (secret) : active GET /search */
+  BRAVE_SEARCH_KEY?: string;
+  /** Clé de l'API Google Places (secret) : active GET /places */
+  GOOGLE_PLACES_KEY?: string;
 }
 export function handle(request: Request, env?: RelayEnv, fetchImpl?: typeof fetch): Promise<Response>;
 declare const worker: { fetch(request: Request, env: RelayEnv): Promise<Response> };

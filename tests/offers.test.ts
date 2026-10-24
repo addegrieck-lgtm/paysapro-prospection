@@ -79,7 +79,7 @@ describe('Score Signe & Seine (besoin d’une agence + joignable)', () => {
 
   it('un site existant ne rapporte rien (refonte possible), contrairement à Paysapro', () => {
     const agency = computeScore(createProspect({ ...base, website: 'https://comptoir.fr' }, agencyCtx, 'manual'), target);
-    expect(agency.missing).toContain('A déjà un site (refonte possible)');
+    expect(agency.missing).toContain('A déjà un site (diagnostic à faire : Enrichir)');
     const paysapro = computeScore(createProspect({ ...base, website: 'https://comptoir.fr' }, { workspaceId: PAYSAPRO_WORKSPACE, user: 'A' }, 'manual'), target);
     expect(paysapro.reasons.some((r) => r.label === 'Site web disponible')).toBe(true);
   });

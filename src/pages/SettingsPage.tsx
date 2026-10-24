@@ -13,6 +13,7 @@ import { NAF_LABELS } from '../domain/referentials';
 import { ROLE_LABEL, CURRENT_PLAN, PLAN_QUOTAS } from '../domain/access';
 import { csvProvider, googlePlacesProvider, manualProvider } from '../providers/company';
 import { SireneProvider } from '../providers/company/SireneProvider';
+import type { RelaySearchProvider } from '../providers/search/RelaySearchProvider';
 import { ENRICHMENT_CONFIG } from '../config';
 import { aiProvider } from '../providers/ai';
 import { emailProvider } from '../providers/email';
@@ -22,7 +23,7 @@ import { GmailCard } from '../components/GmailCard';
 import type { Role, Settings, SuppressionKind } from '../domain/types';
 
 export function SettingsPage() {
-  const { api, settings, reloadSettings, offer } = useApp();
+  const { api, settings, reloadSettings, offer, engine } = useApp();
   const run = useAction();
   const canDelete = useCan('prospecting.delete');
   const [s, setS] = useState<Settings>(settings);
@@ -138,6 +139,14 @@ export function SettingsPage() {
             <Checkbox checked={s.providers.websiteDiscovery} onChange={(v) => set('providers')({ ...s.providers, websiteDiscovery: v })}>
               Rechercher le site officiel quand il est inconnu (domaines plausibles, retenus seulement si le site correspond à l'entreprise : SIREN, ou nom + commune / adresse)
             </Checkbox>
+            <Checkbox checked={s.providers.webSearch !== false} onChange={(v) => set('providers')({ ...s.providers, webSearch: v })}>
+              Recherche web autorisée (API Brave Search, via le relais) : trouve le site officiel et les pages Facebook / Instagram{' '}
+              <RelayStatus configured={(engine.providers.search as RelaySearchProvider | null | undefined)?.service.configured ?? false} />
+            </Checkbox>
+            <Checkbox checked={s.providers.googlePlaces !== false} onChange={(v) => set('providers')({ ...s.providers, googlePlaces: v })}>
+              Fiches Google (API Google Places, via le relais) : note, nombre d'avis, site, téléphone{' '}
+              <RelayStatus configured={engine.providers.places?.service.configured ?? false} />
+            </Checkbox>
             <label className="block pt-2">
               <span className="block font-medium">
                 Exploration du moteur auto-apprenant : {Math.round((s.exploration ?? 0.2) * 100)} %
@@ -186,7 +195,7 @@ export function SettingsPage() {
             <Provider name={manualProvider.label} status="active" desc={manualProvider.description} />
             <Provider name={emailProvider.label} status="active" desc="Envoi via votre propre messagerie (lien pré-rempli). Resend, Brevo, Gmail… pourront être ajoutés via EmailProvider, désactivés par défaut." />
             <Provider name="IA (génération de messages)" status={aiProvider.configured ? 'active' : 'off'} desc={aiProvider.configured ? 'Proxy IA configuré (VITE_AI_ENDPOINT).' : 'IA non configurée — les modèles dynamiques sont utilisés. Voir PROSPECTING.md.'} />
-            <Provider name={googlePlacesProvider.label} status="off" desc={googlePlacesProvider.description} />
+            <Provider name={googlePlacesProvider.label} status={engine.providers.places?.service.configured ? 'active' : 'off'} desc={googlePlacesProvider.description} paid />
             <Provider name="Google Business Profile" status="off" desc="Connexion Google : Non connecté. Intégration officielle possible plus tard (nécessite un compte Google Cloud et un serveur). Dernière synchronisation : —" />
           </ul>
         </Card>
@@ -280,14 +289,21 @@ export function SettingsPage() {
   );
 }
 
-function Provider({ name, status, desc }: { name: string; status: 'active' | 'off'; desc: string }) {
+/** État d'un service du relais : connu seulement après un premier appel (clé présente ou non côté relais). */
+function RelayStatus({ configured }: { configured: boolean | null }) {
+  if (!ENRICHMENT_CONFIG.webProxyUrl) return <span className="text-muted">(relais non configuré)</span>;
+  if (configured === null) return <span className="text-muted">(état connu au premier enrichissement)</span>;
+  return configured ? <span className="text-success">(clé configurée sur le relais)</span> : <span className="text-muted">(clé absente du relais : voir worker/README.md)</span>;
+}
+
+function Provider({ name, status, desc, paid = false }: { name: string; status: 'active' | 'off'; desc: string; paid?: boolean }) {
   return (
     <li className="flex flex-wrap items-start justify-between gap-2 py-3">
       <div className="min-w-0 flex-1">
         <p className="font-medium">{name}</p>
         <p className="text-muted">{desc}</p>
       </div>
-      <Badge tone={status === 'active' ? 'success' : 'neutral'}>{status === 'active' ? 'Actif · gratuit' : 'Désactivé'}</Badge>
+      <Badge tone={status === 'active' ? 'success' : 'neutral'}>{status === 'active' ? (paid ? 'Actif · quota gratuit' : 'Actif · gratuit') : 'Désactivé'}</Badge>
     </li>
   );
 }

@@ -8,3 +8,5 @@ dev-dist
 .DS_Store
 *.log
 .claude
+# Instantanés OpenStreetMap locaux : régénérés à chaque mise en ligne (npm run osm:local)
+public/data/osm-local-*.json

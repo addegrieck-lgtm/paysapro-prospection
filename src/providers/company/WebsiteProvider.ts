@@ -33,6 +33,8 @@ import {
 } from '../../domain/webContacts';
 import { extractPhones, toE164, type ExtractedPhone } from '../../domain/phone';
 import { domainMatchesName, websiteMatchScore, type SiteSignals } from '../../domain/identity';
+import { assessSite } from '../../domain/siteQuality';
+import type { SiteQuality } from '../../domain/types';
 
 export interface ProxyPage {
   ok: boolean;
@@ -59,6 +61,8 @@ export interface SiteAnalysis {
   ignoredListed: number;
   /** Coordonnées de tiers écartées (hébergeur, webmaster, agence web, transporteur, adresse d'un thème…) */
   ignoredThirdParty: number;
+  /** Diagnostic de la page d'accueil (site à moderniser ?) */
+  quality: SiteQuality;
 }
 
 export type SiteCompany = Pick<Prospect, 'name' | 'tradeName' | 'siren' | 'siret' | 'city' | 'postalCode'> & Partial<Pick<Prospect, 'address' | 'activity' | 'nafCode' | 'phone'>>;
@@ -234,6 +238,7 @@ export class WebsiteProvider {
       socials,
       ignoredListed,
       ignoredThirdParty,
+      quality: assessSite(home.html, home.url),
     };
   }
 
