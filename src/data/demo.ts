@@ -8,6 +8,7 @@
 import type { ImportLine } from './repository';
 import type { ServiceTag } from '../domain/types';
 import { SERVICES } from '../domain/referentials';
+import { AGENCE_SECTORS, type OfferId } from '../domain/offers';
 
 const PREFIX = ['Jardins', 'Paysages', 'Espaces Verts', 'Terre & Jardin', 'Horizon Vert', 'L’Atelier du Jardin', 'Vert Nature', 'Les Jardiniers', 'Arbre & Pierre', 'Au Fil des Saisons'];
 const SUFFIX = ['du Val', 'des Collines', 'de la Côte', 'Création', 'Services', 'et Compagnie', 'du Bocage', 'des Marais', 'Concept', 'Prestige'];
@@ -27,7 +28,69 @@ function rng(seed: number) {
   };
 }
 
-export function demoLines(count = 100): ImportLine[] {
+/** Signe & Seine : commerces, artisans et restaurants fictifs de Seine-Maritime. */
+const AGENCE_NAMES: Record<string, string[]> = {
+  btp: ['Bâti', 'Rénov', 'Les Artisans', 'Toitures', 'Habitat', 'Atelier Bois', 'Élec', 'Thermi', 'Maçonnerie', 'Façades'],
+  restauration: ['Le Comptoir', 'La Table', 'Le Bistrot', 'Au Fournil', 'La Crêperie', 'Le Relais', 'Chez Margot', 'La Marée', 'L’Escale', 'Le Bouchon'],
+  commerce: ['Studio', 'L’Atelier', 'Institut', 'La Boutique', 'Fleurs', 'Instant Beauté', 'Mèche & Ciseaux', 'Le Panier', 'La Cave', 'Bijoux'],
+  services: ['Garage', 'Taxi', 'Net & Clair', 'Auto-École', 'Photo', 'Immo', 'Pressing', 'Forme', 'Jardins', 'Services'],
+};
+const AGENCE_SUFFIX = ['du Port', 'de la Côte', 'du Caux', 'des Falaises', 'de la Vallée', 'du Marché', 'de la Seine', 'Normand', 'des Halles', 'du Centre'];
+const AGENCE_CITIES: [string, string][] = [
+  ['Gruchet-le-Valasse', '76210'], ['Bolbec', '76210'], ['Lillebonne', '76170'], ['Fécamp', '76400'], ['Yvetot', '76190'],
+  ['Saint-Romain-de-Colbosc', '76430'], ['Le Havre', '76600'], ['Rouen', '76000'], ['Étretat', '76790'], ['Dieppe', '76200'],
+];
+
+function agencyDemoLines(count: number): ImportLine[] {
+  const r = rng(76210);
+  const pick = <T,>(list: readonly T[]) => list[Math.floor(r() * list.length)]!;
+  const now = new Date();
+  const lines: ImportLine[] = [];
+  for (let i = 0; i < count; i++) {
+    const [city, cp] = pick(AGENCE_CITIES);
+    const sector = pick(AGENCE_SECTORS);
+    const naf = pick(sector.naf);
+    const name = `[DÉMO] ${pick(AGENCE_NAMES[sector.id]!)} ${pick(AGENCE_SUFFIX)} ${i + 1}`;
+    const slug = `demo-${sector.id}-${i + 1}`;
+    const hasSite = r() < 0.4;
+    const hasGoogle = r() < 0.6;
+    const reviews = hasGoogle ? Math.floor(r() ** 2 * 120) : null;
+    const phonePrefix = r() < 0.5 ? '019900' : '063998';
+    const year = now.getFullYear() - Math.floor(r() ** 1.5 * 20);
+    lines.push({
+      line: i + 1,
+      errors: [],
+      input: {
+        name,
+        address: `${Math.floor(r() * 120) + 1} rue du Général-de-Gaulle (adresse fictive)`,
+        postalCode: cp,
+        city,
+        department: '76',
+        phone: r() < 0.8 ? `${phonePrefix}${String(1000 + i).slice(-4)}` : null,
+        email: r() < 0.45 ? `contact@${slug}.example.com` : null,
+        website: hasSite ? `https://${slug}.example.org` : null,
+        googleUrl: hasGoogle ? `https://www.example.com/fiche-google-fictive/${slug}` : null,
+        googleReviews: reviews,
+        googleRating: hasGoogle && reviews ? Math.round((3.6 + r() * 1.4) * 10) / 10 : null,
+        // Démonstration : recherche de coordonnées et vérification Google considérées comme faites
+        contactsCheckedAt: now.toISOString(),
+        googleCheckedAt: now.toISOString(),
+        headcount: r() < 0.6 ? Math.floor(r() ** 2 * 10) : null,
+        nafCode: naf.code,
+        activity: naf.label,
+        services: [],
+        creationDate: `${year}-0${1 + Math.floor(r() * 9)}-15`,
+        active: true,
+        demo: true,
+        sourceUrl: null,
+      },
+    });
+  }
+  return lines;
+}
+
+export function demoLines(count = 100, offer: OfferId = 'paysapro'): ImportLine[] {
+  if (offer === 'agence') return agencyDemoLines(count);
   const r = rng(76);
   const pick = <T,>(list: readonly T[]) => list[Math.floor(r() * list.length)]!;
   const lines: ImportLine[] = [];

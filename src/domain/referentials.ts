@@ -1,4 +1,5 @@
 // Libellés métier : statuts CRM, prestations, tranches d'effectif INSEE, codes NAF.
+import { OFFER_NAF_LABELS, offerById, offerNafCodes } from './offers';
 import type { Milestone, ProspectStatus, ServiceTag, TaskPriority, TaskType, TemplateCategory } from './types';
 
 export type Tone = 'neutral' | 'info' | 'warning' | 'success' | 'accent' | 'danger';
@@ -112,16 +113,11 @@ export function headcountLabel(band: string | null, headcount: number | null): s
   return 'Non disponible';
 }
 
-export const NAF_LABELS: Record<string, string> = {
-  '81.30Z': "Services d'aménagement paysager",
-  '01.30Z': 'Reproduction de plantes (pépinières)',
-  '43.12A': 'Travaux de terrassement courants',
-  '02.20Z': 'Exploitation forestière (élagage)',
-  '47.76Z': 'Commerce de détail de fleurs, plantes',
-};
+/** Libellés des codes NAF ciblés par les offres (paysage, BTP, restauration, commerces, services). */
+export const NAF_LABELS: Record<string, string> = OFFER_NAF_LABELS;
 
-/** Codes NAF proposés dans les paramètres (81.30Z = cible par défaut). */
-export const NAF_CHOICES = Object.keys(NAF_LABELS);
+/** Codes NAF proposés pour Paysapro (81.30Z = cible par défaut). Par offre : offerNafCodes() (domain/offers.ts). */
+export const NAF_CHOICES = offerNafCodes(offerById('paysapro'));
 
 export function normalizeNaf(code: string | null | undefined): string | null {
   const c = (code ?? '').toUpperCase().replace(/\s/g, '');

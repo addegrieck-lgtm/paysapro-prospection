@@ -7,6 +7,7 @@
 //   • une estimation a priori (utilisée tant que l'historique est insuffisant).
 // Le choix, l'ordre et l'arrêt sont ensuite décidés par les STATISTIQUES réelles (domain/learning.ts).
 import type { ContactField, EnrichmentMode, StrategyId } from './types';
+import { searchTerm } from './offers';
 
 export type StrategyKind = 'directory' | 'discovery' | 'site' | 'web_search';
 
@@ -130,7 +131,7 @@ export const WEB_QUERIES: { id: StrategyId; query: string; fields: ContactField[
   { id: 'web_name_city_phone', query: '"{name}" "{city}" téléphone', fields: ['phone', 'website'] },
   { id: 'web_name_city_email', query: '"{name}" "{city}" email', fields: ['email', 'website'] },
   { id: 'web_name_city_contact', query: '"{name}" "{city}" contact', fields: ['phone', 'email', 'website'] },
-  { id: 'web_name_city_activity', query: '"{name}" "{city}" paysagiste', fields: ['website', 'phone'] },
+  { id: 'web_name_city_activity', query: '"{name}" "{city}" {activity}', fields: ['website', 'phone'] },
   { id: 'web_name_address', query: '"{name}" "{address}"', fields: ['website', 'phone'] },
   { id: 'web_name_city_legal', query: '"{name}" "{city}" "mentions légales"', fields: ['website', 'email'] },
   { id: 'web_name_city_quote', query: '"{name}" "{city}" devis', fields: ['website', 'phone'] },
@@ -170,11 +171,16 @@ export function areaDigit(postalCode: string | null): string {
 }
 
 /** Requête web concrète d'une stratégie (null s'il manque une donnée : jamais de requête vide ou inventée). */
-export function buildQuery(def: StrategyDef, c: { name: string; tradeName?: string | null; city: string | null; address: string | null; postalCode: string | null }): string | null {
+export function buildQuery(
+  def: StrategyDef,
+  c: { name: string; tradeName?: string | null; city: string | null; address: string | null; postalCode: string | null; nafCode?: string | null; workspaceId?: string | null },
+): string | null {
   if (!def.query) return null;
   const name = c.tradeName || c.name;
-  if (!name || (def.query.includes('{city}') && !c.city) || (def.query.includes('{address}') && !c.address)) return null;
+  const activity = searchTerm(c); // métier (« électricien », « paysagiste »…)
+  if (!name || (def.query.includes('{city}') && !c.city) || (def.query.includes('{address}') && !c.address) || (def.query.includes('{activity}') && !activity)) return null;
   return def.query
+    .replace('{activity}', activity ?? '')
     .replace('{name}', name)
     .replace('{city}', c.city ?? '')
     .replace('{address}', c.address ?? '')

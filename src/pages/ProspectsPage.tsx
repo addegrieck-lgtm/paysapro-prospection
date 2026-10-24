@@ -24,7 +24,7 @@ const PAGE_SIZE = 50;
 type RowAction = 'message' | 'note' | 'task';
 
 export function ProspectsPage() {
-  const { api, queue } = useApp();
+  const { api, queue, offer } = useApp();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const run = useAction();
@@ -233,8 +233,8 @@ export function ProspectsPage() {
           ))}
         </div>
       ) : data && data.total === 0 ? (
-        <EmptyState icon={<Users className="h-7 w-7" />} title={count || q || priorityView ? 'Aucun prospect ne correspond' : 'Aucun prospect pour le moment'} action={!count && !q && <ButtonLink to="/import">Importer des paysagistes</ButtonLink>}>
-          {count || q || priorityView ? 'Modifiez la recherche ou les filtres.' : 'Importez les paysagistes depuis SIRENE, un fichier CSV, ou chargez les données de démonstration.'}
+        <EmptyState icon={<Users className="h-7 w-7" />} title={count || q || priorityView ? 'Aucun prospect ne correspond' : 'Aucun prospect pour le moment'} action={!count && !q && <ButtonLink to="/import">Importer des {offer.audience}</ButtonLink>}>
+          {count || q || priorityView ? 'Modifiez la recherche ou les filtres.' : `Importez les ${offer.audience} depuis SIRENE, un fichier CSV, ou chargez les données de démonstration.`}
         </EmptyState>
       ) : (
         data && (
@@ -569,7 +569,7 @@ function ExportDialog({ ids, label, onClose }: { ids: string[]; label: string; o
 }
 
 export function SaveSegmentDialog({ open, onClose, filter }: { open: boolean; onClose: () => void; filter: ProspectFilter }) {
-  const { api } = useApp();
+  const { api, offer } = useApp();
   const run = useAction();
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -601,7 +601,7 @@ export function SaveSegmentDialog({ open, onClose, filter }: { open: boolean; on
     >
       <div className="space-y-4">
         <p className="text-sm text-muted">Critères : {describeFilter(filter)}. Le segment est dynamique : il se met à jour automatiquement.</p>
-        <TextField label="Nom" value={name} onChange={setName} placeholder="Ex. Paysagistes prioritaires 76" />
+        <TextField label="Nom" value={name} onChange={setName} placeholder={offer.id === 'agence' ? 'Ex. Restaurants sans site 76' : 'Ex. Paysagistes prioritaires 76'} />
         <TextArea label="Description" value={description} onChange={setDescription} rows={2} />
       </div>
     </Dialog>

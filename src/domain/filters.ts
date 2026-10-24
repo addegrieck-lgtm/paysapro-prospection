@@ -132,6 +132,7 @@ export function describeFilter(f: ProspectFilter): string {
   ];
   pres.forEach(([p, l]) => p && p !== 'any' && parts.push(`${p === 'yes' ? 'Avec' : 'Sans'} ${l}`));
   if (f.services?.length) parts.push(`${f.services.length} prestation(s)`);
+  if (f.nafCodes?.length) parts.push(`${f.nafCodes.length} code(s) NAF`);
   if (f.phoneStatus?.length) parts.push(`Téléphone : ${f.phoneStatus.map((s) => ({ verified: 'vérifié', to_verify: 'à vérifier', unverified: 'non vérifié' })[s]).join(', ')}`);
   if (f.headcountBands?.length) parts.push('Effectif filtré');
   if (f.active === 'yes') parts.push('Actives');

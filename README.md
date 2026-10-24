@@ -3,6 +3,22 @@
 Outil de prospection B2B des entreprises de paysagisme françaises, pour vendre Paysapro AI.
 Application indépendante, **100 % gratuite**, qui fonctionne dans le navigateur (ordinateur et téléphone) sans serveur ni abonnement.
 
+## Deux espaces : Paysapro AI et Signe & Seine
+
+Le sélecteur en haut du menu (ou en haut de l’écran sur téléphone) bascule entre deux espaces **entièrement séparés**
+(prospects, segments, campagnes, relances, modèles, statistiques, paramètres, sauvegarde en ligne) :
+
+| | Paysapro AI | Signe & Seine |
+|---|---|---|
+| Ce qu’on vend | le logiciel de devis pour paysagistes | l’agence web & communication (site, fiche Google, logo, imprimés) |
+| Cibles | paysagistes (NAF 81.30Z) | 🏗️ artisans du BTP, 🍽️ restauration & métiers de bouche, 💇 commerces & beauté, 🔧 services locaux (47 codes NAF, `src/domain/offers.ts`) |
+| Zone par défaut | à choisir | Seine-Maritime (76) |
+| Score | entreprise équipée et joignable | **besoin d’une agence** (aucun site trouvé +20, pas de fiche Google +10 ou peu d’avis +5, créée depuis moins d’un an +15 / 1 à 3 ans +10, aucun réseau social +5) **+ joignable** (active, téléphone, e-mail, employeur, zone, fiche complète) |
+| Vocabulaire | démo, essai | rendez-vous, devis envoyé |
+
+Une absence ne compte dans le score Signe & Seine que si elle a été **constatée** : « aucun site » après la recherche
+de coordonnées (Enrichir), « pas de fiche Google » après vérification (bouton *Pas de fiche Google* sur la fiche).
+
 ## Démarrer
 
 ```bash

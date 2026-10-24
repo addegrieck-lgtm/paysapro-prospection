@@ -98,7 +98,7 @@ export function CampaignsPage() {
 }
 
 function NewCampaign({ onCancel }: { onCancel: () => void }) {
-  const { api, settings } = useApp();
+  const { api, settings, offer } = useApp();
   const run = useAction();
   const navigate = useNavigate();
   const { data: segments = [] } = useQuery((a) => a.listSegments(), []);
@@ -119,7 +119,7 @@ function NewCampaign({ onCancel }: { onCancel: () => void }) {
         <Card>
           <CardTitle>1. Segment et message</CardTitle>
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField label="Nom de la campagne" value={name} onChange={setName} placeholder={segment ? `${segment.name} — ${new Date().toLocaleDateString('fr-FR')}` : 'Ex. Paysagistes Normandie'} />
+            <TextField label="Nom de la campagne" value={name} onChange={setName} placeholder={segment ? `${segment.name} — ${new Date().toLocaleDateString('fr-FR')}` : offer.id === 'agence' ? 'Ex. Artisans BTP sans site — Fécamp' : 'Ex. Paysagistes Normandie'} />
             <SelectField label="Segment" value={segmentId} onChange={setSegmentId} options={[{ value: '', label: segments.length ? 'Choisir un segment…' : 'Créez d’abord un segment' }, ...segments.map((s) => ({ value: s.id, label: s.name }))]} />
             <SelectField label="Modèle de message" value={tplId} onChange={setTemplateId} options={templates.map((t) => ({ value: t.id, label: `${t.name} — ${TEMPLATE_CATEGORY_LABEL[t.category]}` }))} />
             <div className="self-end">

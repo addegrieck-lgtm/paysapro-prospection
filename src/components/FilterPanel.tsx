@@ -7,6 +7,7 @@ import { ENRICHMENT_LABEL } from '../domain/enrichment';
 import { HEADCOUNT_BUCKETS } from '../domain/headcount';
 import { DEPARTMENT_CODES, DEPARTMENTS, REGIONS } from '../domain/geo';
 import { SERVICES, STATUSES } from '../domain/referentials';
+import { useApp } from '../app/context';
 
 function toggle<T>(list: T[] | undefined, v: T): T[] {
   const l = list ?? [];
@@ -29,6 +30,7 @@ const PRESENCE: { value: Presence; label: string }[] = [
 ];
 
 export function FilterPanel({ value, onChange }: { value: ProspectFilter; onChange: (f: ProspectFilter) => void }) {
+  const { offer } = useApp();
   const set = (patch: Partial<ProspectFilter>) => onChange({ ...value, ...patch });
   const deptOptions = [{ value: '', label: 'Ajouter un département…' }, ...DEPARTMENT_CODES.filter((c) => !value.departments?.includes(c)).map((c) => ({ value: c, label: `${c} — ${DEPARTMENTS[c]![0]}` }))];
   const regionOptions = [{ value: '', label: 'Ajouter une région…' }, ...Object.entries(REGIONS).filter(([c]) => !value.regions?.includes(c)).map(([c, n]) => ({ value: c, label: n }))];
@@ -131,13 +133,29 @@ export function FilterPanel({ value, onChange }: { value: ProspectFilter; onChan
       </Group>
 
       <Group title="Activité">
-        <div className="flex flex-wrap gap-2">
-          {SERVICES.map((s) => (
-            <Chip key={s.id} selected={!!value.services?.includes(s.id)} onClick={() => set({ services: toggle<ServiceTag>(value.services, s.id) })}>
-              {s.label}
-            </Chip>
-          ))}
-        </div>
+        {offer.landscapeServices ? (
+          <div className="flex flex-wrap gap-2">
+            {SERVICES.map((s) => (
+              <Chip key={s.id} selected={!!value.services?.includes(s.id)} onClick={() => set({ services: toggle<ServiceTag>(value.services, s.id) })}>
+                {s.label}
+              </Chip>
+            ))}
+          </div>
+        ) : (
+          // Secteurs de l'offre : un secteur sélectionné = tous ses codes NAF
+          <div className="flex flex-wrap gap-2">
+            {offer.sectors.map((sector) => {
+              const codes = sector.naf.map((n) => n.code);
+              const selected = codes.every((c) => value.nafCodes?.includes(c));
+              const others = (value.nafCodes ?? []).filter((c) => !codes.includes(c));
+              return (
+                <Chip key={sector.id} selected={selected} onClick={() => set({ nafCodes: selected ? (others.length ? others : undefined) : [...others, ...codes] })}>
+                  {sector.emoji} {sector.label}
+                </Chip>
+              );
+            })}
+          </div>
+        )}
       </Group>
 
       <Group title="Dates">

@@ -13,9 +13,12 @@ import { formatDateShort, nf, useAction } from '../components/common';
 import { useApp, useCan, useQuery } from '../app/context';
 import { describeFilter } from '../domain/filters';
 import type { ProspectFilter, Segment } from '../domain/types';
+import type { Offer } from '../domain/offers';
 
 /** Suggestions prêtes à l'emploi (créées en un clic, modifiables ensuite). */
-const SUGGESTIONS: { name: string; description: string; filter: ProspectFilter }[] = [
+type Suggestion = { name: string; description: string; filter: ProspectFilter };
+
+const SUGGESTIONS: Suggestion[] = [
   { name: 'Paysagistes prioritaires', description: 'Score ≥ 80', filter: { scoreMin: 80 } },
   { name: 'Sans site internet', description: 'Site absent', filter: { hasWebsite: 'no' } },
   { name: 'Grosses structures', description: 'Effectif ≥ 5', filter: { headcountMin: 5 } },
@@ -27,8 +30,23 @@ const SUGGESTIONS: { name: string; description: string; filter: ProspectFilter }
   { name: 'À relancer', description: "Prochaine relance ≤ aujourd'hui", filter: { followUpDue: true } },
 ];
 
+/** Signe & Seine : un segment par secteur, et les « besoins » (pas de site, entreprise récente…). */
+function agencySuggestions(offer: Offer): Suggestion[] {
+  const since = `${new Date().getFullYear() - 1}-01-01`;
+  return [
+    { name: 'Prioritaires agence', description: 'Score ≥ 70', filter: { scoreMin: 70 } },
+    { name: 'Sans site internet', description: 'Site absent', filter: { hasWebsite: 'no' } },
+    { name: 'Sans site, avec téléphone', description: 'À appeler', filter: { hasWebsite: 'no', hasPhone: 'yes' } },
+    { name: 'Entreprises récentes', description: `Créées depuis le ${since.split('-').reverse().join('/')}`, filter: { createdAfter: since } },
+    { name: 'Sans fiche Google', description: 'Aucune fiche Google renseignée', filter: { hasGoogle: 'no' } },
+    ...offer.sectors.map((s) => ({ name: `${s.emoji} ${s.label}`, description: `${s.naf.length} métiers`, filter: { nafCodes: s.naf.map((n) => n.code) } })),
+    { name: 'À relancer', description: "Prochaine relance ≤ aujourd'hui", filter: { followUpDue: true } },
+  ];
+}
+
 export function SegmentsPage() {
-  const { api } = useApp();
+  const { api, offer } = useApp();
+  const suggestions = offer.id === 'agence' ? agencySuggestions(offer) : SUGGESTIONS;
   const run = useAction();
   const canEdit = useCan('prospecting.edit');
   const { data } = useQuery(async (a) => {
@@ -84,7 +102,7 @@ export function SegmentsPage() {
         <section className="mt-8">
           <h2 className="mb-3 font-semibold">Suggestions</h2>
           <div className="flex flex-wrap gap-2">
-            {SUGGESTIONS.filter((s) => !existing.has(s.name)).map((s) => (
+            {suggestions.filter((s) => !existing.has(s.name)).map((s) => (
               <Button key={s.name} size="sm" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={() => run(() => api.saveSegment(s), `Segment « ${s.name} » créé`)}>
                 {s.name}
               </Button>
