@@ -4,6 +4,7 @@
 // du message (au lieu d'afficher un vide ou une donnée devinée). `{{var|repli}}` utilise le repli.
 import type { MessageTemplate, Prospect, Settings, TemplateCategory } from './types';
 import { SERVICE_LABEL } from './referentials';
+import { nafKeyword, offerByWorkspace, type OfferId } from './offers';
 
 export const VARIABLES = [
   { key: 'prenom', label: 'Prénom du contact' },
@@ -13,6 +14,7 @@ export const VARIABLES = [
   { key: 'note_google', label: 'Note Google' },
   { key: 'site', label: 'Site internet' },
   { key: 'activite', label: 'Activité / prestations' },
+  { key: 'metier', label: 'Métier (« électricien », « restaurant »…)' },
   { key: 'nom_saas', label: 'Nom du SaaS' },
   { key: 'signature', label: 'Signature' },
 ] as const;
@@ -30,6 +32,7 @@ export function variablesFor(p: Prospect, s: Pick<Settings, 'saasName' | 'signat
     note_google: p.googleRating !== null ? fr(p.googleRating) : null,
     site: p.website?.replace(/^https?:\/\/(www\.)?/, '') ?? null,
     activite: activity,
+    metier: nafKeyword(p.nafCode),
     nom_saas: s.saasName || null,
     signature: s.signature || null,
   };
@@ -170,8 +173,168 @@ Seriez-vous ouvert à un nouvel échange rapide ?
   },
 };
 
-export function builtInTemplates(): Builtin[] {
-  return Object.values(V);
+// Signe & Seine : des faits constatés sur la fiche (site, avis, date de création), jamais un problème supposé.
+const AGENCE: Builtin[] = [
+  {
+    name: 'Premier contact — sans site internet',
+    category: 'first_contact',
+    subject: '{{entreprise}} : être trouvé facilement en ligne',
+    body: `Bonjour {{prenom|}},
+
+Je m'occupe de {{nom_saas}}, une agence web et communication installée à Gruchet-le-Valasse. Nous travaillons avec les artisans, commerçants et restaurateurs de Seine-Maritime.
+
+En cherchant {{entreprise}} à {{ville}}, je n'ai pas trouvé de site internet à votre nom.
+Aujourd'hui, la plupart des clients cherchent un {{metier|professionnel}} sur leur téléphone avant d'appeler : un site simple, avec vos coordonnées, vos prestations et quelques photos, suffit souvent à faire la différence.
+
+Si le sujet vous intéresse, je vous propose un échange de quinze minutes, gratuit et sans engagement, pour regarder ensemble ce qui serait utile pour vous.
+
+Bonne journée,
+{{signature}}`,
+  },
+  {
+    name: 'Premier contact — site existant',
+    category: 'first_contact',
+    subject: 'Votre site {{site}}',
+    body: `Bonjour {{prenom|}},
+
+Je m'occupe de {{nom_saas}}, une agence web et communication installée à Gruchet-le-Valasse.
+
+J'ai consulté votre site {{site}}. Si vous envisagez de le moderniser, de le rendre plus lisible sur téléphone ou de mieux apparaître dans les recherches locales autour de {{ville}}, je peux vous faire un petit état des lieux, gratuit et sans engagement.
+
+Est-ce un sujet pour vous en ce moment ?
+
+Bonne journée,
+{{signature}}`,
+  },
+  {
+    name: 'Premier contact — entreprise récente',
+    category: 'first_contact',
+    subject: 'Bienvenue à {{entreprise}} : logo, cartes, site',
+    body: `Bonjour {{prenom|}},
+
+Je m'occupe de {{nom_saas}}, une agence web et communication installée à Gruchet-le-Valasse.
+
+Vous avez lancé {{entreprise}} récemment : c'est le moment où l'on met en place son image (logo, cartes de visite, flyers) et sa présence en ligne (site, fiche Google).
+Nous proposons des packs « Bien démarrer » pensés pour les entreprises qui s'installent, avec des tarifs annoncés à l'avance.
+
+Seriez-vous d'accord pour un échange de quinze minutes ?
+
+Bonne journée,
+{{signature}}`,
+  },
+  {
+    name: 'Premier contact — fiche Google',
+    category: 'first_contact',
+    subject: '{{entreprise}} sur Google',
+    body: `Bonjour {{prenom|}},
+
+Je m'occupe de {{nom_saas}}, une agence web et communication installée à Gruchet-le-Valasse.
+
+Quand un client cherche un {{metier|professionnel}} à {{ville}}, la fiche Google est souvent la première chose qu'il voit : horaires, photos, avis, bouton d'appel.
+Nous aidons les entreprises locales à créer ou compléter leur fiche, et à la relier à un site et à des supports imprimés cohérents.
+
+Si vous le souhaitez, je peux regarder la vôtre et vous dire ce qui peut être amélioré, gratuitement.
+
+Bonne journée,
+{{signature}}`,
+  },
+  {
+    name: 'Relance 1',
+    category: 'follow_up_1',
+    subject: 'Re : {{entreprise}} et votre communication',
+    body: `Bonjour {{prenom|}},
+
+Je reviens vers vous au sujet de mon précédent message.
+Est-ce que votre présence en ligne (site, fiche Google) ou vos supports (cartes, flyers) sont un sujet pour vous en ce moment ?
+
+Un premier échange prend une quinzaine de minutes, par téléphone ou à votre établissement.
+
+Bonne journée,
+{{signature}}`,
+  },
+  {
+    name: 'Relance 2',
+    category: 'follow_up_2',
+    subject: '{{entreprise}} : un état des lieux gratuit ?',
+    body: `Bonjour {{prenom|}},
+
+Je me permets une dernière relance : je peux vous envoyer un court état des lieux de la présence en ligne de {{entreprise}} (site, fiche Google, cohérence des coordonnées), gratuit et sans engagement.
+
+Si ce n'est pas le bon moment, dites-le-moi simplement et je ne vous relancerai pas.
+
+{{signature}}`,
+  },
+  {
+    name: 'Relance 3',
+    category: 'follow_up_3',
+    subject: 'Je clôture mon suivi',
+    body: `Bonjour {{prenom|}},
+
+Sans retour de votre part, je clôture mon suivi pour ne pas vous importuner.
+Si un projet de site, de logo ou d'impression se présente, vous pouvez me répondre à tout moment.
+
+Belle continuation à {{entreprise}},
+{{signature}}`,
+  },
+  {
+    name: 'Proposition de rendez-vous',
+    category: 'demo_invite',
+    subject: 'Un rendez-vous pour {{entreprise}}',
+    body: `Bonjour {{prenom|}},
+
+Merci pour votre retour. Je vous propose un rendez-vous d'une trentaine de minutes, à votre établissement, par téléphone ou en visio, pour faire le point sur vos besoins.
+Quels jours vous conviendraient le mieux cette semaine ou la suivante ?
+
+{{signature}}`,
+  },
+  {
+    name: 'Après rendez-vous',
+    category: 'after_demo',
+    subject: 'Suite à notre rendez-vous',
+    body: `Bonjour {{prenom|}},
+
+Merci pour le temps accordé aujourd'hui.
+Comme convenu, je vous prépare un devis détaillé. Je peux aussi vous envoyer notre cahier des charges en ligne, à remplir à votre rythme, pour préciser votre projet.
+
+{{signature}}`,
+  },
+  {
+    name: 'Suivi du devis',
+    category: 'trial',
+    subject: 'Votre devis {{nom_saas}}',
+    body: `Bonjour {{prenom|}},
+
+Avez-vous pu consulter le devis que je vous ai envoyé ?
+Si un point mérite d'être ajusté (contenu, délais, budget), dites-le-moi et je vous propose une version modifiée.
+
+{{signature}}`,
+  },
+  {
+    name: 'Réactivation',
+    category: 'reactivation',
+    subject: 'Des nouvelles de {{nom_saas}}',
+    body: `Bonjour {{prenom|}},
+
+Nous avions échangé il y a quelque temps au sujet de la communication de {{entreprise}}.
+Si un projet de site, de fiche Google ou de supports imprimés est d'actualité, je serais ravi d'en reparler.
+
+{{signature}}`,
+  },
+  {
+    name: 'Message court',
+    category: 'short',
+    subject: '',
+    body: `Bonjour, je m'occupe de {{nom_saas}}, agence web et communication à Gruchet-le-Valasse : sites, fiche Google, logos et flyers pour les entreprises du coin. Puis-je vous appeler 5 minutes cette semaine ? {{signature}}`,
+  },
+];
+
+export function builtInTemplates(offer: OfferId = 'paysapro'): Builtin[] {
+  return offer === 'agence' ? AGENCE : Object.values(V);
+}
+
+/** Modèles intégrés de l'offre d'un espace de travail. */
+export function builtInTemplatesFor(workspaceId: string): Builtin[] {
+  return builtInTemplates(offerByWorkspace(workspaceId).id);
 }
 
 /** Tutoiement : adaptation automatique des formules du vouvoiement. */
@@ -194,6 +357,15 @@ export function toInformal(text: string): string {
     [/\bvos propres\b/g, 'tes propres'],
     [/\bvos devis\b/g, 'tes devis'],
     [/\bvos clients\b/g, 'tes clients'],
+    [/\bvous envisagez\b/g, 'tu envisages'],
+    [/\bVous avez lancé\b/g, 'Tu as lancé'],
+    [/\bvous le souhaitez\b/g, 'tu le souhaites'],
+    [/\bvous envoyer\b/g, "t'envoyer"],
+    [/\bvous faire\b/g, 'te faire'],
+    [/\bvous dire\b/g, 'te dire'],
+    [/\bvous ai envoyé\b/g, "t'ai envoyé"],
+    [/\bvous prépare\b/g, 'te prépare'],
+    [/\bAvez-vous pu\b/g, 'As-tu pu'],
     [/\bvous\b/g, 'toi'],
     [/\bvotre\b/g, 'ton'],
     [/\bvos\b/g, 'tes'],

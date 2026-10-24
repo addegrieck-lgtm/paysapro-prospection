@@ -70,7 +70,7 @@ const yesNo = (v: boolean | null) => (v === null ? null : v ? 'Oui' : 'Non');
 export function ProspectPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const { api, companyProvider, engine } = useApp();
+  const { api, companyProvider, engine, offer } = useApp();
   const run = useAction();
   const canEdit = useCan('prospecting.edit');
   const canDelete = useCan('prospecting.delete');
@@ -220,6 +220,16 @@ export function ProspectPage() {
             <Button variant="secondary" icon={<ClipboardPaste className="h-5 w-5" />} onClick={() => setGoogleCard(true)} disabled={enriching}>
               Coller une fiche Google
             </Button>
+            {offer.id === 'agence' && !p.googleCheckedAt && !p.googleUrl && p.googleReviews === null && (
+              // Constat « pas de fiche Google » : critère du score Signe & Seine (jamais déduit automatiquement)
+              <Button
+                variant="secondary"
+                onClick={() => void run(() => api.updateProspect(p.id, { googleCheckedAt: new Date().toISOString() }, 'Vérifié : pas de fiche Google'), 'Noté : pas de fiche Google')}
+                disabled={enriching}
+              >
+                Pas de fiche Google
+              </Button>
+            )}
           </>
         )}
         {tel && !blocked && (
@@ -472,9 +482,11 @@ export function ProspectPage() {
               <Sourced p={p} field="description" label="Description">
                 {p.description}
               </Sourced>
-              <Sourced p={p} field="services" label="Services">
-                {p.services.map((s) => SERVICE_LABEL[s]).join(', ') || null}
-              </Sourced>
+              {(offer.landscapeServices || p.services.length > 0) && (
+                <Sourced p={p} field="services" label="Services">
+                  {p.services.map((s) => SERVICE_LABEL[s]).join(', ') || null}
+                </Sourced>
+              )}
               <Sourced p={p} field="interventionArea" label="Zone d'intervention">
                 {p.interventionArea}
               </Sourced>

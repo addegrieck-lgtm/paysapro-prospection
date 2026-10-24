@@ -10,19 +10,23 @@ import { nf, useAction } from './common';
 import { QueueProgressCard } from './enrichment';
 import { useApp, useCan } from '../app/context';
 import { DEPARTMENT_CODES, DEPARTMENTS, REGIONS } from '../domain/geo';
-import { NAF_CHOICES, NAF_LABELS } from '../domain/referentials';
+import { NAF_LABELS } from '../domain/referentials';
+import { offerNafCodes, sectorNafCodes } from '../domain/offers';
 import { HEADCOUNT_BUCKETS } from '../domain/headcount';
 import { ProspectingSearchEngine, departmentsOf, type SearchOutcome, type SearchProgress, type SearchRequest, type ZoneKind } from '../data/searchEngine';
 import { RechercheEntreprisesProvider } from '../providers/company/RechercheEntreprisesProvider';
 
-type Activity = 'landscaper' | 'naf' | 'free';
+type Activity = 'landscaper' | 'sector' | 'naf' | 'free';
 
 export function FindProspects() {
-  const { api, companyProvider, queue, settings } = useApp();
+  const { api, companyProvider, queue, settings, offer } = useApp();
   const run = useAction();
   const canImport = useCan('prospecting.import');
-  const [activity, setActivity] = useState<Activity>('landscaper');
-  const [naf, setNaf] = useState(settings.nafCodes[0] ?? '81.30Z');
+  const agency = offer.id === 'agence';
+  const nafChoices = offerNafCodes(offer);
+  const [activity, setActivity] = useState<Activity>(agency ? 'sector' : 'landscaper');
+  const [sectors, setSectors] = useState<string[]>(offer.sectors.map((x) => x.id));
+  const [naf, setNaf] = useState(settings.nafCodes.find((c) => nafChoices.includes(c)) ?? nafChoices[0] ?? '81.30Z');
   const [q, setQ] = useState('');
   const [zone, setZone] = useState<ZoneKind>(settings.targetDepartments.length ? 'department' : 'france');
   const [region, setRegion] = useState('28');
@@ -45,7 +49,12 @@ export function FindProspects() {
   const engine = useMemo(() => new ProspectingSearchEngine(api, companyProvider as RechercheEntreprisesProvider, queue), [api, companyProvider, queue]);
 
   const request: SearchRequest = {
-    activity: { mode: activity, nafCodes: activity === 'naf' ? [naf] : [], q: q.trim() || undefined },
+    activity: {
+      mode: activity,
+      nafCodes: activity === 'naf' ? [naf] : activity === 'sector' ? sectorNafCodes(offer, sectors) : [],
+      q: q.trim() || undefined,
+      sectors: activity === 'sector' ? offer.sectors.filter((x) => sectors.includes(x.id)).map((x) => x.label) : undefined,
+    },
     zone: {
       kind: zone,
       value: zone === 'region' ? region : zone === 'department' ? department : zone === 'postalCode' ? postalCode.trim() : zone === 'city' ? city.trim() : undefined,
@@ -61,10 +70,11 @@ export function FindProspects() {
     maxPhones,
   };
   const deps = departmentsOf(request.zone);
-  const invalid = (activity === 'free' && !q.trim()) || (zone === 'postalCode' && !/^\d{5}$/.test(postalCode.trim())) || (zone === 'city' && !city.trim()) || (activity !== 'free' && !deps.length);
+  const invalid = (activity === 'sector' && !sectors.length) || (activity === 'free' && !q.trim()) || (zone === 'postalCode' && !/^\d{5}$/.test(postalCode.trim())) || (zone === 'city' && !city.trim()) || (activity !== 'free' && !deps.length);
 
-  /** Recherche large (plusieurs départements) : confirmation obligatoire, jamais de lancement massif par erreur. */
-  const massive = activity !== 'free' && deps.length > 1;
+  /** Recherche large (plusieurs départements, ou beaucoup de métiers) : confirmation obligatoire, jamais de lancement massif par erreur. */
+  const codes = request.activity.nafCodes.length;
+  const massive = activity !== 'free' && (deps.length > 1 || codes > 12);
   const launch = async () => {
     if (running.current) return; // un seul lancement à la fois
     running.current = true;
@@ -91,13 +101,13 @@ export function FindProspects() {
           value={activity}
           onChange={(v) => setActivity(v as Activity)}
           options={[
-            { value: 'landscaper', label: 'Paysagiste (aménagement paysager, 81.30Z)' },
-            { value: 'naf', label: 'Code NAF…' },
+            agency ? { value: 'sector', label: 'Secteurs (BTP, restauration, commerces…)' } : { value: 'landscaper', label: 'Paysagiste (aménagement paysager, 81.30Z)' },
+            { value: 'naf', label: 'Métier précis (code NAF)…' },
             { value: 'free', label: 'Recherche libre (nom, mot-clé)' },
           ]}
         />
-        {activity === 'naf' && <SelectField label="Code NAF" value={naf} onChange={setNaf} options={NAF_CHOICES.map((c) => ({ value: c, label: `${c} — ${NAF_LABELS[c]}` }))} />}
-        {activity === 'free' && <TextField label="Mots-clés" value={q} onChange={setQ} placeholder="Ex. jardins, élagage…" />}
+        {activity === 'naf' && <SelectField label="Code NAF" value={naf} onChange={setNaf} options={nafChoices.map((c) => ({ value: c, label: `${c} — ${NAF_LABELS[c]}` }))} />}
+        {activity === 'free' && <TextField label="Mots-clés" value={q} onChange={setQ} placeholder={agency ? 'Ex. pizzeria, plombier…' : 'Ex. jardins, élagage…'} />}
         <SelectField
           label="Zone"
           value={zone}
@@ -117,6 +127,22 @@ export function FindProspects() {
         {zone === 'postalCode' && <TextField label="Code postal" value={postalCode} onChange={setPostalCode} inputMode="numeric" placeholder="76000" />}
         {zone === 'city' && <TextField label="Ville" value={city} onChange={setCity} placeholder="Rouen" />}
       </div>
+      {activity === 'sector' && (
+        <div className="mt-3">
+          <p className="mb-1.5 text-sm font-medium">Secteurs</p>
+          <div className="flex flex-wrap gap-2">
+            {offer.sectors.map((x) => (
+              <Chip key={x.id} selected={sectors.includes(x.id)} onClick={() => setSectors(sectors.includes(x.id) ? sectors.filter((y) => y !== x.id) : [...sectors, x.id])}>
+                {x.emoji} {x.label}
+              </Chip>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            {codes} métier(s) : {offer.sectors.filter((x) => sectors.includes(x.id)).flatMap((x) => x.naf.map((n) => n.keyword)).slice(0, 12).join(', ')}
+            {codes > 12 ? '…' : ''}
+          </p>
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap gap-x-6">
         <Checkbox checked={activeOnly} onChange={setActiveOnly}>
           Entreprises actives
@@ -187,6 +213,7 @@ export function FindProspects() {
           </Button>
           <span className="text-sm text-muted">
             {activity !== 'free' && deps.length > 1 && `${deps.length} départements · `}
+            {activity !== 'free' && codes > 1 && `${codes} métiers · `}
             {zone === 'france' && 'toute la France : environ 10 à 20 minutes de recherche, puis enrichissement progressif'}
           </span>
         </div>
@@ -218,11 +245,17 @@ export function FindProspects() {
         message={
           <>
             <p>
-              La recherche va parcourir <strong>{deps.length} départements</strong>
+              La recherche va parcourir <strong>{deps.length} département(s)</strong>
+              {codes > 1 && (
+                <>
+                  {' '}
+                  et <strong>{codes} métiers</strong>
+                </>
+              )}
               {zone === 'france' ? ' (toute la France : plusieurs dizaines de milliers d’entreprises, 10 à 20 minutes)' : ' (plusieurs milliers d’entreprises possibles)'}.
             </p>
             {enrichAfter && <p>Chaque entreprise trouvée sera ensuite enrichie progressivement (plusieurs secondes par entreprise, en arrière-plan).</p>}
-            <p>Conseil : testez d'abord sur un code postal ou un département.</p>
+            <p>Conseil : testez d'abord sur un code postal{agency ? ', une ville ou un seul secteur' : ' ou un département'}.</p>
           </>
         }
         confirmLabel="Lancer la recherche"

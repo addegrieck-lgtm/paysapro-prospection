@@ -9,7 +9,7 @@ import { IconButton } from '../components/ui/Button';
 import { formatDateShort, nf, useAction } from '../components/common';
 import { useApp, useCan, useQuery } from '../app/context';
 import { DEPARTMENT_CODES, DEPARTMENTS } from '../domain/geo';
-import { NAF_CHOICES, NAF_LABELS } from '../domain/referentials';
+import { NAF_LABELS } from '../domain/referentials';
 import { ROLE_LABEL, CURRENT_PLAN, PLAN_QUOTAS } from '../domain/access';
 import { csvProvider, googlePlacesProvider, manualProvider } from '../providers/company';
 import { SireneProvider } from '../providers/company/SireneProvider';
@@ -22,7 +22,7 @@ import { GmailCard } from '../components/GmailCard';
 import type { Role, Settings, SuppressionKind } from '../domain/types';
 
 export function SettingsPage() {
-  const { api, settings, reloadSettings } = useApp();
+  const { api, settings, reloadSettings, offer } = useApp();
   const run = useAction();
   const canDelete = useCan('prospecting.delete');
   const [s, setS] = useState<Settings>(settings);
@@ -44,14 +44,14 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Paramètres" subtitle="Prospection" />
+      <PageHeader title="Paramètres" subtitle={`Prospection — espace ${offer.name} (paramètres propres à cet espace)`} />
       <div className="space-y-4">
         <Card>
           <CardTitle>Messages</CardTitle>
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextField label="Nom du SaaS" value={s.saasName} onChange={set('saasName')} />
+            <TextField label={offer.id === 'agence' ? 'Nom de l’agence' : 'Nom du SaaS'} value={s.saasName} onChange={set('saasName')} />
             <TextField label="Votre nom (auteur des notes)" value={s.userName} onChange={set('userName')} />
-            <TextArea label="Signature e-mail" value={s.signature} onChange={set('signature')} rows={3} className="sm:col-span-2" placeholder={'Adrien\nFondateur de Paysapro AI\n06 …'} />
+            <TextArea label="Signature e-mail" value={s.signature} onChange={set('signature')} rows={3} className="sm:col-span-2" placeholder={offer.id === 'agence' ? 'Adrien\nSigne & Seine — agence web & communication\nwww.signeetseine.fr · 06 …' : 'Adrien\nFondateur de Paysapro AI\n06 …'} />
             <div className="sm:col-span-2">
               <p className="mb-1.5 text-sm font-medium">Formule</p>
               <Segmented label="Formule" value={s.formality} onChange={set('formality')} options={[{ value: 'vous', label: 'Vouvoiement' }, { value: 'tu', label: 'Tutoiement' }]} />
@@ -79,13 +79,22 @@ export function SettingsPage() {
           <div className="space-y-4">
             <div>
               <p className="mb-1.5 text-sm font-medium">Codes NAF ciblés (import SIRENE)</p>
-              <div className="flex flex-wrap gap-2">
-                {NAF_CHOICES.map((c) => (
-                  <Chip key={c} selected={s.nafCodes.includes(c)} onClick={() => set('nafCodes')(s.nafCodes.includes(c) ? s.nafCodes.filter((x) => x !== c) : [...s.nafCodes, c])}>
-                    {c} · {NAF_LABELS[c]}
-                  </Chip>
-                ))}
-              </div>
+              {offer.sectors.map((sector) => (
+                <div key={sector.id} className="mb-2">
+                  {offer.sectors.length > 1 && (
+                    <p className="mb-1 text-xs font-semibold text-muted">
+                      {sector.emoji} {sector.label}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {sector.naf.map(({ code: c }) => (
+                      <Chip key={c} selected={s.nafCodes.includes(c)} onClick={() => set('nafCodes')(s.nafCodes.includes(c) ? s.nafCodes.filter((x) => x !== c) : [...s.nafCodes, c])}>
+                        {c} · {NAF_LABELS[c]}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
             <div>
               <SelectField

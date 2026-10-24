@@ -10,7 +10,8 @@ import { Checkbox, Segmented, SelectField, TextField } from '../components/ui/Fo
 import { QueueProgressCard } from '../components/enrichment';
 import { companyToInput } from '../providers/company/RechercheEntreprisesProvider';
 import type { Company } from '../providers/company/CompanyDataProvider';
-import { HEADCOUNT_BANDS, NAF_CHOICES, NAF_LABELS } from '../domain/referentials';
+import { HEADCOUNT_BANDS, NAF_LABELS } from '../domain/referentials';
+import { offerNafCodes } from '../domain/offers';
 import { nf, useAction, formatDateShort } from '../components/common';
 import { useApp, useCan, useQuery } from '../app/context';
 import { csvProvider } from '../providers/company/CsvProvider';
@@ -26,12 +27,13 @@ import type { ProspectInput } from '../domain/prospect';
 type Tab = 'sirene' | 'search' | 'csv' | 'enrich' | 'demo';
 
 export function ImportPage() {
+  const { offer } = useApp();
   const canImport = useCan('prospecting.import');
   const [tab, setTab] = useState<Tab>('sirene');
   if (!canImport) return <Alert tone="warning">Votre rôle ne permet pas d'importer des prospects.</Alert>;
   return (
     <>
-      <PageHeader title="Import & Enrichissement" subtitle="Constituez et complétez votre base de paysagistes, gratuitement." />
+      <PageHeader title="Import & Enrichissement" subtitle={`Constituez et complétez votre base de ${offer.audience}, gratuitement.`} />
       <div className="mb-4 grid gap-4 lg:grid-cols-2">
         <EnrichmentOverview />
         <DuplicatesOverview />
@@ -140,7 +142,8 @@ function DuplicatesOverview() {
 // ─────────────── Recherche d'entreprises (API officielle) ───────────────
 
 function CompanySearch() {
-  const { api, companyProvider, settings } = useApp();
+  const { api, companyProvider, settings, offer } = useApp();
+  const nafChoices = offerNafCodes(offer);
   const run = useAction();
   const [q, setQ] = useState('');
   const [postalCode, setPostalCode] = useState('');
@@ -199,10 +202,10 @@ function CompanySearch() {
           void search(1);
         }}
       >
-        <TextField label="Nom, SIREN ou SIRET" value={q} onChange={setQ} placeholder="Ex. jardin, 123456789…" className="lg:col-span-2" />
+        <TextField label="Nom, SIREN ou SIRET" value={q} onChange={setQ} placeholder={offer.id === 'agence' ? 'Ex. boulangerie, 123456789…' : 'Ex. jardin, 123456789…'} className="lg:col-span-2" />
         <TextField label="Code postal" value={postalCode} onChange={setPostalCode} inputMode="numeric" />
         <TextField label="Commune" value={commune} onChange={setCommune} />
-        <SelectField label="Code NAF" value={naf} onChange={setNaf} options={[{ value: '', label: 'Tous' }, ...NAF_CHOICES.map((c) => ({ value: c, label: `${c} — ${NAF_LABELS[c]}` }))]} />
+        <SelectField label="Code NAF" value={naf} onChange={setNaf} options={[{ value: '', label: 'Tous' }, ...nafChoices.map((c) => ({ value: c, label: `${c} — ${NAF_LABELS[c]}` }))]} />
         <div className="self-end">
           <Checkbox checked={activeOnly} onChange={setActiveOnly}>
             Actives uniquement
@@ -332,7 +335,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 // ─────────────── SIRENE ───────────────
 
 function SireneImport() {
-  const { api, settings } = useApp();
+  const { api, settings, offer } = useApp();
   const run = useAction();
   const provider = useMemo(() => new SireneProvider({ db: api.db }), [api]);
   const { data: last = {} } = useQuery(() => provider.lastImports(), []);
@@ -398,10 +401,11 @@ function SireneImport() {
 
   return (
     <Card>
-      <CardTitle icon={<Building2 className="h-5 w-5" />}>Importer les paysagistes français (SIRENE)</CardTitle>
+      <CardTitle icon={<Building2 className="h-5 w-5" />}>Importer les {offer.audience} (SIRENE)</CardTitle>
       <div className="space-y-4 text-sm">
         <p className="text-muted">
-          Source officielle et gratuite : l'API publique « Recherche d'entreprises » de l'État (données INSEE). Code NAF <strong>{settings.nafCodes.join(', ') || '81.30Z'}</strong>{' '}
+          Source officielle et gratuite : l'API publique « Recherche d'entreprises » de l'État (données INSEE). Code{settings.nafCodes.length > 1 ? 's' : ''} NAF{' '}
+          <strong>{settings.nafCodes.length > 8 ? `${settings.nafCodes.length} codes (${offer.sectors.map((x) => x.label).join(', ')})` : settings.nafCodes.join(', ') || '81.30Z'}</strong>{' '}
           (modifiable dans Paramètres), établissements à diffusion publique. Aucune clé ni abonnement. Les fiches importées sont déjà « enrichies » administrativement.
         </p>
         <Alert tone="info" title="Ce que SIRENE ne contient pas">
@@ -673,7 +677,7 @@ function CsvImport({ mode }: { mode: 'create' | 'enrich' }) {
 // ─────────────── Démo ───────────────
 
 function DemoImport() {
-  const { api } = useApp();
+  const { api, offer } = useApp();
   const run = useAction();
   const [report, setReport] = useState<ImportReport | null>(null);
   return (
@@ -686,7 +690,7 @@ function DemoImport() {
         <div className="flex flex-wrap gap-2">
           <Button
             onClick={async () => {
-              const r = await run(() => api.importLines(demoLines(100), { source: 'demo', label: 'Démonstration', mode: 'create' }));
+              const r = await run(() => api.importLines(demoLines(100, offer.id), { source: 'demo', label: 'Démonstration', mode: 'create' }));
               if (r) setReport(r);
             }}
           >

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { BarChart3, Gauge, Bell, CalendarClock, Ellipsis, FileText, Filter, Headset, LayoutDashboard, Mail, Settings, Upload, Users } from 'lucide-react';
 import { Drawer } from '../components/ui/Extras';
 import { useApp, useQuery } from './context';
 import { today } from '../domain/filters';
+import { OFFERS } from '../domain/offers';
 
 export const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -21,13 +22,60 @@ export const NAV = [
 
 const BOTTOM = [NAV[0]!, NAV[1]!, NAV[5]!, NAV[4]!];
 
-export function LogoMark({ className = 'h-9 w-9' }: { className?: string }) {
+export function LogoMark({ className = 'h-9 w-9', colors = OFFERS[0]!.logo }: { className?: string; colors?: { bg: string; fg: string } }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden>
-      <rect width="48" height="48" rx="12" fill="#1f5c44" />
-      <path d="M14 34c0-11 8-19 21-20-1 13-9 21-20 21" fill="#8fcf9f" />
-      <path d="M14 34 27 21" stroke="#1f5c44" strokeWidth="2.2" strokeLinecap="round" />
+      <rect width="48" height="48" rx="12" fill={colors.bg} />
+      <path d="M14 34c0-11 8-19 21-20-1 13-9 21-20 21" fill={colors.fg} />
+      <path d="M14 34 27 21" stroke={colors.bg} strokeWidth="2.2" strokeLinecap="round" />
     </svg>
+  );
+}
+
+/** Choix de l'espace : chaque offre a ses propres prospects, modèles, campagnes et paramètres. */
+function WorkspaceSwitcher({ compact = false }: { compact?: boolean }) {
+  const { offer, switchWorkspace } = useApp();
+  const navigate = useNavigate();
+  const change = (workspaceId: string) => {
+    if (workspaceId === offer.workspaceId) return;
+    navigate('/'); // une fiche ouverte appartient à l'autre espace
+    switchWorkspace(workspaceId);
+  };
+  if (compact) {
+    return (
+      <select
+        aria-label="Espace de prospection"
+        value={offer.workspaceId}
+        onChange={(e) => change(e.target.value)}
+        className="min-h-10 max-w-40 rounded-xl border border-line bg-surface px-2 text-sm font-semibold text-ink"
+      >
+        {OFFERS.map((o) => (
+          <option key={o.id} value={o.workspaceId}>
+            {o.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  return (
+    <div role="radiogroup" aria-label="Espace de prospection" className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+      {OFFERS.map((o) => {
+        const active = o.workspaceId === offer.workspaceId;
+        return (
+          <button
+            key={o.id}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            title={`${o.name} — ${o.tagline}`}
+            onClick={() => change(o.workspaceId)}
+            className={`min-h-10 rounded-lg px-2 text-xs font-semibold leading-tight ${active ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+          >
+            {o.name}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -84,7 +132,7 @@ function NotificationBell() {
 export function Layout() {
   const { pathname } = useLocation();
   const [more, setMore] = useState(false);
-  const { settings } = useApp();
+  const { settings, offer } = useApp();
   const wide = /^\/(prospects$|prospects\?|stats|campaigns\/)/.test(pathname) || pathname === '/prospects';
 
   return (
@@ -93,9 +141,9 @@ export function Layout() {
         Aller au contenu
       </a>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface p-4 lg:flex">
-        <div className="mb-6 flex items-center justify-between px-1 pt-1">
+        <div className="mb-4 flex items-center justify-between px-1 pt-1">
           <div className="flex items-center gap-2.5">
-            <LogoMark />
+            <LogoMark colors={offer.logo} />
             <div className="leading-tight">
               <div className="font-bold tracking-tight text-ink">Prospection</div>
               <div className="text-xs text-muted">{settings.saasName}</div>
@@ -103,6 +151,7 @@ export function Layout() {
           </div>
           <NotificationBell />
         </div>
+        <WorkspaceSwitcher />
         <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
@@ -122,8 +171,8 @@ export function Layout() {
       {/* Barre du haut (mobile) */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-surface/95 px-4 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))] backdrop-blur lg:hidden">
         <div className="flex items-center gap-2">
-          <LogoMark className="h-8 w-8" />
-          <span className="font-bold tracking-tight">Prospection</span>
+          <LogoMark className="h-8 w-8" colors={offer.logo} />
+          <WorkspaceSwitcher compact />
         </div>
         <NotificationBell />
       </header>

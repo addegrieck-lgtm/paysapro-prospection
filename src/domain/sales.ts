@@ -9,7 +9,14 @@ import { SERVICE_LABEL, headcountMin } from './referentials';
 import { stripAccents } from './normalize';
 import { phoneType, toE164 } from './phone';
 import { departmentName } from './geo';
-import { defaultSalesConfig } from './salesContent';
+import { defaultSalesConfig as paysaproSalesConfig } from './salesContent';
+import { defaultAgencySalesConfig } from './salesContentAgence';
+import { nafKeyword, offerByWorkspace } from './offers';
+
+/** Contenu commercial par défaut de l'offre de l'espace (Paysapro AI ou Signe & Seine). */
+export function defaultSalesConfig(workspaceId?: string): SalesConfig {
+  return offerByWorkspace(workspaceId).id === 'agence' ? defaultAgencySalesConfig() : paysaproSalesConfig();
+}
 
 export type KbCategory =
   | 'produit'
@@ -156,11 +163,10 @@ export interface SalesConfig {
   messages: { sms: string; whatsapp: string; linkedin: string };
 }
 
-export { defaultSalesConfig };
 
 /** Configuration effective : le contenu enregistré complète / remplace le contenu par défaut. */
-export function salesConfig(s: Pick<Settings, 'sales'>): SalesConfig {
-  const d = defaultSalesConfig();
+export function salesConfig(s: Pick<Settings, 'sales'> & Partial<Pick<Settings, 'workspaceId'>>): SalesConfig {
+  const d = defaultSalesConfig(s.workspaceId);
   const c = s.sales;
   if (!c) return d;
   return {
@@ -210,7 +216,8 @@ export function prospectKind(p: Pick<Prospect, 'headcount' | 'headcountBand'> | 
   return n !== null && n >= 10 ? 'structure' : 'independent';
 }
 
-export function prospectSector(p: Pick<Prospect, 'services' | 'activity'>): string {
+export function prospectSector(p: Pick<Prospect, 'services' | 'activity'> & Partial<Pick<Prospect, 'nafCode' | 'workspaceId'>>): string {
+  if (offerByWorkspace(p.workspaceId).id === 'agence') return nafKeyword(p.nafCode) ?? p.activity?.toLowerCase() ?? '';
   if (p.services.length) return p.services.slice(0, 3).map((x) => SERVICE_LABEL[x].toLowerCase()).join(', ');
   return p.activity?.toLowerCase() ?? '';
 }

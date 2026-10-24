@@ -7,7 +7,7 @@ import { Alert, ConfirmDialog, Dialog } from './ui/Feedback';
 import { TextField } from './ui/Form';
 import { formatDateTime, nf, useAction } from './common';
 import { useApp, useCan } from '../app/context';
-import { CloudBackup, MIN_PASSPHRASE, backupNow, deriveBackupKey, lastBackup, rememberBackup, rememberBackupKey, storedBackupKey, type BackupKey, type BackupMeta } from '../data/cloudBackup';
+import { CloudBackup, MIN_PASSPHRASE, backupNow, deriveBackupKey, lastBackup, rememberBackup, rememberBackupKey, scopedBackupKey, storedBackupKey, type BackupKey, type BackupMeta } from '../data/cloudBackup';
 import type { ProspectsApi } from '../data/repository';
 
 type Backup = Awaited<ReturnType<ProspectsApi['exportBackup']>>;
@@ -18,7 +18,9 @@ export function CloudBackupCard() {
   const canRestore = useCan('prospecting.import');
   const cloud = new CloudBackup();
   const [key, setKey] = useState<BackupKey | null>(storedBackupKey);
-  const [meta, setMeta] = useState<BackupMeta | null>(lastBackup);
+  // Chaque espace (Paysapro, Signe & Seine) a sa propre sauvegarde en ligne, avec la même phrase secrète
+  const workspaceId = api.ctx.workspaceId;
+  const [meta, setMeta] = useState<BackupMeta | null>(() => lastBackup(workspaceId));
   const [phrase, setPhrase] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,7 +53,7 @@ export function CloudBackupCard() {
     // Une sauvegarde existe-t-elle déjà pour cette phrase ? (sinon on risquerait de l'écraser avec un appareil vide)
     let found: { data: Backup; savedAt: string | null } | null = null;
     try {
-      found = await cloud.download<Backup>(k);
+      found = await cloud.download<Backup>(await scopedBackupKey(k, workspaceId));
     } catch (e) {
       if (!(e instanceof Error) || !/Aucune sauvegarde/.test(e.message)) {
         setBusy(false);
@@ -153,7 +155,7 @@ export function CloudBackupCard() {
                 keep(e.key);
                 await doRestore(e.data);
                 const m = { savedAt: e.savedAt ?? new Date().toISOString(), size: 0, prospects: e.data.prospects.length };
-                rememberBackup(m);
+                rememberBackup(m, workspaceId);
                 setMeta(m);
               }}
             >
@@ -181,7 +183,7 @@ export function CloudBackupCard() {
         onConfirm={async () => {
           setRestore(false);
           setBusy(true);
-          const found = await run(() => cloud.download<Backup>(key!));
+          const found = await run(async () => cloud.download<Backup>(await scopedBackupKey(key!, workspaceId)));
           setBusy(false);
           if (found) await doRestore(found.data);
         }}

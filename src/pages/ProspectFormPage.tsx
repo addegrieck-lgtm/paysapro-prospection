@@ -79,7 +79,7 @@ function toForm(p?: Prospect): Form {
 export function ProspectFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { api } = useApp();
+  const { api, offer } = useApp();
   const run = useAction();
   const { data: existing, loading } = useQuery((a) => (id ? a.getProspect(id) : Promise.resolve(undefined)), [id]);
   const [f, setF] = useState<Form>(toForm());
@@ -180,7 +180,7 @@ export function ProspectFormPage() {
             {field('tradeName', 'Nom commercial')}
             {field('siren', 'SIREN', { inputMode: 'numeric' })}
             {field('siret', 'SIRET', { inputMode: 'numeric' })}
-            {field('nafCode', 'Code NAF', { placeholder: '81.30Z' })}
+            {field('nafCode', 'Code NAF', { placeholder: offer.id === 'agence' ? '56.10A' : '81.30Z' })}
             {field('activity', 'Activité')}
             {field('creationDate', 'Date de création', { type: 'date' })}
             <NumberField label="Effectif (personnes)" value={headcount} onChange={setHeadcount} />
@@ -234,16 +234,20 @@ export function ProspectFormPage() {
 
         <Card>
           <CardTitle>Qualification</CardTitle>
-          <p className="mb-2 text-sm font-medium">Prestations constatées</p>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {SERVICES.map((s) => (
-              <Chip key={s.id} selected={services.includes(s.id)} onClick={() => setServices((l) => (l.includes(s.id) ? l.filter((x) => x !== s.id) : [...l, s.id]))}>
-                {s.label}
-              </Chip>
-            ))}
-          </div>
+          {offer.landscapeServices && (
+            <>
+              <p className="mb-2 text-sm font-medium">Prestations constatées</p>
+              <div className="mb-4 flex flex-wrap gap-2">
+                {SERVICES.map((s) => (
+                  <Chip key={s.id} selected={services.includes(s.id)} onClick={() => setServices((l) => (l.includes(s.id) ? l.filter((x) => x !== s.id) : [...l, s.id]))}>
+                    {s.label}
+                  </Chip>
+                ))}
+              </div>
+            </>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
-            {field('interventionArea', "Zone d'intervention", { placeholder: 'Ex. Rouen et 30 km' })}
+            {field('interventionArea', "Zone d'intervention", { placeholder: offer.id === 'agence' ? 'Ex. Bolbec et 20 km' : 'Ex. Rouen et 30 km' })}
             {field('description', 'Description (constatée sur son site / sa fiche)', { className: 'sm:col-span-2' })}
             {field('owner', 'Responsable commercial')}
           </div>

@@ -5,8 +5,13 @@
 //  • le site compte une fois quelle que soit sa source ;
 //  • les avis sont un palier unique ; la note n'est prise en compte qu'avec au moins 5 avis ;
 //  • le code NAF « aménagement paysager » ne donne pas de points (tous les prospects l'ont).
+//
+// Chaque offre a son barème : Paysapro (SCORING_CONFIG) cherche des entreprises équipées et joignables ;
+// Signe & Seine (AGENCE_SCORING_CONFIG) cherche celles qui ont BESOIN d'une agence : pas de site, pas de fiche
+// Google, peu d'avis, création récente. Le barème suit l'espace de travail de la fiche (workspaceId).
 import type { Prospect, ServiceTag } from './types';
 import { HEADCOUNT_BANDS, headcountMin } from './referentials';
+import { offerByWorkspace } from './offers';
 
 export const SCORING_CONFIG = {
   active: 15, // Entreprise active (source officielle)
@@ -22,6 +27,25 @@ export const SCORING_CONFIG = {
   recent: 5, // Entreprise récente (≤ 3 ans) : période où l'on s'équipe
   targetZone: 5, // Département ciblé dans les paramètres
   services: 5, // Création / aménagement, ou au moins 2 prestations
+  complete: 5, // Informations administratives complètes
+} as const;
+
+/**
+ * Signe & Seine — « besoin d'une agence » + « joignable » (total 100). Une absence n'est comptée que si elle a été
+ * constatée : « aucun site » après la recherche de coordonnées, « pas de fiche Google » après vérification.
+ */
+export const AGENCE_SCORING_CONFIG = {
+  active: 15, // Entreprise active (source officielle)
+  phone: 10,
+  email: 10,
+  noWebsite: 20, // Aucun site trouvé après la recherche de coordonnées
+  noGoogle: 10, // Pas de fiche Google (vérifiée)
+  fewReviews: 5, // Fiche Google avec moins de 10 avis (remplace le palier précédent)
+  noSocial: 5, // Aucun réseau social trouvé après la recherche de coordonnées
+  recent1: 15, // Créée depuis moins d'un an : tout est à faire (logo, cartes, site)
+  recent3: 10, // Créée depuis 1 à 3 ans (remplace le palier précédent)
+  employer: 5, // Au moins un salarié : budget communication plus probable
+  targetZone: 5, // Département ciblé dans les paramètres
   complete: 5, // Informations administratives complètes
 } as const;
 
@@ -50,7 +74,28 @@ export type ScoreInput = Pick<
   | 'services'
   | 'activity'
 > &
-  Partial<Pick<Prospect, 'active' | 'creationDate' | 'department' | 'facebook' | 'instagram' | 'linkedin' | 'tiktok' | 'siren' | 'siret' | 'nafCode' | 'address' | 'postalCode' | 'city' | 'name'>>;
+  Partial<
+    Pick<
+      Prospect,
+      | 'active'
+      | 'creationDate'
+      | 'department'
+      | 'facebook'
+      | 'instagram'
+      | 'linkedin'
+      | 'tiktok'
+      | 'siren'
+      | 'siret'
+      | 'nafCode'
+      | 'address'
+      | 'postalCode'
+      | 'city'
+      | 'name'
+      | 'workspaceId'
+      | 'contactsCheckedAt'
+      | 'googleCheckedAt'
+    >
+  >;
 
 export interface ScoringContext {
   targetDepartments: string[];
@@ -68,10 +113,13 @@ export function getScoringContext(): ScoringContext {
   return context;
 }
 
+const ADMIN_KEYS = ['siren', 'siret', 'nafCode', 'address', 'postalCode', 'city', 'creationDate', 'name'] as const;
+
 const CREATION: ServiceTag[] = ['creation', 'amenagement'];
 const fr = (n: number) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(n);
 
 export function computeScore(p: ScoreInput, ctx: ScoringContext = context): ScoreResult {
+  if (offerByWorkspace(p.workspaceId).id === 'agence') return computeAgencyScore(p, ctx);
   const C = SCORING_CONFIG;
   const reasons: ScoreReason[] = [];
   const missing: string[] = [];
@@ -113,14 +161,70 @@ export function computeScore(p: ScoreInput, ctx: ScoringContext = context): Scor
   else if (services.length >= 2) add(C.services, `${services.length} prestations complémentaires`);
   else if (services.length === 0) missing.push('Services');
 
-  const adminKeys = ['siren', 'siret', 'nafCode', 'address', 'postalCode', 'city', 'creationDate', 'name'] as const;
-  if (adminKeys.every((k) => p[k]) && p.active != null) add(C.complete, 'Informations administratives complètes');
+  if (ADMIN_KEYS.every((k) => p[k]) && p.active != null) add(C.complete, 'Informations administratives complètes');
   else missing.push('Informations administratives incomplètes');
 
   if (!(p.facebook || p.instagram || p.linkedin || p.tiktok)) missing.push('Réseaux sociaux inconnus');
 
   const score = Math.min(100, reasons.reduce((s, r) => s + r.points, 0));
   return { score, reasons, missing };
+}
+
+/** Barème Signe & Seine : les entreprises qui ont le plus besoin de l'agence, et que l'on peut joindre. */
+export function computeAgencyScore(p: ScoreInput, ctx: ScoringContext = context): ScoreResult {
+  const C = AGENCE_SCORING_CONFIG;
+  const reasons: ScoreReason[] = [];
+  const missing: string[] = [];
+  const add = (points: number, label: string) => reasons.push({ points, label });
+  const searched = !!p.contactsCheckedAt;
+
+  if (p.active === true) add(C.active, 'Entreprise active');
+  else if (p.active === false) missing.push('Établissement fermé');
+  else missing.push('Statut administratif inconnu');
+
+  if (p.phone) add(C.phone, 'Téléphone disponible');
+  else missing.push('Téléphone');
+  if (p.email) add(C.email, 'E-mail disponible');
+  else missing.push('E-mail');
+
+  if (p.website) missing.push('A déjà un site (refonte possible)');
+  else if (searched) add(C.noWebsite, 'Aucun site internet trouvé');
+  else missing.push('Site web (lancer la recherche de coordonnées)');
+
+  const reviews = p.googleReviews ?? null;
+  const hasGoogle = !!p.googleUrl || reviews !== null || p.googleRating !== null;
+  if (hasGoogle && (reviews ?? 0) < 10) add(C.fewReviews, reviews ? `Peu d'avis Google (${fr(reviews)})` : 'Fiche Google sans avis');
+  else if (hasGoogle) missing.push(`Fiche Google déjà active (${fr(reviews ?? 0)} avis)`);
+  else if (p.googleCheckedAt) add(C.noGoogle, 'Pas de fiche Google');
+  else missing.push('Présence Google (à vérifier)');
+
+  if (p.facebook || p.instagram || p.linkedin || p.tiktok) missing.push('Déjà présente sur les réseaux sociaux');
+  else if (searched) add(C.noSocial, 'Aucun réseau social trouvé');
+  else missing.push('Réseaux sociaux inconnus');
+
+  if (p.creationDate) {
+    const months = monthsSince(p.creationDate, ctx.now ?? new Date());
+    if (months >= 0 && months < 12) add(C.recent1, `Entreprise créée il y a moins d'un an (${p.creationDate.slice(0, 7).split('-').reverse().join('/')})`);
+    else if (months >= 0 && months < 36) add(C.recent3, `Entreprise récente (${p.creationDate.slice(0, 4)})`);
+  } else missing.push('Date de création');
+
+  const hc = headcountMin(p.headcountBand, p.headcount);
+  if (hc !== null && hc >= 1) add(C.employer, `Employeur : ${p.headcount !== null ? `${p.headcount} personne(s)` : (HEADCOUNT_BANDS[p.headcountBand ?? '']?.[0] ?? '')}`);
+  else if (hc === null) missing.push('Effectif');
+
+  if (p.department && ctx.targetDepartments.includes(p.department)) add(C.targetZone, `Zone ciblée (${p.department})`);
+
+  if (ADMIN_KEYS.every((k) => p[k]) && p.active != null) add(C.complete, 'Informations administratives complètes');
+  else missing.push('Informations administratives incomplètes');
+
+  const score = Math.min(100, reasons.reduce((s, r) => s + r.points, 0));
+  return { score, reasons, missing };
+}
+
+function monthsSince(isoDate: string, now: Date): number {
+  const [y, m] = isoDate.slice(0, 7).split('-').map(Number);
+  if (!y) return -1;
+  return (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - (m || 1));
 }
 
 export type PriorityLevel = 'max' | 'high' | 'normal' | 'low';

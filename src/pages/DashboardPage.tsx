@@ -14,7 +14,7 @@ import { TASK_TYPE_LABEL } from '../domain/referentials';
 const money = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 
 export function DashboardPage() {
-  const { settings } = useApp();
+  const { settings, offer } = useApp();
   const { data } = useQuery(async (api) => {
     const [rows, tasks] = await Promise.all([api.allRows(), api.listTasks()]);
     const kpis = computeKpis(rows, tasks, settings.averageDealValue);
@@ -32,7 +32,7 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Prospection commerciale" subtitle="Trouvez, qualifiez et transformez les paysagistes en clients." />
+      <PageHeader title="Prospection commerciale" subtitle={`${offer.name} — trouvez, qualifiez et transformez les ${offer.audience} en clients.`} />
 
       <div className="mb-4">
         <FindProspects />
