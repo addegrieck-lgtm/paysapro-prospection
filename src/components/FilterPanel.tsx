@@ -73,6 +73,7 @@ export function FilterPanel({ value, onChange }: { value: ProspectFilter; onChan
             ['hasWebsite', 'Site internet'],
             ['hasGoogle', 'Présence Google'],
             ['hasSocial', 'Réseaux sociaux'],
+            ['weakSite', 'Site à moderniser'],
             ['active', 'Entreprise active'],
           ] as const
         ).map(([key, label]) => (

@@ -42,6 +42,7 @@ export function matchesFilter(r: ProspectRow, f: ProspectFilter, now = new Date(
   if (!presence(f.hasGoogle, has(r.googleUrl) || r.googleReviews !== null)) return false;
   if (!presence(f.demo, r.demo)) return false;
   if (!presence(f.hasSocial, r.hasSocial)) return false;
+  if (!presence(f.weakSite, !!r.weakSite)) return false;
   if (!presence(f.active, r.active === true)) return false;
   if (f.phoneStatus?.length) {
     const s = r.phoneStatus ?? (r.phone ? 'unverified' : null);
@@ -129,6 +130,7 @@ export function describeFilter(f: ProspectFilter): string {
     [f.hasEmail, 'e-mail'],
     [f.hasGoogle, 'Google'],
     [f.hasSocial, 'réseaux sociaux'],
+    [f.weakSite, 'site à moderniser'],
   ];
   pres.forEach(([p, l]) => p && p !== 'any' && parts.push(`${p === 'yes' ? 'Avec' : 'Sans'} ${l}`));
   if (f.services?.length) parts.push(`${f.services.length} prestation(s)`);

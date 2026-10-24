@@ -39,6 +39,7 @@ export const AGENCE_SCORING_CONFIG = {
   phone: 10,
   email: 10,
   noWebsite: 20, // Aucun site trouvé après la recherche de coordonnées
+  weakWebsite: 10, // Site vérifié à moderniser : pas de HTTPS, pas adapté au téléphone, copyright ancien… (remplace le précédent)
   noGoogle: 10, // Pas de fiche Google (vérifiée)
   fewReviews: 5, // Fiche Google avec moins de 10 avis (remplace le palier précédent)
   noSocial: 5, // Aucun réseau social trouvé après la recherche de coordonnées
@@ -94,6 +95,7 @@ export type ScoreInput = Pick<
       | 'workspaceId'
       | 'contactsCheckedAt'
       | 'googleCheckedAt'
+      | 'websiteQuality'
     >
   >;
 
@@ -187,7 +189,9 @@ export function computeAgencyScore(p: ScoreInput, ctx: ScoringContext = context)
   if (p.email) add(C.email, 'E-mail disponible');
   else missing.push('E-mail');
 
-  if (p.website) missing.push('A déjà un site (refonte possible)');
+  if (p.website && p.websiteQuality?.weak) add(C.weakWebsite, `Site à moderniser (${p.websiteQuality.reasons.join(', ')})`);
+  else if (p.website && p.websiteQuality) missing.push('Site récent (HTTPS, adapté au téléphone)');
+  else if (p.website) missing.push('A déjà un site (diagnostic à faire : Enrichir)');
   else if (searched) add(C.noWebsite, 'Aucun site internet trouvé');
   else missing.push('Site web (lancer la recherche de coordonnées)');
 

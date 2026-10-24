@@ -40,7 +40,8 @@ function agencyReasons(p: Prospect, now: Date): string[] {
     else if (years <= 3) reasons.push(`Entreprise récente (créée en ${p.creationDate.slice(0, 4)}) : période où l'on construit son image.`);
   }
   if (!p.website && p.contactsCheckedAt) reasons.push('Aucun site internet trouvé lors de la recherche de coordonnées.');
-  else if (p.website) reasons.push('A déjà un site : angle refonte, référencement local ou maintenance.');
+  else if (p.website && p.websiteQuality?.weak) reasons.push(`Site à moderniser : ${p.websiteQuality.reasons.join(', ')}.`);
+  else if (p.website) reasons.push('A déjà un site : angle référencement local ou maintenance.');
   const hasGoogle = !!p.googleUrl || p.googleReviews !== null || p.googleRating !== null;
   if (!hasGoogle && p.googleCheckedAt) reasons.push('Pas de fiche Google trouvée : les clients du secteur ne la voient pas sur Maps.');
   else if (hasGoogle && (p.googleReviews ?? 0) < 10) reasons.push(`Fiche Google avec peu d'avis (${fr(p.googleReviews ?? 0)}) : marge de progression locale.`);
@@ -99,7 +100,8 @@ function agencyAngle(p: Prospect, now: Date): AngleResult {
   }
   if (!p.website && p.contactsCheckedAt) return { angle: 'Création de site', why: ['Aucun site trouvé : un site vitrine simple, avec coordonnées et prestations.'] };
   if (!hasGoogle && p.googleCheckedAt) return { angle: 'Fiche Google', why: ['Pas de fiche Google : création de la fiche, photos, horaires et avis.'] };
-  if (p.website) return { angle: 'Refonte & référencement', why: ['Site existant : modernisation, affichage sur téléphone, référencement local.'] };
+  if (p.website && p.websiteQuality?.weak) return { angle: 'Refonte & référencement', why: [`Site à moderniser : ${p.websiteQuality.reasons.join(', ')}.`] };
+  if (p.website) return { angle: 'Refonte & référencement', why: ['Site existant : référencement local, maintenance, mises à jour.'] };
   if (hasGoogle && (p.googleReviews ?? 0) < 10) return { angle: 'Fiche Google', why: ['Peu d’avis Google : cartes « laissez-nous un avis », photos, publications.'] };
   return { angle: 'Supports imprimés', why: ['Angle par défaut : cartes de visite, flyers et identité visuelle.'] };
 }

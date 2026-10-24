@@ -21,6 +21,7 @@ import type { ContactSet, ProspectsApi } from './repository';
 import type { Company, CompanyDataProvider } from '../providers/company/CompanyDataProvider';
 import type { OpenStreetMapProvider } from '../providers/company/OpenStreetMapProvider';
 import type { SiteAnalysis, WebsiteProvider } from '../providers/company/WebsiteProvider';
+import type { GooglePlacesProvider, PlaceMatch } from '../providers/company/GooglePlacesProvider';
 import { analyzeResult, type WebSearchProvider } from '../providers/search/WebSearchProvider';
 import { newEmail, newPhone, newWebsite } from '../domain/contactSync';
 import { applyStatus, mergeProspect } from '../domain/prospect';
@@ -37,6 +38,8 @@ export interface EngineProviders {
   website?: WebsiteProvider | null;
   /** Recherche web autorisée (facultative) : aucune par défaut */
   search?: WebSearchProvider | null;
+  /** Fiches Google (facultatif, via le relais) */
+  places?: GooglePlacesProvider | null;
 }
 
 /** Étapes affichées en temps réel (§63) */
@@ -52,6 +55,11 @@ export const STAGE_LABEL: Record<EnrichStage, string> = {
   saving: 'Enregistrement',
   done: 'Terminé',
 };
+
+const SOCIAL_HOST: [RegExp, 'facebook' | 'instagram'][] = [
+  [/^https?:\/\/(www\.|m\.|fr-fr\.)?facebook\.com\/(?!sharer|share|dialog|plugins|groups\/|events\/|public\/|search)[^/?#]+/i, 'facebook'],
+  [/^https?:\/\/(www\.)?instagram\.com\/(?!p\/|explore\/|reel\/)[^/?#]+/i, 'instagram'],
+];
 
 const STAGE_OF_KIND: Record<StrategyDef['kind'], EnrichStage> = { directory: 'directory', discovery: 'website_search', web_search: 'web_search', site: 'crawling' };
 
@@ -288,6 +296,17 @@ export class EnrichmentEngine {
         const q = buildQuery(def, company)!;
         requests++;
         const results = (await this.p.search!.search(q, { signal: o.signal, count: 10 })).map((r) => analyzeResult(r, company));
+        // Pages Facebook / Instagram de l'entreprise : titre au nom de l'entreprise (lien seulement, page jamais lue)
+        for (const r of results) {
+          if (!r.nameMatch) continue;
+          for (const [re, k] of SOCIAL_HOST) {
+            const m = re.exec(r.url);
+            if (m && !socials[k] && !company[k]) {
+              socials[k] = m[0].replace(/\/$/, '');
+              details.push(`✓ Page ${k === 'facebook' ? 'Facebook' : 'Instagram'} trouvée (recherche web) : ${socials[k]}`);
+            }
+          }
+        }
         const official = results.filter((r) => r.isPotentialOfficialSite && r.domain && !tried.has(r.domain)).sort((a, b) => b.relevance - a.relevance);
         for (const r of official.slice(0, 3)) {
           tried.add(r.domain!);
@@ -309,6 +328,34 @@ export class EnrichmentEngine {
       if (a) collect(a, def.id, produced);
       return { query: domains.join(', '), results: a ? 1 : 0 };
     };
+
+    // Fiche Google (Google Places via le relais) : note, avis, catégorie ; le site et le téléphone de la fiche sont des
+    // pistes (le site est ensuite lu et vérifié comme les autres)
+    let place: PlaceMatch | null | undefined;
+    let placeSearched = false;
+    if (enabled.googlePlaces !== false && this.p.places?.enabled && (o.force || mode === 'max' || !this.fresh(p.googleCheckedAt ?? null))) {
+      progress('directory', 'Fiche Google');
+      try {
+        place = await this.p.places.find(company, o.signal);
+        placeSearched = true;
+        steps.push('Fiche Google');
+        if (place) {
+          const e: ContactEvidence = { kind: 'directory', provider: 'Fiche Google', url: place.place.mapsUrl, at: now, matched: place.matched };
+          if (place.place.phone) {
+            const c = newPhone(company, place.place.phone, e, now);
+            if (c && !known('phone', c.value)) incoming.phones.push(c);
+          }
+          if (place.place.website && !/google\.|facebook\.com|instagram\.com/i.test(place.place.website)) siteCandidates.push(place.place.website);
+          details.push(
+            `✓ Fiche Google : ${place.place.name}${place.place.reviews !== null ? ` — ${place.place.reviews} avis` : ''}${place.place.rating !== null ? `, note ${String(place.place.rating).replace('.', ',')}` : ''}${place.place.status === 'CLOSED_PERMANENTLY' ? ' ⚠ indiquée « définitivement fermée »' : ''}`,
+          );
+        } else if (place === null) details.push('ℹ Aucune fiche Google trouvée pour cette entreprise');
+        else details.push('ℹ Plusieurs fiches Google possibles : aucune n’a été attribuée (à vérifier à la main)');
+      } catch (e) {
+        if (e instanceof ProviderError && e.kind === 'aborted') throw e;
+        steps.push('Fiche Google : indisponible');
+      }
+    }
 
     // Réenrichir (§85) : le site connu est toujours relu pour vérifier les données existantes et voir les changements
     const siteKnownDef = STRATEGIES.find((d) => d.id === 'site_known')!;
@@ -427,6 +474,23 @@ export class EnrichmentEngine {
         stoppedBy === 'complete' ? 'coordonnées trouvées, recherche arrêtée' : stoppedBy === 'budget' ? 'budget atteint' : 'toutes les pistes disponibles ont été essayées'
       }`,
     );
+
+    // Fiche Google : identifiant, lien, note et avis (une saisie manuelle n'est jamais remplacée)
+    if (placeSearched) {
+      p = { ...p, googleCheckedAt: now };
+      if (place) {
+        const fields = { googleUrl: place.place.mapsUrl, googleRating: place.place.rating, googleReviews: place.place.reviews, googleCategory: place.place.category };
+        const defined = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== null));
+        p = { ...mergeProspect(p, defined, 'overwrite', now, { type: 'web', provider: 'Fiche Google (Google Places)', at: now, confidence: 'high' }).prospect, googlePlaceId: place.place.id };
+      }
+    }
+
+    // Diagnostic du site vérifié (à moderniser ?) : critère du score Signe & Seine
+    const checkedSite = verifiedSite as SiteAnalysis | null;
+    if (checkedSite) {
+      p = { ...p, websiteQuality: checkedSite.quality };
+      details.push(checkedSite.quality.weak ? `🛠 Site à moderniser : ${checkedSite.quality.reasons.join(', ')}` : `✓ Site récent (HTTPS, adapté au téléphone${checkedSite.quality.builder ? `, ${checkedSite.quality.builder}` : ''})`);
+    }
 
     // Réseaux sociaux : uniquement les URL réellement trouvées, sans écraser une saisie manuelle
     if (Object.keys(socials).length) {

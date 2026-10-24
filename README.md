@@ -19,6 +19,14 @@ Le sélecteur en haut du menu (ou en haut de l’écran sur téléphone) bascule
 Une absence ne compte dans le score Signe & Seine que si elle a été **constatée** : « aucun site » après la recherche
 de coordonnées (Enrichir), « pas de fiche Google » après vérification (bouton *Pas de fiche Google* sur la fiche).
 
+### Enrichissement
+
+Sources gratuites : SIRENE, OpenStreetMap (instantané de la Seine-Maritime régénéré à chaque mise en ligne,
+`npm run osm:local`), lecture du site de l'entreprise via le relais, avec un **diagnostic du site** (pas de HTTPS,
+pas adapté au téléphone, copyright ancien, site gratuit sans nom de domaine → « site à moderniser », +10 au score
+Signe & Seine). Facultatif, avec une clé posée sur le relais : **recherche web** (Brave Search) et **fiches Google**
+(Google Places). Voir [worker/README.md](worker/README.md#services-facultatifs--recherche-web-et-fiches-google).
+
 ## Démarrer
 
 ```bash
@@ -51,6 +59,7 @@ Pensez à **sauvegarder** (Paramètres → Données) : les données restent sur 
 | `npm test` | tests |
 | `npm run lint` | ESLint |
 | `npm run osm:update` | met à jour l'instantané OpenStreetMap (entreprises du paysage, ODbL) |
+| `npm run osm:local` | instantané OpenStreetMap des commerces et artisans de la Seine-Maritime (`-- 76 27` pour d'autres départements) |
 
 Documentation complète : [PROSPECTING.md](PROSPECTING.md).
 

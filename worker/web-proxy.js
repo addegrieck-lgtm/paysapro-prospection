@@ -7,6 +7,10 @@
 //   • moteurs de recherche, annuaires, réseaux sociaux et cartes REFUSÉS (leurs conditions l'interdisent) ;
 //   • adresses privées / locales refusées (sécurité) ;
 //   • seules les origines autorisées (ALLOWED_ORIGINS) peuvent l'appeler.
+// Services facultatifs (clés détenues par le relais, jamais par l'application) :
+//   • GET /search?q=…  : recherche web via l'API officielle Brave Search (secret BRAVE_SEARCH_KEY) ;
+//   • GET /places?q=…  : fiches d'établissement via l'API officielle Google Places (secret GOOGLE_PLACES_KEY).
+// Sans clé, ces adresses répondent { ok: false, code: 'not_configured' } et l'application les ignore.
 // Déploiement : voir worker/README.md.
 
 const BLOCKED = /(^|\.)(google\.[a-z.]+|googleusercontent\.com|gstatic\.com|bing\.com|duckduckgo\.com|qwant\.com|yahoo\.[a-z.]+|pagesjaunes\.fr|pagesblanches\.fr|societe\.com|pappers\.fr|verif\.com|infogreffe\.fr|facebook\.com|instagram\.com|linkedin\.com|tiktok\.com|twitter\.com|x\.com|youtube\.com|openstreetmap\.org|yelp\.[a-z.]+|tripadvisor\.[a-z.]+|houzz\.[a-z.]+|travaux\.com|habitatpresto\.com|starofservice\.[a-z.]+)$/i;
@@ -106,6 +110,87 @@ async function gmail(request, headers, fetchImpl) {
   }
 }
 
+const stripTags = (s) => String(s || '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+
+/** Erreurs « métier » en 200 : l'application ne les réessaie pas (clé absente, quota atteint…). */
+const serviceError = (code, error, headers) => json({ ok: false, code, error }, 200, headers);
+
+function queryOf(url) {
+  return (url.searchParams.get('q') || '').trim().slice(0, 300);
+}
+
+/** Recherche web : API officielle Brave Search (offre gratuite limitée). Sert à trouver le SITE OFFICIEL. */
+async function webSearch(url, env, headers, fetchImpl) {
+  if (!env.BRAVE_SEARCH_KEY) return serviceError('not_configured', 'Recherche web non configurée sur le relais', headers);
+  const q = queryOf(url);
+  if (!q) return json({ ok: false, error: 'Requête vide' }, 400, headers);
+  const count = Math.min(20, Math.max(1, Number(url.searchParams.get('count')) || 10));
+  try {
+    const res = await fetchImpl(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=${count}&country=fr&search_lang=fr&safesearch=moderate`, {
+      headers: { Accept: 'application/json', 'X-Subscription-Token': env.BRAVE_SEARCH_KEY },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.status === 429) return serviceError('quota', 'Quota de recherche web atteint', headers);
+    if (res.status === 401 || res.status === 403) return serviceError('not_configured', 'Clé Brave Search refusée', headers);
+    if (!res.ok) return serviceError('unavailable', `Recherche web indisponible (${res.status})`, headers);
+    const data = await res.json();
+    const results = ((data && data.web && data.web.results) || []).map((r) => ({ title: stripTags(r.title), url: String(r.url || ''), snippet: stripTags(r.description) })).filter((r) => /^https?:\/\//.test(r.url));
+    return json({ ok: true, results }, 200, { ...headers, 'Cache-Control': 'public, max-age=86400' });
+  } catch {
+    return serviceError('unavailable', 'Recherche web injoignable', headers);
+  }
+}
+
+const PLACES_FIELDS = [
+  'places.id',
+  'places.displayName',
+  'places.formattedAddress',
+  'places.nationalPhoneNumber',
+  'places.websiteUri',
+  'places.rating',
+  'places.userRatingCount',
+  'places.googleMapsUri',
+  'places.businessStatus',
+  'places.primaryTypeDisplayName',
+  'places.location',
+].join(',');
+
+/** Fiches d'établissement : API officielle Google Places (Text Search). */
+async function places(url, env, headers, fetchImpl) {
+  if (!env.GOOGLE_PLACES_KEY) return serviceError('not_configured', 'Fiches Google non configurées sur le relais', headers);
+  const q = queryOf(url);
+  if (!q) return json({ ok: false, error: 'Requête vide' }, 400, headers);
+  try {
+    const res = await fetchImpl('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': env.GOOGLE_PLACES_KEY, 'X-Goog-FieldMask': PLACES_FIELDS },
+      body: JSON.stringify({ textQuery: q, languageCode: 'fr', regionCode: 'FR', maxResultCount: 5 }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.status === 429) return serviceError('quota', 'Quota Google Places atteint', headers);
+    if (res.status === 400 || res.status === 401 || res.status === 403) return serviceError('not_configured', 'Clé Google Places refusée (API non activée ou restreinte)', headers);
+    if (!res.ok) return serviceError('unavailable', `Google Places indisponible (${res.status})`, headers);
+    const data = await res.json();
+    const list = ((data && data.places) || []).map((p) => ({
+      id: p.id,
+      name: (p.displayName && p.displayName.text) || '',
+      address: p.formattedAddress || null,
+      phone: p.nationalPhoneNumber || null,
+      website: p.websiteUri || null,
+      rating: typeof p.rating === 'number' ? p.rating : null,
+      reviews: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
+      mapsUrl: p.googleMapsUri || null,
+      status: p.businessStatus || null,
+      category: (p.primaryTypeDisplayName && p.primaryTypeDisplayName.text) || null,
+      lat: (p.location && p.location.latitude) ?? null,
+      lon: (p.location && p.location.longitude) ?? null,
+    }));
+    return json({ ok: true, places: list }, 200, headers);
+  } catch {
+    return serviceError('unavailable', 'Google Places injoignable', headers);
+  }
+}
+
 export async function handle(request, env = {}, fetchImpl = fetch) {
   const origin = request.headers.get('Origin') || '';
   const headers = cors(origin, env.ALLOWED_ORIGINS);
@@ -122,6 +207,9 @@ export async function handle(request, env = {}, fetchImpl = fetch) {
   }
   if (request.method !== 'GET') return json({ ok: false, error: 'Méthode non autorisée' }, 405, headers);
   if (forbidden) return json({ ok: false, error: 'Origine non autorisée' }, 403, headers);
+  const path = new URL(request.url).pathname;
+  if (path === '/search') return webSearch(new URL(request.url), env, headers, fetchImpl);
+  if (path === '/places') return places(new URL(request.url), env, headers, fetchImpl);
 
   const raw = new URL(request.url).searchParams.get('url');
   let target;
