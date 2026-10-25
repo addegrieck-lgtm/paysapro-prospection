@@ -4,7 +4,7 @@ import type { AppEnv, Ctx } from '../app/context';
 import { cookieName } from '../app/security';
 import { hmacHex } from '../lib/crypto';
 import { todayParis } from '../domain/dates';
-import { ANALYTICS_RETENTION_DAYS, classifyOrigin, deviceOf, isBot, isTrackedPath } from '../domain/analytics';
+import { ANALYTICS_RETENTION_DAYS, classifyOrigin, deviceOf, isBot, isHostingNetwork, isTrackedPath } from '../domain/analytics';
 
 /**
  * Mesure d'audience interne, sans cookie : chaque page publique affichée à un visiteur humain est enregistrée avec sa
@@ -33,6 +33,8 @@ export const trackPageView: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!isTrackedPath(url.pathname) || !(c.res.headers.get('content-type') ?? '').includes('text/html')) return;
   const ua = c.req.header('user-agent') ?? '';
   if (isBot(ua) || /prefetch|prerender/i.test(c.req.header('sec-purpose') ?? c.req.header('purpose') ?? '')) return;
+  // Requête venue d'un centre de données (Cloudflare indique le réseau d'origine) : robot, même déguisé en navigateur
+  if (isHostingNetwork((c.req.raw as Request & { cf?: { asn?: number } }).cf?.asn)) return;
   // Vos propres visites (administrateur connecté) ne sont pas comptées.
   const deps = c.get('deps');
   if (getCookie(c, cookieName(deps.config.production))) return;
@@ -70,7 +72,7 @@ async function saveConversion(c: Ctx, kind: 'devis' | 'contact', refId: number):
   const day = todayParis(now);
   const visitor = await visitorId(c, day);
   const entry = await db.get<{ medium: string; source: string; campaign: string; path: string }>(
-    'SELECT medium, source, campaign, path FROM page_views WHERE day = ? AND visitor = ? AND entry = 1 ORDER BY id LIMIT 1',
+    'SELECT medium, source, campaign, path FROM page_views WHERE status = 200 AND day = ? AND visitor = ? AND entry = 1 ORDER BY id LIMIT 1',
     [day, visitor],
   );
   await db.run(

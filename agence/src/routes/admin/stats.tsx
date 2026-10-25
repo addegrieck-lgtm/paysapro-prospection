@@ -153,12 +153,12 @@ statsRoutes.get('/statistiques', async (c) => {
   if (Math.random() < 0.1) await purgeAnalytics(c);
 
   const one = async (sql: string, params: string[]) => (await db.get<{ n: number }>(sql, params))?.n ?? 0;
-  const visitorsSql = 'SELECT COUNT(*) AS n FROM (SELECT DISTINCT day, visitor FROM page_views WHERE day BETWEEN ? AND ?)';
+  const visitorsSql = 'SELECT COUNT(*) AS n FROM (SELECT DISTINCT day, visitor FROM page_views WHERE status = 200 AND day BETWEEN ? AND ?)';
   const [visitors, prevVisitors, views, visits, requests, prevRequests, messages] = await Promise.all([
     one(visitorsSql, range),
     one(visitorsSql, [prevFrom, prevTo]),
-    one('SELECT COUNT(*) AS n FROM page_views WHERE day BETWEEN ? AND ?', range),
-    one('SELECT COUNT(*) AS n FROM page_views WHERE entry = 1 AND day BETWEEN ? AND ?', range),
+    one('SELECT COUNT(*) AS n FROM page_views WHERE status = 200 AND day BETWEEN ? AND ?', range),
+    one('SELECT COUNT(*) AS n FROM page_views WHERE status = 200 AND entry = 1 AND day BETWEEN ? AND ?', range),
     one("SELECT COUNT(*) AS n FROM conversions WHERE kind = 'devis' AND day BETWEEN ? AND ?", range),
     one("SELECT COUNT(*) AS n FROM conversions WHERE kind = 'devis' AND day BETWEEN ? AND ?", [prevFrom, prevTo]),
     one("SELECT COUNT(*) AS n FROM conversions WHERE kind = 'contact' AND day BETWEEN ? AND ?", range),
@@ -168,7 +168,7 @@ statsRoutes.get('/statistiques', async (c) => {
   const monthly = days > 90;
   const bucket = monthly ? 'substr(day, 1, 7)' : 'day';
   const series = await db.all<{ k: string; visitors: number; views: number }>(
-    `SELECT ${bucket} AS k, COUNT(DISTINCT day || visitor) AS visitors, COUNT(*) AS views FROM page_views WHERE day BETWEEN ? AND ? GROUP BY k`,
+    `SELECT ${bucket} AS k, COUNT(DISTINCT day || visitor) AS visitors, COUNT(*) AS views FROM page_views WHERE status = 200 AND day BETWEEN ? AND ? GROUP BY k`,
     range,
   );
   const byKey = new Map(series.map((r) => [r.k, r]));
@@ -187,24 +187,24 @@ statsRoutes.get('/statistiques', async (c) => {
 
   const [sources, mediums, pages, landings, devices, countries, convBySource, recent] = await Promise.all([
     db.all<{ medium: string; source: string; n: number }>(
-      'SELECT medium, source, COUNT(*) AS n FROM page_views WHERE entry = 1 AND day BETWEEN ? AND ? GROUP BY medium, source ORDER BY n DESC LIMIT 15',
+      'SELECT medium, source, COUNT(*) AS n FROM page_views WHERE status = 200 AND entry = 1 AND day BETWEEN ? AND ? GROUP BY medium, source ORDER BY n DESC LIMIT 15',
       range,
     ),
-    db.all<{ medium: string; n: number }>('SELECT medium, COUNT(*) AS n FROM page_views WHERE entry = 1 AND day BETWEEN ? AND ? GROUP BY medium ORDER BY n DESC', range),
+    db.all<{ medium: string; n: number }>('SELECT medium, COUNT(*) AS n FROM page_views WHERE status = 200 AND entry = 1 AND day BETWEEN ? AND ? GROUP BY medium ORDER BY n DESC', range),
     db.all<{ path: string; n: number; v: number }>(
       'SELECT path, COUNT(*) AS n, COUNT(DISTINCT day || visitor) AS v FROM page_views WHERE status = 200 AND day BETWEEN ? AND ? GROUP BY path ORDER BY n DESC LIMIT 15',
       range,
     ),
-    db.all<{ path: string; n: number }>('SELECT path, COUNT(*) AS n FROM page_views WHERE entry = 1 AND day BETWEEN ? AND ? GROUP BY path ORDER BY n DESC LIMIT 10', range),
-    db.all<{ device: string; n: number }>('SELECT device, COUNT(*) AS n FROM page_views WHERE entry = 1 AND day BETWEEN ? AND ? GROUP BY device ORDER BY n DESC', range),
-    db.all<{ country: string; n: number }>('SELECT country, COUNT(*) AS n FROM page_views WHERE entry = 1 AND day BETWEEN ? AND ? GROUP BY country ORDER BY n DESC LIMIT 10', range),
+    db.all<{ path: string; n: number }>('SELECT path, COUNT(*) AS n FROM page_views WHERE status = 200 AND entry = 1 AND day BETWEEN ? AND ? GROUP BY path ORDER BY n DESC LIMIT 10', range),
+    db.all<{ device: string; n: number }>('SELECT device, COUNT(*) AS n FROM page_views WHERE status = 200 AND entry = 1 AND day BETWEEN ? AND ? GROUP BY device ORDER BY n DESC', range),
+    db.all<{ country: string; n: number }>('SELECT country, COUNT(*) AS n FROM page_views WHERE status = 200 AND entry = 1 AND day BETWEEN ? AND ? GROUP BY country ORDER BY n DESC LIMIT 10', range),
     db.all<{ medium: string; source: string; devis: number; contact: number }>(
       `SELECT medium, source, SUM(kind = 'devis') AS devis, SUM(kind = 'contact') AS contact FROM conversions WHERE day BETWEEN ? AND ?
        GROUP BY medium, source ORDER BY devis + contact DESC LIMIT 15`,
       range,
     ),
     db.all<{ created_at: string; medium: string; source: string; campaign: string; path: string; device: string; country: string }>(
-      'SELECT created_at, medium, source, campaign, path, device, country FROM page_views WHERE entry = 1 ORDER BY id DESC LIMIT 25',
+      'SELECT created_at, medium, source, campaign, path, device, country FROM page_views WHERE status = 200 AND entry = 1 ORDER BY id DESC LIMIT 25',
     ),
   ]);
   const notFound = await db.all<{ path: string; n: number }>(
@@ -409,7 +409,7 @@ statsRoutes.get('/statistiques', async (c) => {
         </ul>
         <p class="small muted">
           Mesure interne, sans cookie et sans service extérieur : aucun bandeau de consentement n’est nécessaire. Les visiteurs sont comptés une fois par jour
-          (empreinte anonyme renouvelée chaque jour), les robots et vos propres visites sont exclus, les données sont conservées 13 mois. Les mots-clés tapés
+          (empreinte anonyme renouvelée chaque jour), les robots (y compris les requêtes venues de centres de données : Amazon, Google Cloud, Microsoft, OVH…) et vos propres visites sont exclus, les pages introuvables (404) ne comptent pas comme des visites, les données sont conservées 13 mois. Les mots-clés tapés
           dans Google ne sont jamais transmis aux sites : consultez-les dans Google Search Console.
         </p>
       </div>

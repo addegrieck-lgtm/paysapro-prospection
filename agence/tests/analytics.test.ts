@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { adminSession, makeApp, req } from './helpers';
 import { formToken } from '../src/app/security';
-import { classifyOrigin, deviceOf, isBot, isTrackedPath } from '../src/domain/analytics';
+import { classifyOrigin, deviceOf, isBot, isHostingNetwork, isTrackedPath } from '../src/domain/analytics';
 
 const SECRET = 'test-secret-test-secret-test-secret-123';
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
@@ -74,6 +74,35 @@ describe('statistiques du site', () => {
     const s = await adminSession(app, db);
     await s.get('/admin/statistiques');
     expect(await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM page_views')).toEqual({ n: 4 });
+  });
+
+  it('écarte les requêtes venues d’un centre de données et ne compte pas les pages 404 comme des visites', async () => {
+    const { app, db } = await makeApp();
+    // Cloudflare fournit le réseau d'origine (ASN) dans request.cf
+    const fromNetwork = (path: string, asn: number) => {
+      const r = new Request(`http://localhost${path}`, { headers: { 'user-agent': DESKTOP, accept: 'text/html', 'cf-ipcountry': 'US' } });
+      Object.defineProperty(r, 'cf', { value: { asn } });
+      return app.request(r);
+    };
+    await fromNetwork('/', 16509); // Amazon AWS : robot déguisé en Chrome
+    await fromNetwork('/tarifs', 13335); // Cloudflare (relais privé d'Apple) : vrai visiteur
+    await visit(app, '/wp-login.php', DESKTOP); // scanner de failles : 404
+    await visit(app, '/', IPHONE);
+    const rows = await db.all<{ path: string; country: string; status: number }>('SELECT path, country, status FROM page_views ORDER BY id');
+    expect(rows).toEqual([
+      { path: '/tarifs', country: 'US', status: 200 },
+      { path: '/wp-login.php', country: 'FR', status: 404 },
+      { path: '/', country: 'FR', status: 200 },
+    ]);
+    const s = await adminSession(app, db);
+    const html = await (await s.get('/admin/statistiques?periode=7')).text();
+    // Visites : 2 (la 404 reste visible dans le rapport des pages introuvables, pas dans les visites)
+    expect(html).toContain('/wp-login.php');
+    const visitors = await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM (SELECT DISTINCT day, visitor FROM page_views WHERE status = 200)');
+    expect(visitors).toEqual({ n: 2 });
+    expect(isHostingNetwork(16509)).toBe(true);
+    expect(isHostingNetwork(3215)).toBe(false); // Orange
+    expect(isHostingNetwork(undefined)).toBe(false);
   });
 
   it('attribue une demande à la provenance de la visite et l’affiche dans l’administration', async () => {

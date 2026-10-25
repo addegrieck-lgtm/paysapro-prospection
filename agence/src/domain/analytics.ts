@@ -101,6 +101,41 @@ export function isBot(ua: string): boolean {
   return /bot|crawl|spider|slurp|scrap|fetch|preview|facebookexternalhit|embedly|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|monitor|curl|wget|python|java\/|go-http|okhttp|axios|node-fetch|httpclient|libwww|playwright|puppeteer|phantom|selenium/i.test(ua);
 }
 
+/**
+ * Réseaux d'hébergement (centres de données), par numéro de réseau (ASN, fourni gratuitement par Cloudflare) :
+ * une page demandée depuis l'un d'eux vient d'un serveur (robot déguisé en navigateur, scanner, outil SEO, IA),
+ * pas d'une personne. Les réseaux par lesquels passent de vrais internautes (Cloudflare et Akamai pour le relais
+ * privé d'Apple, fournisseurs de VPN grand public) ne sont volontairement PAS dans la liste.
+ */
+export const HOSTING_ASNS: ReadonlySet<number> = new Set([
+  16509, 14618, 8987, // Amazon (AWS)
+  15169, 396982, 19527, // Google, Google Cloud
+  8075, 8068, // Microsoft (Azure)
+  31898, // Oracle Cloud
+  14061, // DigitalOcean
+  16276, // OVH (hébergement)
+  24940, 213230, // Hetzner
+  63949, // Linode (Akamai Connected Cloud)
+  20473, // Vultr
+  51167, // Contabo
+  12876, // Scaleway
+  45102, 37963, // Alibaba Cloud
+  132203, 45090, // Tencent Cloud
+  60781, 16265, 28753, // Leaseweb
+  47583, // Hostinger
+  8560, // IONOS
+  40676, // Psychz
+  36352, // ColoCrossing
+  62567, // DigitalOcean (ancien)
+  135377, // UCloud
+  212238, // Datacamp
+  202425, // IP Volume
+]);
+
+export function isHostingNetwork(asn: number | null | undefined): boolean {
+  return typeof asn === 'number' && HOSTING_ASNS.has(asn);
+}
+
 /** Pages mesurées : pages publiques uniquement (ni administration, ni espace client, ni API, ni fichiers techniques). */
 export function isTrackedPath(path: string): boolean {
   return !/^\/(admin|client|api|assets)(\/|$)/.test(path) && !/\.(xml|txt|ico|svg|png|jpe?g|webp|js|css|map|json|woff2?)$/i.test(path);

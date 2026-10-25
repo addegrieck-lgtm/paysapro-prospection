@@ -33,7 +33,7 @@ dashboardRoutes.get('/', async (c) => {
     const w = renewalNoticeWindow(r.start_date, r.commitment_months);
     return w && today >= w.from;
   });
-  const weekVisitors = await n('SELECT COUNT(*) AS n FROM (SELECT DISTINCT day, visitor FROM page_views WHERE day > ?)', [addDays(today, -7)]);
+  const weekVisitors = await n('SELECT COUNT(*) AS n FROM (SELECT DISTINCT day, visitor FROM page_views WHERE status = 200 AND day > ?)', [addDays(today, -7)]);
   const [contacts, newContacts, newRequests, quotesPending, quotesAccepted, ordersActive, invoicesOpen, invoicesOverdue, subs] = await Promise.all([
     n('SELECT COUNT(*) AS n FROM contacts'),
     n("SELECT COUNT(*) AS n FROM contacts WHERE status IN ('nouveau', 'a_contacter')"),
