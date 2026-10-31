@@ -2,9 +2,14 @@
 
 ## Phase 1 — Audit du dépôt existant
 
-S&S Social Finder est un **logiciel autonome**, sans lien avec les autres projets présents dans ce dépôt :
-aucun code, aucune donnée et aucun service partagés. Il ne reconstruit pas la recherche de coordonnées ni
-l'enrichissement (fonctions de votre autre logiciel de prospection).
+| Élément | Constat | Décision |
+|---|---|---|
+| `src/` — Paysapro Prospection | application React/TypeScript **100 % navigateur** (IndexedDB), recherche d'entreprises SIRENE/OSM, enrichissement des coordonnées, scoring, campagnes e-mail, deux espaces (Paysapro AI / Signe & Seine) | C'est « l'autre logiciel » : **non modifié**, ses fonctions (coordonnées, enrichissement) ne sont pas reconstruites |
+| `worker/web-proxy.js` | relais Cloudflare avec route `/search` (Brave Search API officielle) | **Réutilisé** comme connecteur « Relais Paysapro » |
+| `src/providers/search/WebSearchProvider.ts` | règle du projet : pas de scraping des pages de résultats ; fournisseurs officiels interchangeables | **Même principe** repris côté Python |
+| `src/domain/siteQuality.ts` | diagnostic de site constaté (HTTPS, mobile, copyright, hébergeur gratuit) | **Porté en Python** (`connectors/website.py`) |
+| `src/providers/ai.ts` | IA facultative, modèles par défaut, règles « ne jamais inventer » | **Même philosophie** pour le Message Studio |
+| `agence/` | site et back-office de l'agence (Hono + SQLite) | indépendant, non modifié |
 
 Contraintes relevées : pas de serveur payant, données locales, aucune collecte non autorisée sur Meta, un
 utilisateur non développeur sous Windows.
@@ -21,7 +26,7 @@ qu'à la rédaction.
 | Phase | Développé | Fonctionne réellement | Configuration externe | Tests |
 |---|---|---|---|---|
 | 2 Architecture | schéma SQLite (11 tables), paramètres, journal, connecteurs interchangeables, quotas | ✅ | — | tests API, persistance |
-| 3 Découverte | génération des requêtes, 2 moteurs officiels avec bascule, reconnaissance des URL, lecture des extraits, rayon geo.api.gouv.fr, filtres, reprise de campagne, recherche assistée, liste de suppression | ✅ avec connecteur de test ; ✅ recherche assistée | clé Brave (gratuite) ou Google CSE | parsing, moteur, bascule de quota, absence de source, reprise |
+| 3 Découverte | génération des requêtes, 3 moteurs officiels avec bascule, reconnaissance des URL, lecture des extraits, rayon geo.api.gouv.fr, filtres, reprise de campagne, recherche assistée, liste de suppression | ✅ avec connecteur de test ; ✅ recherche assistée | clé Brave (gratuite) ou Google CSE ou relais | parsing, moteur, bascule de quota, absence de source, reprise |
 | 3 Rapprochement | comparaison FB↔IG, fusion auto sur preuve forte, suggestions, fusion/séparation manuelles, historique, doublons de noms | ✅ | — | fusion auto, suggestion, split/merge |
 | 4 Double scoring | confiance /100 et commercial /100, preuves, statuts, niveaux, priorité plafonnée, filtres, « Meilleurs prospects » | ✅ | — | règles, contradictions, bornes, reproductibilité |
 | 5 Intelligence | analyse des opportunités, services recommandés, Message Studio (3 styles, 2 canaux, variantes, modèles personnalisés, IA facultative) | ✅ modèles ; IA si configurée | Ollama / OpenAI-compatible / Anthropic (facultatif) | hypothèse → question, styles, élisions |

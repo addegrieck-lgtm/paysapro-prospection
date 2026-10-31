@@ -5,7 +5,7 @@ Signe & Seine. Il trouve lui-même les entreprises à partir d'une ville et d'un
 calcule **deux scores indépendants** (confiance de l'identification /100 et potentiel commercial /100), prépare des
 messages personnalisés et suit la prospection. L'envoi des messages reste **manuel**.
 
-> Spécialisé dans la découverte sociale : pas d'enrichissement e-mail / téléphone (fonction de votre autre logiciel).
+> Complémentaire de Paysapro Prospection (même dépôt) : pas d'enrichissement e-mail / téléphone ici.
 
 ## Installation (Windows)
 
@@ -41,7 +41,7 @@ exclues des statistiques, supprimables en un clic).
 | Fonction | Sans clé | Avec configuration |
 |---|---|---|
 | Recherche assistée (requêtes préparées + ajout des profils) | ✅ | |
-| Découverte automatique | ❌ (statut « aucune source », rien d'inventé) | Brave Search / Google Programmable Search |
+| Découverte automatique | ❌ (statut « aucune source », rien d'inventé) | Brave Search / Google Programmable Search / relais Paysapro |
 | Vérification officielle des comptes Instagram pro | | API Meta (Business Discovery) |
 | Double scoring, analyse, rapprochement, dédoublonnage | ✅ | |
 | Diagnostic du site de l'entreprise, rayon géographique | ✅ (Internet requis) | |
@@ -52,7 +52,7 @@ exclues des statistiques, supprimables en un clic).
 
 - [docs/AUDIT-ET-PLAN.md](docs/AUDIT-ET-PLAN.md) — audit du dépôt, choix techniques, compte rendu des phases
 - [docs/SCORING.md](docs/SCORING.md) — les deux scores, critère par critère
-- [docs/CONNECTEURS.md](docs/CONNECTEURS.md) — configurer Brave, Google, Meta, l'IA
+- [docs/CONNECTEURS.md](docs/CONNECTEURS.md) — configurer Brave, Google, le relais, Meta, l'IA
 - [docs/CONFORMITE.md](docs/CONFORMITE.md) — RGPD, conditions Meta, ce que le logiciel ne fait pas
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — modules, base de données, API, tests
 

@@ -19,6 +19,9 @@ DEFAULTS: dict[str, Any] = {
     "google_cse_cx": "",
     "google_cse_enabled": True,
     "google_cse_daily_limit": 90,
+    "relay_url": "",
+    "relay_enabled": True,
+    "relay_daily_limit": 60,
     # API Meta
     "meta_access_token": "",
     "meta_ig_user_id": "",

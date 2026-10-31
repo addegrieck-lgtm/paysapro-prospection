@@ -9,9 +9,10 @@ type Settings = Record<string, string | number | boolean>;
 const FIELDS: Record<string, { key: string; label: string; type?: string; placeholder?: string }[]> = {
   brave: [{ key: 'brave_api_key', label: 'Clé d’API (Subscription token)', type: 'password' }, { key: 'brave_daily_limit', label: 'Limite de requêtes / jour', type: 'number' }],
   google_cse: [{ key: 'google_cse_key', label: 'Clé d’API Google', type: 'password' }, { key: 'google_cse_cx', label: 'Identifiant du moteur (cx)' }, { key: 'google_cse_daily_limit', label: 'Limite / jour', type: 'number' }],
+  relay: [{ key: 'relay_url', label: 'Adresse du relais', placeholder: 'https://paysapro-relay.xxx.workers.dev' }, { key: 'relay_daily_limit', label: 'Limite / jour', type: 'number' }],
   meta: [{ key: 'meta_access_token', label: 'Jeton d’accès (longue durée)', type: 'password' }, { key: 'meta_ig_user_id', label: 'Id de votre compte Instagram pro' }, { key: 'meta_graph_version', label: 'Version Graph API' }, { key: 'meta_daily_limit', label: 'Limite / jour', type: 'number' }],
 };
-const ENABLE: Record<string, string> = { brave: 'brave_enabled', google_cse: 'google_cse_enabled' };
+const ENABLE: Record<string, string> = { brave: 'brave_enabled', google_cse: 'google_cse_enabled', relay: 'relay_enabled' };
 
 function ConnectorCard({ c, settings, onSaved }: { c: ConnectorStatus; settings: Settings; onSaved: () => void }) {
   const toast = useToast();
@@ -46,7 +47,7 @@ function ConnectorCard({ c, settings, onSaved }: { c: ConnectorStatus; settings:
         <div>
           <div className="grid sm:grid-cols-2 gap-3">
             {(FIELDS[c.id] ?? []).map((f) => (
-              <div key={f.key} className={f.type === 'password' ? 'sm:col-span-2' : ''}>
+              <div key={f.key} className={f.type === 'password' || f.key === 'relay_url' ? 'sm:col-span-2' : ''}>
                 <Label>{f.label}</Label>
                 <Input type={f.type === 'number' ? 'number' : 'text'} value={String(form[f.key] ?? '')} placeholder={f.placeholder}
                   onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} autoComplete="off" spellCheck={false} />
