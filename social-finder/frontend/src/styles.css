@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Identité Signe & Seine : encre marine, bleu Seine, laiton. */
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Fraunces", "Georgia", "Times New Roman", serif;
+  --color-ink: #0f1e33;
+  --color-ink-2: #33415c;
+  --color-muted: #6b7489;
+  --color-line: #e4e2dc;
+  --color-paper: #f7f6f2;
+  --color-surface: #ffffff;
+  --color-seine: #24609e;
+  --color-seine-soft: #e6eef7;
+  --color-brass: #b8914a;
+  --color-brass-soft: #f6efe1;
+  --color-good: #1f7a4d;
+  --color-good-soft: #e3f2ea;
+  --color-warn: #a86a00;
+  --color-warn-soft: #fbf0d9;
+  --color-bad: #b23b3b;
+  --color-bad-soft: #f8e5e5;
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+}
+
+html, body, #root { height: 100%; }
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+.font-display { font-family: var(--font-display); letter-spacing: -0.01em; }
+.num { font-variant-numeric: tabular-nums; }
+::selection { background: var(--color-brass-soft); }
+.fade-in { animation: fade .25s ease-out; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: #d6d3cb; border-radius: 8px; }
