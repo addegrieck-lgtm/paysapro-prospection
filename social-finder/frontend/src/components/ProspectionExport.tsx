@@ -1,6 +1,9 @@
 // Lien avec Paysapro Prospection : fichier d'import prêt pour l'espace Signe & Seine.
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Download } from 'lucide-react';
+import { ArrowUpRight, Download, ExternalLink } from 'lucide-react';
+
+/** Paysapro Prospection en ligne (GitHub Pages), page d'import. */
+export const PROSPECTION_IMPORT_URL = 'https://addegrieck-lgtm.github.io/paysapro-prospection/#/import';
 import { api, qs } from '../lib/api';
 import { Button, Input, Label, Modal, Toggle } from './ui';
 
@@ -49,7 +52,8 @@ export default function ProspectionExport({ open, onClose, ids, campaignId, onDo
         <a href={`/api/export/prospection.csv${query}`} onClick={() => setTimeout(() => { onDone?.(); onClose(); }, 400)}>
           <Button variant="brass" disabled={!preview?.count}><Download className="size-4" />Télécharger le fichier</Button>
         </a>
-        <Button onClick={onClose}>Annuler</Button>
+        <a href={PROSPECTION_IMPORT_URL} target="_blank" rel="noreferrer"><Button><ExternalLink className="size-4" />Ouvrir Prospection</Button></a>
+        <Button variant="ghost" onClick={onClose}>Annuler</Button>
       </div>
     </Modal>
   );

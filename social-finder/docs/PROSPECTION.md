@@ -15,9 +15,13 @@ Les deux logiciels se complètent :
    - « Uniquement ceux jamais envoyés » évite de créer des doublons.
    - Jamais envoyés : données de démonstration, entreprises « Ne plus contacter » ou en opposition.
 2. Téléchargez le fichier `vers-prospection-….csv`.
-3. Dans Prospection : espace **Signe & Seine** → **Import → CSV** → choisissez le fichier.
+3. Dans Prospection (<https://addegrieck-lgtm.github.io/paysapro-prospection/>, bouton « Ouvrir Prospection »
+   dans la fenêtre d'envoi) : espace **Signe & Seine** → **Import & enrichissement → CSV** → choisissez le fichier.
    Les colonnes sont reconnues automatiquement ; Prospection signale les doublons.
 4. Dans Prospection, lancez la recherche de coordonnées sur les fiches importées.
+
+Dans l'autre sens, Prospection (espace Signe & Seine) a une entrée de menu **Social Finder** : présentation,
+téléchargement depuis GitHub, installation et bouton « Ouvrir Social Finder ».
 
 La fiche Social Finder affiche ensuite « Envoyée vers Prospection le … » et l'historique garde la trace de l'envoi.
 
