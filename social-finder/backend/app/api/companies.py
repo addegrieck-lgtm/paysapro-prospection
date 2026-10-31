@@ -32,7 +32,7 @@ def _company_summary(conn, c: dict[str, Any]) -> dict[str, Any]:
         "confidence_level": (c.get("confidence_detail") or {}).get("level"), "commercial_level": (c.get("commercial_detail") or {}).get("level"),
         "main_opportunity": (c.get("analysis") or {}).get("main_opportunity"), "services": (c.get("analysis") or {}).get("services", []),
         "priority_label": (c.get("analysis") or {}).get("priority"), "campaign_id": c["campaign_id"], "discovered_at": c["discovered_at"],
-        "follow_up_at": c["follow_up_at"], "website": c["website"], "source": c["source"],
+        "follow_up_at": c["follow_up_at"], "website": c["website"], "source": c["source"], "exported_at": c.get("exported_at"),
         "zone": (c.get("search_location") or {}).get("city") or (c.get("search_location") or {}).get("department_name") or (c.get("search_location") or {}).get("region_name"),
         "profiles": [{"id": p["id"], "platform": p["platform"], "handle": p["handle"], "url": p["url"], "api_verified": bool(p["api_verified"])} for p in ps],
     }

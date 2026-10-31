@@ -9,6 +9,7 @@ import { Badge, Button, Card, DemoBadge, Input, Label, Modal, Select, Spinner, T
 import { PlatformIcon } from '../components/brand';
 import { ScoreBreakdown, ScoreHeader, StatusTag } from '../components/scores';
 import MessageComposer from '../components/MessageComposer';
+import ProspectionExport, { ProspectionIcon } from '../components/ProspectionExport';
 
 function ProfileCard({ p, canSplit, onEdit, onSplit }: { p: Profile; canSplit: boolean; onEdit: () => void; onSplit: () => void }) {
   const src = p.api_verified ? 'API officielle Meta' : p.source.startsWith('search:') ? `Moteur de recherche (${p.source.slice(7)})` : p.source === 'assisted' ? 'Recherche assistée' : p.source === 'manual' ? 'Complété manuellement' : p.source === 'demo' ? 'Démonstration' : p.source;
@@ -55,6 +56,7 @@ export default function ProspectPage() {
   const [busy, setBusy] = useState('');
   const [del, setDel] = useState(false);
   const [suppress, setSuppress] = useState(true);
+  const [toProspection, setToProspection] = useState(false);
   if (loading && !c) return <Spinner />;
   if (!c) return <p>Entreprise introuvable.</p>;
 
@@ -91,7 +93,7 @@ export default function ProspectPage() {
       <Link to="/prospects" className="inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink mb-3"><ArrowLeft className="size-4" />Prospects</Link>
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-display text-[30px] leading-tight flex items-center gap-3 flex-wrap">{c.name}{!!c.is_demo && <DemoBadge />}{!!c.validated && <Badge tone="good"><BadgeCheck className="size-3" />Validée</Badge>}</h1>
+          <h1 className="font-display text-[30px] leading-tight flex items-center gap-3 flex-wrap">{c.name}{!!c.is_demo && <DemoBadge />}{!!c.validated && <Badge tone="good"><BadgeCheck className="size-3" />Validée</Badge>}{c.exported_at && <Badge tone="seine" className="font-sans" title="Fichier d'import Paysapro Prospection">Envoyée vers Prospection le {fmtDate(c.exported_at)}</Badge>}</h1>
           <p className="text-sm text-muted mt-1">
             {[c.activity_label, c.city ?? (c.search_location?.city ? `zone recherchée : ${c.search_location.city} (ville non confirmée par le profil)` : null)].filter(Boolean).join(' · ')}
             {' · '}Découverte le {fmtDate(c.discovered_at)} via {c.source}{c.campaign && <> · campagne <Link className="underline" to={`/campagnes/${c.campaign.id}`}>{c.campaign.name}</Link></>}
@@ -101,6 +103,7 @@ export default function ProspectPage() {
           <Select value={c.status} onChange={(e) => patch({ status: e.target.value })} className="w-44">
             {ref?.statuses.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
           </Select>
+          <Button onClick={() => setToProspection(true)} disabled={!!c.is_demo || c.status === 'do_not_contact'} title={c.is_demo ? 'Les données de démonstration ne sont jamais envoyées' : 'Envoyer vers Paysapro Prospection'}><ProspectionIcon className="size-4" />Prospection</Button>
           <Button onClick={verify} loading={busy === 'verify'}><ScanSearch className="size-4" />Vérifier</Button>
           <Button onClick={async () => { await api.post(`/companies/${c.id}/rescore`); await reload(); toast('Scores recalculés'); }}><RefreshCw className="size-4" />Recalculer</Button>
           <Button variant="danger" onClick={() => setDel(true)}><Trash2 className="size-4" /></Button>
@@ -182,6 +185,7 @@ export default function ProspectPage() {
           <Button variant="primary" onClick={saveProfile}>Enregistrer et recalculer</Button>
         </div>
       </Modal>
+      <ProspectionExport open={toProspection} onClose={() => setToProspection(false)} ids={[c.id]} onDone={() => setTimeout(() => void reload(), 800)} />
       <Modal open={del} onClose={() => setDel(false)} title="Supprimer cette entreprise">
         <p className="text-sm text-ink-2 mb-3">Toutes les données (profils, messages, notes, historique) seront supprimées définitivement.</p>
         <Toggle checked={suppress} onChange={setSuppress} label="Ajouter à la liste de suppression (opposition)" hint={<><ShieldOff className="inline size-3" /> Elle ne sera plus jamais redécouverte. Seuls l'identifiant du profil et le nom normalisé sont conservés.</>} />
