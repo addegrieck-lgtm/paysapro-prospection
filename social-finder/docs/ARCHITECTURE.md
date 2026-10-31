@@ -10,7 +10,7 @@ social-finder/
 │   │   ├── settings_store.py    paramètres et clés (masquées à l'affichage)
 │   │   ├── referentials.py      régions, départements, grandes villes, 17 métiers (synonymes, pertinence, services)
 │   │   ├── social_urls.py       reconnaissance des URL de profils, lecture titre/extrait (abonnés, bio, mentions)
-│   │   ├── connectors/          search_engines (Brave, Google CSE, relais) · meta (Graph API) · website · geo · base (quotas)
+│   │   ├── connectors/          search_engines (Brave, Google CSE) · meta (Graph API) · website · geo · base (quotas)
 │   │   ├── discovery/           queries (génération) · engine (tâche de fond) · matching (FB↔IG)
 │   │   ├── scoring/             facts · confidence · commercial · common (niveaux, priorité)
 │   │   ├── analysis.py          opportunités, services, recommandation

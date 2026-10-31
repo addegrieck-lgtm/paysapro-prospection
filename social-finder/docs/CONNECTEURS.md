@@ -14,7 +14,6 @@ pages Facebook (publications, groupes, événements, annuaires ignorés) et en e
 |---|---|---|
 | **Brave Search API** (conseillé) | offre gratuite (crédit mensuel, 1 requête/s) | compte sur api-dashboard.search.brave.com → clé « Subscription token » |
 | **Google Programmable Search** | 100 requêtes/jour gratuites ; accès des nouveaux comptes restreint par Google | moteur « tout le Web » sur programmablesearchengine.google.com (cx) + clé « Custom Search API » |
-| **Relais Paysapro** | gratuit (Cloudflare) | adresse du relais déjà déployé avec `BRAVE_SEARCH_KEY` (voir `worker/README.md` à la racine) |
 
 Si plusieurs sont actifs, le suivant prend le relais en cas de quota atteint ou de clé refusée.
 Une **limite quotidienne** par source (modifiable) protège vos quotas. Le nombre d'entreprises obtenues dépend de

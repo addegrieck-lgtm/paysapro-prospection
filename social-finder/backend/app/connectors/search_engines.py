@@ -2,8 +2,6 @@
 
 * Brave Search API — API officielle, offre gratuite limitée, opérateur site: pris en charge.
 * Google Programmable Search (Custom Search JSON API) — API officielle, 100 requêtes/jour gratuites.
-* Relais Paysapro — le relais Cloudflare déjà utilisé par l'application de prospection (route /search,
-  qui appelle Brave Search avec la clé stockée sur le relais).
 """
 from __future__ import annotations
 
@@ -132,60 +130,7 @@ class GoogleCSEConnector:
         )
 
 
-class RelayConnector:
-    """Relais Cloudflare existant de Paysapro Prospection (worker/web-proxy.js, route /search)."""
-    id = "relay"
-    label = "Relais Paysapro (Brave via Cloudflare)"
-    max_offset_pages = 1
-
-    def _cfg(self):
-        s = settings_store.get_all()
-        return (s["relay_url"] or "").rstrip("/"), s["relay_enabled"], int(s["relay_daily_limit"] or 0)
-
-    def is_ready(self) -> bool:
-        url, enabled, _ = self._cfg()
-        return bool(url and enabled)
-
-    def search(self, query: str, page: int = 0) -> list[SearchResult]:
-        url, _, limit = self._cfg()
-        if not url:
-            raise ConnectorError("not_configured", "Relais : adresse absente")
-        if page > 0:
-            return []
-        check_quota(self.id, limit)
-        throttle(self.id, 1.1)
-        with client() as c:
-            try:
-                res = c.get(f"{url}/search", params={"q": query, "count": 20})
-            except httpx.HTTPError as e:
-                raise ConnectorError("unavailable", f"Relais injoignable : {e}") from e
-        record_usage(self.id)
-        try:
-            data = res.json()
-        except ValueError as e:
-            raise ConnectorError("unavailable", f"Relais : réponse illisible (HTTP {res.status_code})") from e
-        if not data.get("ok"):
-            kind = data.get("code") or ("quota" if res.status_code == 429 else "unavailable")
-            raise ConnectorError(kind if kind in ("quota", "not_configured") else "unavailable", f"Relais : {data.get('error', 'erreur')}")
-        return [SearchResult(r.get("title", ""), r.get("url", ""), r.get("snippet", "")) for r in data.get("results", [])]
-
-    def status(self) -> ConnectorStatus:
-        url, enabled, limit = self._cfg()
-        return ConnectorStatus(
-            id=self.id, label=self.label, kind="search", configured=bool(url), enabled=bool(enabled),
-            state="ok" if url and enabled else ("disabled" if url else "not_configured"),
-            message="Prêt" if url and enabled else ("Désactivé" if url else "Adresse du relais à renseigner (facultatif)"),
-            used_today=usage_today(self.id), daily_limit=limit,
-            free_tier="Réutilise le relais Cloudflare gratuit de Paysapro Prospection, s'il possède déjà la clé BRAVE_SEARCH_KEY.",
-            limits=["Une seule page de 20 résultats par requête.", "Partage le quota Brave du relais avec l'application Paysapro."],
-            setup_steps=["Déployez le relais (voir worker/README.md à la racine du dépôt) avec le secret BRAVE_SEARCH_KEY.",
-                         "Collez l'adresse du relais (https://….workers.dev) dans Sources & connecteurs."],
-            features=["Même découverte que Brave Search, sans stocker la clé sur cet ordinateur."],
-            docs_url="",
-        )
-
-
-SEARCH_CONNECTORS = [BraveConnector(), GoogleCSEConnector(), RelayConnector()]
+SEARCH_CONNECTORS = [BraveConnector(), GoogleCSEConnector()]
 
 
 def ready_search_connectors() -> list:

@@ -107,7 +107,7 @@ def test_campaign_resume_skips_done_queries(fake, client):
 
 
 def test_no_source_is_reported_without_fake_results(client):
-    settings_store.update({"brave_api_key": "", "google_cse_key": "", "relay_url": ""})
+    settings_store.update({"brave_api_key": "", "google_cse_key": ""})
     sid = engine.start_search(PARAMS, background=False)
     s = client.get(f"/api/searches/{sid}").json()
     assert s["status"] == "no_source"
