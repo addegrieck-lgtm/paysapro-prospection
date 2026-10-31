@@ -15,7 +15,7 @@ export interface CompanySummary {
   status_label: string; validated: boolean; is_demo: boolean; confidence_score: number; commercial_score: number; priority: number;
   confidence_level?: Level; commercial_level?: Level; main_opportunity: Opportunity | null; services: { key: string; label: string }[];
   priority_label?: { key: string; label: string }; campaign_id: number | null; discovered_at: string; follow_up_at: string | null;
-  website: string | null; source: string; profiles: ProfileRef[];
+  website: string | null; source: string; profiles: ProfileRef[]; exported_at?: string | null;
 }
 export interface Profile {
   id: number; company_id: number; platform: 'instagram' | 'facebook'; handle: string; url: string; display_name: string | null; bio: string | null;

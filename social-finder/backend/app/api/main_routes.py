@@ -127,7 +127,7 @@ class AssistedBody(BaseModel):
 @router.post("/assisted/profiles")
 def add_assisted(body: AssistedBody) -> dict[str, Any]:
     """Recherche assistée : l'utilisateur a trouvé ces profils lui-même (navigation humaine) et les ajoute."""
-    report = {"added": 0, "already_known": 0, "invalid": [], "suppressed": 0, "company_ids": []}
+    report = {"added": 0, "merged": 0, "already_known": 0, "invalid": [], "suppressed": 0, "company_ids": []}
     loc = location_payload(body.city, body.department, body.region, ["instagram", "facebook"])
     for item in body.profiles:
         ref = parse_social_url(item.url)
@@ -150,8 +150,12 @@ def add_assisted(body: AssistedBody) -> dict[str, Any]:
             cid = create_company(conn, pid, {"activity_key": body.activity, "location": loc, "campaign_id": body.campaign_id, "source": "Recherche assistée"})
             rescore(conn, cid)
             m = match_company(conn, cid)
-            report["added"] += 1
-            report["company_ids"].append(m["into"])
+            if m["into"] == cid:
+                report["added"] += 1
+            else:
+                report["merged"] += 1  # autre réseau d'une entreprise déjà présente
+            if m["into"] not in report["company_ids"]:
+                report["company_ids"].append(m["into"])
     return report
 
 
@@ -476,6 +480,21 @@ def export_csv(campaign_id: int | None = None, include_demo: bool = False, min_c
                         STATUS_LABELS.get(c["status"], c["status"]), c["source"], c["discovered_at"][:10], c["notes"], "oui" if c["is_demo"] else ""])
     data = "﻿" + buf.getvalue()  # BOM : ouverture correcte des accents dans Excel
     name = f"social-finder-{datetime.now().strftime('%Y%m%d-%H%M')}.csv"
+    return StreamingResponse(iter([data]), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+@router.get("/export/prospection.csv")
+def export_prospection(ids: str = "", min_confidence: int = 50, min_commercial: int = 0, campaign_id: int | None = None,
+                       only_new: bool = False, preview: bool = False):
+    """Fichier d'import pour Paysapro Prospection (espace Signe & Seine). preview=true : compte sans marquer."""
+    from ..prospection_export import build_csv, select
+    id_list = [int(x) for x in ids.split(",") if x.strip().isdigit()]
+    with session() as conn:
+        companies = select(conn, id_list or None, min_confidence, min_commercial, campaign_id, only_new)
+        if preview:
+            return {"count": len(companies), "already_exported": sum(1 for c in companies if c.get("exported_at"))}
+        data = build_csv(conn, companies)
+    name = f"vers-prospection-{datetime.now().strftime('%Y%m%d-%H%M')}.csv"
     return StreamingResponse(iter([data]), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 

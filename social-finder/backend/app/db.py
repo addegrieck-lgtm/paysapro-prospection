@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS companies (
   priority REAL NOT NULL DEFAULT 0,
   analysis TEXT NOT NULL DEFAULT '{}',
   follow_up_at TEXT,
+  exported_at TEXT,                  -- dernier envoi vers Paysapro Prospection
   is_demo INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_companies_campaign ON companies(campaign_id);
@@ -207,7 +208,20 @@ def session() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with _lock, session() as conn:
         conn.executescript(SCHEMA)
+        _migrate(conn)
         conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES ('schema_version', ?)", (json.dumps(SCHEMA_VERSION),))
+
+
+# Colonnes ajoutées après la première version : ajoutées aux bases existantes au démarrage
+ADDED_COLUMNS = {"companies": {"exported_at": "TEXT"}}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, cols in ADDED_COLUMNS.items():
+        existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for col, decl in cols.items():
+            if col not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
 
 
 def row(r: sqlite3.Row | None, json_fields: tuple[str, ...] = ()) -> dict[str, Any] | None:
