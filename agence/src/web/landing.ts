@@ -335,7 +335,7 @@ Pour aller plus loin, consultez notre démarche de [référencement local](/refe
     path: '/referencement-local-artisan',
     name: 'Référencement local pour artisans',
     serviceType: 'Référencement local (SEO local)',
-    metaTitle: 'Référencement local pour artisans et TPE',
+    metaTitle: 'Référencement local d’artisans et TPE en Normandie',
     metaDescription: 'Apparaître sur Google Maps et dans les recherches locales : fiche Google, avis clients, pages locales utiles. Méthode transparente, sans promesse de classement.',
     eyebrow: 'Référencement · Local',
     h1: 'Référencement local',

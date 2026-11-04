@@ -10,6 +10,8 @@ export interface PostSeed {
   category: string;
   excerpt: string;
   meta_description: string;
+  /** Titre affiché par Google (≤ 60 caractères) quand le titre de l'article est plus long. */
+  meta_title?: string;
   published_at: string;
   body: string;
 }
@@ -76,6 +78,7 @@ Vous voulez un chiffrage précis pour votre activité ? Décrivez votre projet d
   },
   {
     slug: 'communication-fetes-fin-annee-commercants',
+    meta_title: 'Communication des fêtes pour commerçants',
     title: 'Commerçants du Pays de Caux : préparer sa communication pour les fêtes',
     category: 'Conseils',
     excerpt: 'Vitrine, fiche Google, flyers, réseaux sociaux : un calendrier simple pour être prêt avant décembre sans y passer ses soirées.',
@@ -156,6 +159,7 @@ Vous voulez déléguer tout ou partie de cette préparation ? Nous intervenons d
   },
   {
     slug: 'fiche-google-reglages-pays-de-caux',
+    meta_title: 'Fiche Google : 10 réglages pour Google Maps',
     title: 'Fiche Google : 10 réglages pour apparaître sur Google Maps dans le Pays de Caux',
     category: 'Référencement',
     excerpt: 'Catégorie, zone desservie, horaires, photos, publications : les réglages qui font la différence dans les résultats locaux.',
@@ -304,6 +308,7 @@ Nous pouvons créer une carte de remerciement avec QR code à vos couleurs, ou i
   },
   {
     slug: 'vitrophanie-quel-adhesif-choisir',
+    meta_title: 'Vitrophanie : quel adhésif choisir pour sa vitrine ?',
     title: 'Vitrophanie : quel adhésif choisir pour sa vitrine (et combien de temps ça tient) ?',
     category: 'Vitrophanie & signalétique',
     excerpt: 'Lettrage découpé, impression, microperforé, dépoli, électrostatique : les différents adhésifs et leur durée de vie, pour choisir sans se tromper.',
@@ -374,6 +379,7 @@ Nous concevons et posons la vitrophanie dans tout le Pays de Caux. Envoyez quelq
   },
   {
     slug: 'flyer-ou-depliant-que-choisir',
+    meta_title: 'Flyer ou dépliant : lequel choisir ?',
     title: 'Flyer ou dépliant : lequel choisir pour faire connaître son entreprise ?',
     category: 'Impression',
     excerpt: 'Formats, contenu, distribution et budget : comment choisir entre un flyer et un dépliant selon ce que vous voulez dire.',
@@ -452,6 +458,7 @@ Vous hésitez encore ? Décrivez votre activité et votre objectif dans notre [f
   },
   {
     slug: 'logo-soi-meme-ou-graphiste',
+    meta_title: 'Créer son logo soi-même ou passer par un graphiste ?',
     title: 'Créer son logo soi-même ou passer par un graphiste : ce que ça change vraiment',
     category: 'Identité visuelle',
     excerpt: 'Générateurs en ligne, modèles gratuits, intelligence artificielle ou graphiste : avantages, limites et pièges juridiques à connaître.',
@@ -521,6 +528,7 @@ Découvrez notre offre [identité visuelle et logo](/identite-visuelle-logo), ou
   },
   {
     slug: 'site-absent-de-google-pourquoi',
+    meta_title: 'Pourquoi votre site n’apparaît pas sur Google',
     title: 'Pourquoi votre site n’apparaît pas sur Google (et comment le vérifier)',
     category: 'Référencement',
     excerpt: 'Site trop récent, page bloquée, contenu trop léger, concurrence : les causes les plus fréquentes et les vérifications à faire vous-même.',
@@ -605,6 +613,7 @@ Vous voulez un diagnostic ? Nous vérifions l’indexation, les blocages techniq
   },
   {
     slug: 'nom-de-domaine-email-professionnel-artisan',
+    meta_title: 'Nom de domaine et e-mail pro pour artisans',
     title: 'Nom de domaine et adresse e-mail professionnelle : le guide pour les artisans',
     category: 'Sites internet',
     excerpt: 'Choisir son adresse en .fr, l’enregistrer à son nom, créer une adresse contact@ : les étapes et les pièges à éviter.',
@@ -673,6 +682,7 @@ Nous pouvons vous accompagner dans la réservation du domaine et la création de
   },
   {
     slug: 'cartes-de-visite-bien-choisir',
+    meta_title: 'Cartes de visite : comment bien les choisir',
     title: 'Cartes de visite : papier, finitions, quantité… comment bien choisir',
     category: 'Impression',
     excerpt: 'Format, grammage, pelliculage, QR code, contenu : tout ce qu’il faut savoir pour commander des cartes de visite qui donnent envie de vous appeler.',
@@ -758,6 +768,7 @@ Voir notre page [cartes de visite](/cartes-de-visite), ou demandez un [devis](/d
   },
   {
     slug: 'marquage-vehicule-utilitaire-artisan',
+    meta_title: 'Marquage de véhicule utilitaire : prix et règles',
     title: 'Marquage de véhicule utilitaire : prix, durée de vie et règles à respecter',
     category: 'Vitrophanie & signalétique',
     excerpt: 'Lettrage, covering partiel ou complet, magnets : les options pour transformer votre utilitaire en support publicitaire, et ce que dit la réglementation.',
@@ -836,6 +847,7 @@ Nous concevons et posons le marquage de véhicules dans le Pays de Caux. Envoyez
   },
   {
     slug: 'panneau-de-chantier-mentions-obligatoires',
+    meta_title: 'Panneau de chantier : les mentions obligatoires',
     title: 'Panneau de chantier : mentions obligatoires et conseils pour être vu',
     category: 'Vitrophanie & signalétique',
     excerpt: 'Panneau de permis de construire obligatoire et panneau publicitaire de l’entreprise : ce que dit la loi, et comment faire de chaque chantier une vitrine.',

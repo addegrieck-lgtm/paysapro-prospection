@@ -37,7 +37,7 @@ export function HomePage(p: {
       s={s}
       meta={{
         title: s.city ? `Agence web & print à ${s.city}` : 'Agence web et print pour TPE',
-        description: `Agence web et print${s.city ? ` à ${s.city} (Pays de Caux)` : ''} : sites internet, logos, flyers, cartes de visite et vitrines pour artisans et TPE. Devis gratuit.`,
+        description: `Agence web et print${s.city ? ` à ${s.city} (Pays de Caux, Seine-Maritime)` : ''} : sites internet, référencement, logos, flyers et vitrines pour artisans et TPE.`,
         path: '/',
         jsonLd: [businessJsonLd(s), websiteJsonLd(s), ...(p.faqs.length ? [faqJsonLd(p.faqs)] : [])],
       }}
