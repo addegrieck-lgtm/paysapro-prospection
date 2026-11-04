@@ -65,7 +65,7 @@ Si elle a déjà été lancée pour vous, vérifiez simplement qu'elle est verte
 
 ### D. Annuaires locaux : même nom, même adresse, même téléphone partout
 
-Le kit est prêt : `agence/marketing/annuaires/KIT-ANNUAIRES.md`. En priorité : PagesJaunes, annuaire de la CCI Seine Estuaire,
+En priorité : PagesJaunes, annuaire de la CCI Seine Estuaire,
 office de tourisme Fécamp / Caux Seine, clubs d'entreprises de Bolbec et de Fécamp.
 
 ### E. Un premier client à Fécamp
