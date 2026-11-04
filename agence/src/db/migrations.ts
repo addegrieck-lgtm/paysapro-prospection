@@ -1,7 +1,7 @@
 import type { Db } from './types';
 import { LOCAL_PAGES_V3, PORTFOLIO_ENRICH_V3, PORTFOLIO_NEW_V3, SERVICES_V3 } from './content-v3';
 import { POSTS_V5 } from './posts-v5';
-import { LOCAL_PAGES_V11 } from './local-pages-v11';
+import { FECAMP_SITE_ANCHOR, FECAMP_SITE_SECTION, LOCAL_PAGES_V11 } from './local-pages-v11';
 
 /** Littéral SQL échappé (les migrations sont des instructions SQL brutes). */
 const q = (v: string | number) => (typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
@@ -516,7 +516,7 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
     // INSERT OR IGNORE : un article déjà créé ou modifié dans l'administration n'est jamais écrasé.
     statements: POSTS_V5.map(
       (p) => `INSERT OR IGNORE INTO posts (slug, title, excerpt, body, category, status, published_at, meta_title, meta_description, created_at, updated_at)
-        VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`,
+        VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, p.meta_title ?? '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`,
     ),
   },
   {
@@ -638,6 +638,25 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       (l) => `INSERT OR IGNORE INTO local_pages (slug, city, title, intro, body, meta_description, status, created_at, updated_at)
         VALUES (${[l.slug, l.city, l.title, l.intro, l.body, l.meta_description].map(q).join(', ')}, 'published', ${NOW}, ${NOW})`,
     ),
+  },
+  {
+    version: 12,
+    name: 'pages villes : titres sur les recherches Search Console (Bolbec, Fécamp, Yvetot)',
+    // Chaque UPDATE ne touche qu'une page encore dans son état d'origine : une modification faite dans l'administration est conservée.
+    statements: [
+      `UPDATE local_pages SET title = ${q('Agence web, création de site et référencement à Bolbec')}, meta_description = ${q('Agence web voisine de Bolbec : création de site internet, référencement Google, logos, flyers et vitrophanie pour commerces et artisans.')}, updated_at = ${NOW}
+        WHERE slug = 'bolbec' AND title = ${q('Agence web et communication à Bolbec')}`,
+      `UPDATE local_pages SET title = ${q('Création de site internet et agence web à Fécamp')}, meta_description = ${q('Création de site internet, référencement, logo, flyers et vitrophanie à Fécamp : agence web du Pays de Caux, rendez-vous sur place, devis gratuit.')}, updated_at = ${NOW}
+        WHERE slug = 'fecamp' AND title = ${q('Agence web et print à Fécamp')}`,
+      `UPDATE local_pages SET body = replace(body, ${q(FECAMP_SITE_ANCHOR)}, ${q(FECAMP_SITE_SECTION + FECAMP_SITE_ANCHOR)}), updated_at = ${NOW}
+        WHERE slug = 'fecamp' AND instr(body, ${q('## Création de site internet à Fécamp')}) = 0 AND instr(body, ${q(FECAMP_SITE_ANCHOR)}) > 0`,
+      `UPDATE local_pages SET title = ${q('Création de site internet et agence web à Yvetot')}, updated_at = ${NOW}
+        WHERE slug = 'yvetot' AND title = ${q('Agence web et print à Yvetot')}`,
+      // Titres Google ≤ 60 caractères pour les articles programmés, sauf si un titre SEO a déjà été saisi.
+      ...POSTS_V5.filter((p) => p.meta_title).map(
+        (p) => `UPDATE posts SET meta_title = ${q(p.meta_title!)} WHERE slug = ${q(p.slug)} AND meta_title = ''`,
+      ),
+    ],
   },
 ];
 

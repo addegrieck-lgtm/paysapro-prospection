@@ -52,10 +52,10 @@ Nous intervenons aussi à Montivilliers, Harfleur, Sainte-Adresse, Gonfreville-l
   {
     slug: 'bolbec',
     city: 'Bolbec',
-    title: 'Agence web et communication à Bolbec',
+    title: 'Agence web, création de site et référencement à Bolbec',
     intro:
       'Notre agence est installée à Gruchet-le-Valasse, commune voisine de Bolbec. Commerces du centre-ville, artisans et TPE bolbécais : nous venons vous voir rapidement pour votre site, votre logo, vos imprimés ou votre vitrine.',
-    meta_description: 'Agence web et print voisine de Bolbec : sites internet, logos, flyers, cartes de visite et vitrophanie pour commerces et artisans. Rendez-vous sur place.',
+    meta_description: 'Agence web voisine de Bolbec : création de site internet, référencement Google, logos, flyers et vitrophanie pour commerces et artisans.',
     body: `## Une agence voisine de Bolbec
 
 Gruchet-le-Valasse et Bolbec sont limitrophes : pour nous, Bolbec est littéralement **à côté**. Cela change beaucoup de choses pour votre projet. Un rendez-vous peut s’organiser rapidement, une mesure de vitrine se reprend sans difficulté, et nous pouvons passer récupérer des documents ou vous montrer des échantillons de papier.

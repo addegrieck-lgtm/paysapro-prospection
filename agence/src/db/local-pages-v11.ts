@@ -4,14 +4,24 @@
  */
 import type { LocalPageSeed } from './content-v3';
 
+/** Section « création de site » de la page Fécamp, ajoutée aux pages déjà en base par la migration 12. */
+export const FECAMP_SITE_SECTION = `## Création de site internet à Fécamp
+
+Nous concevons des sites internet pour les entreprises de Fécamp : site vitrine de quelques pages, refonte d’un site vieillissant ou page unique pour démarrer. Chaque site est pensé d’abord pour le téléphone, rapide à charger, et rédigé avec les mots que vos clients tapent vraiment dans Google, comme « restaurant Fécamp » ou « plombier Fécamp ». Vous gardez la main sur vos textes et vos photos, et nous restons joignables après la mise en ligne.
+
+Le [référencement local](/referencement-local-artisan) est inclus dans la démarche : fiche Google complète, coordonnées identiques partout, pages utiles pour chaque prestation. L’objectif est simple : que l’on vous trouve quand on cherche votre métier à Fécamp ou sur la Côte d’Albâtre.
+
+`;
+export const FECAMP_SITE_ANCHOR = '## Restaurants, hôtels, gîtes et chambres d’hôtes';
+
 export const LOCAL_PAGES_V11: LocalPageSeed[] = [
   {
     slug: 'fecamp',
     city: 'Fécamp',
-    title: 'Agence web et print à Fécamp',
+    title: 'Création de site internet et agence web à Fécamp',
     intro:
       'Sites internet, logos, imprimés et vitrophanie pour les commerces, restaurants, hébergements et artisans de Fécamp et de la Côte d’Albâtre. Nous venons de Gruchet-le-Valasse, à environ une demi-heure, pour vous rencontrer sur place.',
-    meta_description: 'Site internet, logo, flyers, menus et vitrophanie à Fécamp : agence du Pays de Caux, rendez-vous sur place, pose de vitrine, devis gratuit.',
+    meta_description: 'Création de site internet, référencement, logo, flyers et vitrophanie à Fécamp : agence web du Pays de Caux, rendez-vous sur place, devis gratuit.',
     body: `## Fécamp fait partie de notre zone principale
 
 Depuis Gruchet-le-Valasse, Fécamp est à environ une demi-heure de route. Nous y venons pour les rendez-vous, les prises de vue, les relevés de mesures et la pose de vitrophanie. Nous regroupons volontiers les rendez-vous du secteur de la côte sur une même journée, ce qui permet de vous recevoir rapidement.
@@ -19,6 +29,12 @@ Depuis Gruchet-le-Valasse, Fécamp est à environ une demi-heure de route. Nous 
 ## Une ville qui vit aussi au rythme des visiteurs
 
 Port de pêche, Palais Bénédictine, falaises de la Côte d’Albâtre, front de mer : Fécamp attire des visiteurs une bonne partie de l’année. Pour beaucoup de commerces, de restaurants et d’hébergements, une partie de la clientèle ne connaît pas la ville et cherche sur son téléphone, souvent la veille ou le jour même. Votre communication doit donc fonctionner pour deux publics : les habitants fidèles, et les visiteurs de passage.
+
+## Création de site internet à Fécamp
+
+Nous concevons des sites internet pour les entreprises de Fécamp : site vitrine de quelques pages, refonte d’un site vieillissant ou page unique pour démarrer. Chaque site est pensé d’abord pour le téléphone, rapide à charger, et rédigé avec les mots que vos clients tapent vraiment dans Google, comme « restaurant Fécamp » ou « plombier Fécamp ». Vous gardez la main sur vos textes et vos photos, et nous restons joignables après la mise en ligne.
+
+Le [référencement local](/referencement-local-artisan) est inclus dans la démarche : fiche Google complète, coordonnées identiques partout, pages utiles pour chaque prestation. L’objectif est simple : que l’on vous trouve quand on cherche votre métier à Fécamp ou sur la Côte d’Albâtre.
 
 ## Restaurants, hôtels, gîtes et chambres d’hôtes
 
@@ -54,7 +70,7 @@ Nous intervenons aussi à Valmont, Saint-Léonard, Yport, Senneville-sur-Fécamp
   {
     slug: 'yvetot',
     city: 'Yvetot',
-    title: 'Agence web et print à Yvetot',
+    title: 'Création de site internet et agence web à Yvetot',
     intro:
       'Sites internet, identité visuelle, imprimés et vitrophanie pour les commerces, artisans, professions libérales et entreprises d’Yvetot et de ses environs. Nous venons de Gruchet-le-Valasse, à moins d’une demi-heure, pour vous rencontrer.',
     meta_description: 'Création de site internet, logo, flyers et vitrophanie à Yvetot : agence du Pays de Caux, rendez-vous sur place, référencement local, devis gratuit.',
