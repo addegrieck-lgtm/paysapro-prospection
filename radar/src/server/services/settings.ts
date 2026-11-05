@@ -35,7 +35,7 @@ export interface AppSettings {
   alerts: AlertSettings;
   retention: RetentionSettings;
   sync: SyncSettings;
-  ai: { provider: 'local' | 'anthropic'; model: string; monthlyBudgetEur: number; sendCompanyNames: boolean };
+  ai: { provider: 'local' | 'anthropic'; model: string; monthlyBudgetUsd: number; sendCompanyNames: boolean };
   map: { tileUrl: string; attribution: string };
 }
 
@@ -62,7 +62,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   alerts: { enabled: Object.fromEntries(Object.keys(ALERT_TYPES).map((k) => [k, true])), highScoreThreshold: 70, minReliability: 50, financialChangeThreshold: 0.2 },
   retention: { auditLogsDays: 730, syncJobsDays: 180, alertsDays: 365, sourcePayloadDays: 730, inactiveCompanyDays: 1095 },
   sync: { departments: ['76'], bodaccBackfillYears: { collective: 5, vente: 2, radiation: 1 }, enrichPerTick: 20, identityRefreshDays: 30, maxPappersPerDay: 0, websiteChecksPerTick: 5 },
-  ai: { provider: 'local', model: 'claude-sonnet-5-5', monthlyBudgetEur: 5, sendCompanyNames: true },
+  ai: { provider: 'local', model: 'claude-opus-5-5', monthlyBudgetUsd: 5, sendCompanyNames: true },
   map: { tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '© contributeurs OpenStreetMap' },
 };
 
