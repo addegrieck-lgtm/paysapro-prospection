@@ -517,6 +517,26 @@ CREATE TABLE IF NOT EXISTS data_requests (
   processed_at TEXT
 );
 
+-- Dernières valeurs connues (dénormalisées pour les filtres et tris de la recherche avancée).
+CREATE TABLE IF NOT EXISTS company_metrics (
+  company_id INTEGER PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+  last_year INTEGER,
+  revenue REAL,
+  net_income REAL,
+  ebe REAL,
+  revenue_cagr REAL,
+  years_count INTEGER NOT NULL DEFAULT 0,
+  has_active_proceeding INTEGER NOT NULL DEFAULT 0,
+  signals_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_metrics_revenue ON company_metrics(revenue);
+
+-- File d'attente des entreprises à réanalyser (scores, valorisation, opportunités) après une mise à jour.
+CREATE TABLE IF NOT EXISTS analysis_queue (
+  company_id INTEGER PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+  queued_at TEXT NOT NULL
+);
+
 -- Personnes ou entreprises ayant demandé à ne plus être traitées (suppression + opposition).
 CREATE TABLE IF NOT EXISTS suppression_list (
   siren TEXT PRIMARY KEY,
