@@ -74,7 +74,7 @@ export function ScenarioPanel({ companyId, projectId }: { companyId: number; pro
   };
   const input = (k: string, label: string, ph: string, hint?: string) => (
     <Field label={label} hint={hint}>
-      <input className={inputCls} inputMode="decimal" value={form[k] ?? ''} placeholder={ph} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
+      <input className={inputCls} inputMode="decimal" aria-label={label} value={form[k] ?? ''} placeholder={ph} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
     </Field>
   );
   return (

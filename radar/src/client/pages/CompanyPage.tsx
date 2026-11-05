@@ -298,6 +298,11 @@ export default function CompanyPage() {
 
       {tab === 'finances' && (
         <div className="space-y-4">
+          {(d.financials as any[]).some((y) => y.conflicts?.length) && (
+            <Notice tone="warn">
+              Sources discordantes : {(d.financials as any[]).filter((y) => y.conflicts?.length).map((y) => `${y.fiscalYear} (${y.conflicts.map((c: any) => `${meta.sources.find((m) => m.id === c.source)?.label ?? c.source} : CA ${eur(c.revenue)} contre ${eur(c.primaryRevenue)}`).join(' ; ')})`).join(' · ')}. Les chiffres de la source la plus fiable sont seuls retenus ; vérifiez auprès du vendeur avant toute analyse.
+            </Notice>
+          )}
           <Card title="Exercices publiés">
             <FinancialChart years={(d.financials as any[]).map((y) => ({ ...y, ebe: y.ebe ?? y.ebitda ?? (isNum(y.operatingIncome) && isNum(y.depreciation) ? y.operatingIncome + y.depreciation : null) }))} />
           </Card>

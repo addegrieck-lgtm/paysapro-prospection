@@ -22,18 +22,32 @@ export interface MergedYear extends FinancialYear {
   closingDate: string | null;
   sources: string[];
   fieldSources: Record<string, { source: string; status: string; confidence: number; collectedAt: string; url: string | null }>;
+  /** Sources écartées pour cet exercice faute de concordance (CA différent de plus de 5 %). */
+  conflicts?: { source: string; revenue: number | null; primaryRevenue: number | null }[];
 }
 
-/** Fusionne les exercices de plusieurs sources : pour chaque champ, la valeur de la source la plus fiable. */
+/**
+ * Fusionne les exercices de plusieurs sources sans jamais fabriquer de comptes incohérents :
+ * pour chaque exercice, la source la plus fiable fait foi ; ses champs manquants ne sont complétés par une autre
+ * source que si les chiffres d'affaires concordent (écart ≤ 5 %, ou CA absent d'un côté). Sinon, la source est
+ * écartée et le conflit est signalé.
+ */
 export async function loadFinancials(db: Db, companyId: number): Promise<MergedYear[]> {
   const rows = await db.all<Record<string, string | number | null>>('SELECT * FROM company_financials WHERE company_id = ? ORDER BY fiscal_year, confidence DESC, collected_at DESC', [companyId]);
   const byYear = new Map<number, MergedYear>();
   for (const r of rows) {
     const fy = r.fiscal_year as number;
     let y = byYear.get(fy);
+    const rev = typeof r.revenue === 'number' ? r.revenue : null;
     if (!y) {
       y = { fiscalYear: fy, closingDate: (r.closing_date as string) ?? null, sources: [], fieldSources: {} };
       byYear.set(fy, y);
+    } else {
+      const primaryRev = typeof y.revenue === 'number' ? y.revenue : null;
+      if (rev !== null && primaryRev !== null && Math.abs(rev - primaryRev) > 0.05 * Math.max(Math.abs(primaryRev), 1)) {
+        (y.conflicts ??= []).push({ source: r.source_id as string, revenue: rev, primaryRevenue: primaryRev });
+        continue;
+      }
     }
     if (!y.sources.includes(r.source_id as string)) y.sources.push(r.source_id as string);
     for (const [k, col] of FIELDS) {

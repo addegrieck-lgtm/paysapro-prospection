@@ -309,7 +309,9 @@ function JsonSetting({ k, title, help, value, onSaved }: { k: string; title: str
   const [text, setText] = useState(JSON.stringify(value, null, 2));
   const [err, setErr] = useState<unknown>(null);
   const [ok, setOk] = useState(false);
-  useEffect(() => setText(JSON.stringify(value, null, 2)), [value]);
+  useEffect(() => {
+    setText(JSON.stringify(value, null, 2));
+  }, [value]);
   const save = async () => {
     setErr(null);
     try {
@@ -333,7 +335,9 @@ function JsonSetting({ k, title, help, value, onSaved }: { k: string; title: str
 function Weights({ value, k, labels, onSaved }: { value: Record<string, number>; k: string; labels: Record<string, string>; onSaved: () => void }) {
   const [w, setW] = useState(value);
   const [err, setErr] = useState<unknown>(null);
-  useEffect(() => setW(value), [value]);
+  useEffect(() => {
+    setW(value);
+  }, [value]);
   const total = Object.values(w).reduce((a, b) => a + b, 0);
   return (
     <Card title={k === 'scoringWeights' ? 'Pondérations du score économique' : 'Pondérations du score de risque'} actions={<Button size="sm" onClick={() => api.put(`/admin/settings/${k}`, w).then(onSaved).catch(setErr)}>Enregistrer et recalculer</Button>}>

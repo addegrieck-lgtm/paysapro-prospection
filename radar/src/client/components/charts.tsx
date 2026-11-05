@@ -58,7 +58,8 @@ export function StackedColumns({ data, series, height = 160 }: { data: { x: stri
                   const bh = (v / max) * (h - 4);
                   if (!v) return null;
                   y -= bh;
-                  return <rect key={s.key} x={i * w + w * 0.2} y={y + 0.5} width={w * 0.6} height={Math.max(0.5, bh - 1)} rx={0.6} fill={s.color} />;
+                  const bw = Math.min(w * 0.6, 6);
+                  return <rect key={s.key} x={i * w + (w - bw) / 2} y={y + 0.5} width={bw} height={Math.max(0.5, bh - 1)} rx={0.6} fill={s.color} />;
                 })}
               </g>
             );

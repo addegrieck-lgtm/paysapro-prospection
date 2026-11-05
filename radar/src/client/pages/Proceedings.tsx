@@ -41,9 +41,11 @@ export default function Proceedings() {
       <Notice>
         Statuts strictement distingués : <strong>ouverte</strong> (jugement d'ouverture seul), <strong>en cours</strong> (étapes ultérieures), <strong>plan arrêté</strong>, <strong>plan de cession arrêté</strong>, <strong>clôturée</strong>. Le mandataire ou liquidateur n'est affiché que tel qu'il figure dans le texte officiel publié.
       </Notice>
-      <div className="mt-4 flex flex-wrap items-end gap-3">
+      <div className="mt-4">
         <Tabs value={v.scope as 'actives'} onChange={(scope) => f.set({ scope })} items={[{ id: 'actives', label: 'Non clôturées' }, { id: 'cloturees', label: 'Clôturées' }, { id: 'toutes', label: 'Toutes' }]} />
-        <select className={`${inputCls} mb-4 w-auto`} value={v.type ?? ''} onChange={(e) => f.set({ type: e.target.value })} aria-label="Type de procédure">
+      </div>
+      <div className="mb-4 flex flex-wrap gap-3">
+        <select className={`${inputCls} sm:max-w-64`} value={v.type ?? ''} onChange={(e) => f.set({ type: e.target.value })} aria-label="Type de procédure">
           <option value="">Tous types</option>
           {Object.entries(meta.procTypeLabels).map(([k, l]) => (
             <option key={k} value={k}>
@@ -51,7 +53,7 @@ export default function Proceedings() {
             </option>
           ))}
         </select>
-        <select className={`${inputCls} mb-4 w-auto`} value={v.status ?? ''} onChange={(e) => f.set({ status: e.target.value })} aria-label="Statut">
+        <select className={`${inputCls} sm:max-w-64`} value={v.status ?? ''} onChange={(e) => f.set({ status: e.target.value })} aria-label="Statut">
           <option value="">Tous statuts</option>
           {Object.entries(meta.procStatusLabels).map(([k, l]) => (
             <option key={k} value={k}>

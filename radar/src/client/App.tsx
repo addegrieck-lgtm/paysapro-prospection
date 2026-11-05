@@ -59,7 +59,9 @@ function Layout({ children, unread }: { children: ReactNode; unread: number }) {
   const { user, logout, can, compare } = useApp();
   const [open, setOpen] = useState(false);
   const loc = useLocation();
-  useEffect(() => setOpen(false), [loc.pathname]);
+  useEffect(() => {
+    setOpen(false);
+  }, [loc.pathname]);
   return (
     <div className="flex min-h-full">
       <aside className={cx('fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-ink-700 bg-ink-950/95 backdrop-blur transition-transform lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>

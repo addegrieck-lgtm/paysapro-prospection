@@ -47,7 +47,7 @@ export default function Alerts({ onRead }: { onRead: () => void }) {
         }
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select className={`${inputCls} w-auto`} value={type} onChange={(e) => (setType(e.target.value), setPage(1))} aria-label="Type d'alerte">
+        <select className={`${inputCls} sm:max-w-72`} value={type} onChange={(e) => (setType(e.target.value), setPage(1))} aria-label="Type d'alerte">
           <option value="">Tous les types</option>
           {Object.entries(meta.alertTypes).map(([k, l]) => (
             <option key={k} value={k}>

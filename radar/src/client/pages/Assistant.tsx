@@ -44,7 +44,9 @@ export default function Assistant() {
     const id = Number(params.get('entreprise'));
     if (id) api.get<{ company: { id: number; name: string } }>(`/companies/${id}`).then((d) => setCtx([{ id: d.company.id, name: d.company.name }])).catch(() => {});
   }, [params]);
-  useEffect(() => end.current?.scrollIntoView({ behavior: 'smooth' }), [msgs]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [msgs]);
   const ask = async (question: string) => {
     if (!question.trim() || busy) return;
     setQ('');

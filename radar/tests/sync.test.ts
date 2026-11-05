@@ -158,3 +158,25 @@ describe('analyse et recherche', () => {
     expect((await db.get<{ weights_version: string }>('SELECT weights_version FROM scoring_results WHERE company_id = ?', [id]))!.weights_version).toContain('e50-');
   });
 });
+
+describe('fusion des comptes multi-sources', () => {
+  it("ne mélange pas des exercices discordants et signale le conflit", async () => {
+    const { testDb: mk, S1: s1 } = await import('./helpers');
+    const { upsertCompany, financialStmt } = await import('../src/server/services/companies');
+    const { loadFinancials } = await import('../src/server/services/analysis');
+    const db = await mk();
+    const c = (await upsertCompany(db, { siren: s1, name: 'X' }, { sourceId: 'bodacc', status: 'officielle', confidence: 70, collectedAt: '2026-01-01' }))!;
+    const at = '2026-01-01T00:00:00Z';
+    await db.batch([
+      financialStmt(c.id, { fiscalYear: 2024, revenue: 300_000, netIncome: 10_000 }, { sourceId: 'recherche-entreprises', status: 'officielle', confidence: 80, collectedAt: at }),
+      financialStmt(c.id, { fiscalYear: 2024, revenue: 1_450_000, ebe: 210_000 }, { sourceId: 'import-manuel', status: 'declarative', confidence: 45, collectedAt: at }),
+      financialStmt(c.id, { fiscalYear: 2023, revenue: 290_000, netIncome: 9_000 }, { sourceId: 'recherche-entreprises', status: 'officielle', confidence: 80, collectedAt: at }),
+      financialStmt(c.id, { fiscalYear: 2023, revenue: 291_000, ebe: 30_000, equity: 80_000 }, { sourceId: 'pappers', status: 'officielle', confidence: 75, collectedAt: at }),
+    ]);
+    const [y23, y24] = await loadFinancials(db, c.id);
+    expect(y24!.ebe).toBeUndefined();
+    expect(y24!.conflicts).toEqual([{ source: 'import-manuel', revenue: 1_450_000, primaryRevenue: 300_000 }]);
+    expect(y23).toMatchObject({ revenue: 290_000, ebe: 30_000, equity: 80_000 });
+    expect(y23!.fieldSources.ebe!.source).toBe('pappers');
+  });
+});

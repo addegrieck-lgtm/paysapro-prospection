@@ -58,7 +58,9 @@ function Multi({ label, value, options, onChange }: { label: string; value: stri
 
 function Debounced({ value, onChange, placeholder, type = 'text', className }: { value: string; onChange: (v: string) => void; placeholder: string; type?: string; className?: string }) {
   const [v, setV] = useState(value);
-  useEffect(() => setV(value), [value]);
+  useEffect(() => {
+    setV(value);
+  }, [value]);
   useEffect(() => {
     if (v === value) return;
     const t = setTimeout(() => onChange(v), 350);
