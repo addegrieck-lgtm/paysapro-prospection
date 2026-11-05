@@ -1,0 +1,31 @@
+# Normandie Business Radar (dossier radar/) — vérifications à chaque modification. Aucun déploiement ni secret ici.
+name: Radar
+
+on:
+  push:
+    paths: ['radar/**', '.github/workflows/radar.yml']
+  pull_request:
+    paths: ['radar/**', '.github/workflows/radar.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: radar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: radar/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Compilation du Worker (sans déploiement)
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/radar-worker

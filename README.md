@@ -71,3 +71,7 @@ Documentation complète : [PROSPECTING.md](PROSPECTING.md).
 
 **Projet distinct dans ce dépôt :** [`agence/`](agence/README.md) — site et back-office de l’agence web & communication
 (serveur Hono + SQLite/Cloudflare D1). Aucune donnée ni infrastructure n’est partagée avec Paysapro Prospection.
+
+**Projet distinct dans ce dépôt :** [`radar/`](radar/README.md) — **Normandie Business Radar**, outil personnel
+d'intelligence économique pour détecter, analyser et suivre des opportunités de reprise d'entreprises en Seine-Maritime
+(Cloudflare Workers + D1, ou serveur Node). Aucune donnée ni infrastructure partagée avec les autres projets.
