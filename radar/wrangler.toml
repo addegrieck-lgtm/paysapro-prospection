@@ -1,0 +1,36 @@
+# Normandie Business Radar — Cloudflare Workers (API + interface + tâches planifiées).
+# Projet DISTINCT de l'application Paysapro, du relais et de l'agence : aucune ressource partagée.
+# Les identifiants de base et de stockage sont complétés au déploiement par scripts/cf-deploy.mjs (wrangler.deploy.toml).
+name = "normandie-business-radar"
+main = "src/server/worker.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+# Interface React compilée (npm run build). Les routes /api/* sont traitées par le Worker.
+[assets]
+directory = "./dist/client"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[vars]
+ENVIRONMENT = "production"
+DEPARTMENTS = "76"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "normandie-business-radar"
+database_id = "A_REMPLACER"
+
+# Documents de l'Acquisition Manager (pièces jointes privées). KV par défaut (gratuit, sans carte bancaire).
+[[kv_namespaces]]
+binding = "FILES_KV"
+id = "A_REMPLACER"
+
+# Veille : une étape toutes les 15 minutes (chaque étape traite un lot borné, reprise automatique),
+# et le lancement de la veille quotidienne à 4 h 17 UTC.
+[triggers]
+crons = ["*/15 * * * *", "17 4 * * *"]
+
+# Secrets (jamais dans ce fichier) — `npx wrangler secret put NOM` :
+#   APP_SECRET (obligatoire), SETUP_TOKEN (création du 1er compte),
+#   INSEE_API_KEY, INPI_USERNAME, INPI_PASSWORD, PAPPERS_API_TOKEN, ANTHROPIC_API_KEY (tous facultatifs)
