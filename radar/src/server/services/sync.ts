@@ -169,7 +169,20 @@ export async function tick(env: SyncEnv, opts: { maxMs?: number; maxRequests?: n
         [attempts, final ? 'error' : 'pending', Date.now() - start, final ? iso() : null, `Tentative ${attempts} : ${err.message}`, job.id],
       );
       await env.db.run("UPDATE sources SET last_sync_at = ?, last_status = 'error', last_error = ? WHERE id = ?", [iso(), err.message.slice(0, 500), job.source_id]);
-      if (final) await raiseAlert(env.db, { type: 'source_en_erreur', severity: 'attention', title: `Source en erreur : ${connector.label}`, message: `${job.task} — ${err.message}`, dedupeKey: `srcerr:${run.id}:${job.id}`, runId: run.id }, settings);
+      // Disjoncteur : une source qui n'a réussi aucune tâche après 3 échecs est considérée injoignable pour cette
+      // veille ; ses tâches restantes sont abandonnées (au lieu de 3 tentatives chacune) et une seule alerte est émise.
+      const st = await env.db.get<{ fails: number; ok: number }>(
+        "SELECT COALESCE(SUM(attempts), 0) AS fails, COALESCE(SUM(CASE WHEN status = 'success' OR fetched > 0 THEN 1 ELSE 0 END), 0) AS ok FROM sync_jobs WHERE run_id = ? AND source_id = ?",
+        [run.id, job.source_id],
+      );
+      const tripped = !!st && st.ok === 0 && st.fails >= MAX_ATTEMPTS;
+      if (tripped) {
+        await env.db.run(
+          `UPDATE sync_jobs SET status = 'error', finished_at = ?, error_log = substr(COALESCE(error_log || char(10), '') || ?, -4000) WHERE run_id = ? AND source_id = ? AND status IN ('pending','running')`,
+          [iso(), `Source injoignable (${err.message}) : tâche abandonnée pour cette veille, reprise à la prochaine.`, run.id, job.source_id],
+        );
+      }
+      if (final || tripped) await raiseAlert(env.db, { type: 'source_en_erreur', severity: 'attention', title: `Source en erreur : ${connector.label}`, message: `${tripped ? 'Source injoignable, interrogation suspendue pour cette veille' : job.task} — ${err.message}`, dedupeKey: `srcerr:${run.id}:${job.source_id}`, runId: run.id }, settings);
     }
   }
 

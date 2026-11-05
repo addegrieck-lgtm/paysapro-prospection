@@ -42,9 +42,12 @@ describe('orchestrateur de veille', () => {
     expect(summary.bodacc.status).toBe('error');
     expect(summary['insee-sirene'].status).toBe('skipped');
     expect((await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM companies'))!.n).toBe(1);
-    expect((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM alerts WHERE type = 'source_en_erreur'"))!.n).toBe(3);
-    const bodaccJobs = await db.all<{ attempts: number; status: string }>("SELECT attempts, status FROM sync_jobs WHERE source_id = 'bodacc'");
-    expect(bodaccJobs.every((j) => j.status === 'error' && j.attempts === 3)).toBe(true);
+    // Une seule alerte par source en panne, et disjoncteur : 3 échecs au total, pas 3 par tâche
+    expect((await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM alerts WHERE type = 'source_en_erreur'"))!.n).toBe(1);
+    const bodaccJobs = await db.all<{ attempts: number; status: string; error_log: string }>("SELECT attempts, status, error_log FROM sync_jobs WHERE source_id = 'bodacc'");
+    expect(bodaccJobs.every((j) => j.status === 'error')).toBe(true);
+    expect(bodaccJobs.reduce((a, j) => a + j.attempts, 0)).toBe(3);
+    expect(bodaccJobs.some((j) => /injoignable/.test(j.error_log))).toBe(true);
     const src = await db.get<{ last_status: string; last_error: string }>("SELECT last_status, last_error FROM sources WHERE id = 'bodacc'");
     expect(src!.last_status).toBe('error');
     // L'analyse a été faite à la fin
