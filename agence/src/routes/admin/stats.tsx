@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../../app/context';
 import { page } from './helpers';
-import { Kpi } from '../../web/admin/ui';
+import { Csrf, Kpi } from '../../web/admin/ui';
 import { addDays, formatDateTime, formatShortDate, todayParis } from '../../domain/dates';
 import { DEVICE_LABELS, MEDIUM_LABELS, type Device, type Medium } from '../../domain/analytics';
-import { purgeAnalytics } from '../../services/analytics';
+import { clearPageViewsBefore, purgeAnalytics } from '../../services/analytics';
 
 export const statsRoutes = new Hono<AppEnv>();
 
@@ -140,6 +140,12 @@ function TrafficChart({ points, unitLabel }: { points: { key: string; label: str
   );
 }
 
+// Remise à zéro des pages vues enregistrées avant aujourd'hui (les demandes de devis et messages sont conservés).
+statsRoutes.post('/statistiques/effacer', async (c) => {
+  await clearPageViewsBefore(c, todayParis());
+  return c.redirect('/admin/statistiques?efface=1', 303);
+});
+
 statsRoutes.get('/statistiques', async (c) => {
   const { db } = c.get('deps');
   const s = c.get('settings');
@@ -234,6 +240,7 @@ statsRoutes.get('/statistiques', async (c) => {
           Du {formatShortDate(from)} au {formatShortDate(to)}
         </span>
       </nav>
+      {c.req.query('efface') === '1' && <div class="alert">Les anciennes statistiques ont été effacées : la mesure repart de zéro.</div>}
 
       <div class="grid-kpi">
         <Kpi label="Visiteurs" value={nf.format(visitors)} hint={trend(visitors, prevVisitors)} />
@@ -408,10 +415,26 @@ statsRoutes.get('/statistiques', async (c) => {
           </li>
         </ul>
         <p class="small muted">
-          Mesure interne, sans cookie et sans service extérieur : aucun bandeau de consentement n’est nécessaire. Les visiteurs sont comptés une fois par jour
-          (empreinte anonyme renouvelée chaque jour), les robots et vos propres visites sont exclus, les données sont conservées 13 mois. Les mots-clés tapés
-          dans Google ne sont jamais transmis aux sites : consultez-les dans Google Search Console.
+          Mesure interne, sans cookie et sans service extérieur : aucun bandeau de consentement n’est nécessaire. Une page vue n’est comptée que lorsqu’elle
+          s’affiche réellement dans le navigateur d’un visiteur : les robots (moteurs, scanners, aspirateurs, outils d’audit), les navigateurs automatisés, les
+          pages préchargées, les rechargements rapprochés et vos propres visites sont exclus. Les visiteurs sont comptés une fois par jour (empreinte anonyme
+          renouvelée chaque jour), les données sont conservées 13 mois. Les mots-clés tapés dans Google ne sont jamais transmis aux sites : consultez-les dans
+          Google Search Console.
         </p>
+      </div>
+
+      <div class="panel">
+        <h2>Repartir de zéro</h2>
+        <p class="small">
+          Les statistiques enregistrées avant la mise à jour de la mesure comptaient aussi de nombreux robots. Vous pouvez effacer toutes les pages vues
+          antérieures à aujourd’hui ; les demandes de devis et les messages reçus ne sont pas touchés.
+        </p>
+        <form method="post" action="/admin/statistiques/effacer" data-confirm="Effacer définitivement les pages vues enregistrées avant aujourd’hui ?">
+          <Csrf token={c.get('csrf')} />
+          <button type="submit" class="btn btn-outline">
+            Effacer les anciennes statistiques
+          </button>
+        </form>
       </div>
     </>,
     { wide: true },

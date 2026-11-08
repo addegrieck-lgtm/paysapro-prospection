@@ -952,7 +952,7 @@ export function SimpleMessage({ s, title, text, path, noindex = true, status }: 
 
 export function NotFoundPage({ s, path }: { s: Settings; path: string }) {
   return (
-    <Layout s={s} meta={{ title: 'Page introuvable', description: 'Cette page n’existe pas ou a été déplacée.', path, noindex: true }}>
+    <Layout s={s} meta={{ title: 'Page introuvable', description: 'Cette page n’existe pas ou a été déplacée.', path, noindex: true, bodyClass: 'page-404' }}>
       <section class="page-hero">
         <div class="container narrow">
           <p class="eyebrow">Erreur 404</p>

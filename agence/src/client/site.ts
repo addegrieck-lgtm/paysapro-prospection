@@ -42,6 +42,30 @@ if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: re
   for (const el of reveal) el.classList.add('is-visible');
 }
 
+// ─── Mesure d'audience interne (sans cookie) ───
+// La page vue est envoyée par le navigateur, une fois la page réellement affichée : les robots qui n'exécutent pas le
+// JavaScript, les navigateurs automatisés et les pages préchargées mais jamais regardées ne sont pas comptés.
+function sendPageView() {
+  const nav = navigator as Navigator & { webdriver?: boolean };
+  if (nav.webdriver || !('sendBeacon' in nav)) return;
+  const body = JSON.stringify({
+    p: location.pathname,
+    q: location.search,
+    r: document.referrer,
+    s: document.body.classList.contains('page-404') ? 404 : 200,
+  });
+  nav.sendBeacon('/api/v', new Blob([body], { type: 'text/plain' }));
+}
+if (document.visibilityState === 'visible') sendPageView();
+else {
+  const onVisible = () => {
+    if (document.visibilityState !== 'visible') return;
+    document.removeEventListener('visibilitychange', onVisible);
+    sendPageView();
+  };
+  document.addEventListener('visibilitychange', onVisible);
+}
+
 // ─── Consentement (uniquement si Google Analytics est configuré) ───
 const CONSENT = 'consent';
 const readConsent = () => document.cookie.split('; ').find((c) => c.startsWith(`${CONSENT}=`))?.split('=')[1];
