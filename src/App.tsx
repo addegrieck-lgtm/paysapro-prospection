@@ -23,6 +23,7 @@ const StatsPage = lazyPage(() => import('./pages/StatsPage'), 'StatsPage');
 const AssistantPage = lazyPage(() => import('./pages/AssistantPage'), 'AssistantPage');
 const AssistantAdminPage = lazyPage(() => import('./pages/AssistantAdminPage'), 'AssistantAdminPage');
 const SettingsPage = lazyPage(() => import('./pages/SettingsPage'), 'SettingsPage');
+const SocialFinderPage = lazyPage(() => import('./pages/SocialFinderPage'), 'SocialFinderPage');
 
 function Splash({ message }: { message: string | null }) {
   return (
@@ -76,6 +77,7 @@ export default function App() {
                 <Route path="templates" element={<TemplatesPage />} />
                 <Route path="stats" element={<StatsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="social-finder" element={<SocialFinderPage />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>

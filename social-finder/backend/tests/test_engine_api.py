@@ -219,3 +219,27 @@ def test_demo_data_is_flagged_and_removable(client):
 def test_validation_errors(client):
     assert client.post("/api/searches", json={"activities": [], "city": "Rouen"}).status_code == 400
     assert client.post("/api/searches", json={"activities": ["restaurant"]}).status_code == 400
+
+
+def test_export_to_prospection(fake, client):
+    import csv
+    import io
+    from app.prospection_export import HEADERS
+    engine.start_search(PARAMS, background=False)
+    client.post("/api/demo/load")
+    preview = client.get("/api/export/prospection.csv", params={"min_confidence": 0, "preview": True}).json()
+    assert preview["count"] == 3  # démo jamais exportée
+    text = client.get("/api/export/prospection.csv", params={"min_confidence": 0}).text
+    rows = list(csv.reader(io.StringIO(text.lstrip("﻿")), delimiter=";"))
+    assert rows[0] == HEADERS
+    quai = next(r for r in rows[1:] if r[0] == "Le Petit Quai")
+    assert quai[5].startswith("https://www.facebook.com/") and quai[6] == "https://www.instagram.com/lepetitquai/"
+    assert quai[2] == "76" and quai[3] == "Restaurant"
+    # Marquage : « nouveaux uniquement » ne renvoie plus rien
+    again = client.get("/api/export/prospection.csv", params={"min_confidence": 0, "only_new": True, "preview": True}).json()
+    assert again["count"] == 0
+    cid = next(c["id"] for c in companies() if c["name"] == "Le Petit Quai")
+    assert any(e["type"] == "export_prospection" for e in client.get(f"/api/companies/{cid}").json()["events"])
+    # « Ne plus contacter » n'est jamais exporté
+    client.patch(f"/api/companies/{cid}", json={"status": "do_not_contact"})
+    assert client.get("/api/export/prospection.csv", params={"ids": str(cid), "preview": True}).json()["count"] == 0
