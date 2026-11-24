@@ -8,6 +8,7 @@ import { openD1, type D1Like } from '../db/d1';
 import { r2Storage, type R2Like } from '../lib/storage-r2';
 import { kvStorage, type KVLike } from '../lib/storage-kv';
 import { createMailer, type MailConfig } from '../lib/mail';
+import { recentPaths, submitIndexNow } from '../services/indexnow';
 
 interface Env {
   DB: D1Like;
@@ -54,5 +55,21 @@ export default {
       clientIp: (c) => c.req.header('cf-connecting-ip') ?? 'inconnu',
     });
     return app.fetch(request, env, ctx as never);
+  },
+
+  /** Tâche planifiée quotidienne (wrangler.toml, [triggers]) : envoie à IndexNow les pages publiées ou modifiées depuis la veille,
+   *  y compris les articles programmés qui deviennent visibles à leur date. */
+  async scheduled(_event: unknown, env: Env): Promise<void> {
+    if (!env.SITE_HOST || env.ENVIRONMENT === 'development') return;
+    const db = openD1(env.DB);
+    ready ??= prepareDatabase({ db }).catch((e) => {
+      ready = null;
+      throw e;
+    });
+    await ready;
+    const now = new Date();
+    const paths = await recentPaths(db, new Date(now.getTime() - 25 * 3600 * 1000), now);
+    const status = await submitIndexNow(`https://${env.SITE_HOST}`, paths);
+    console.log(`IndexNow : ${paths.length} adresse(s)${status === null ? '' : `, réponse ${status}`}`);
   },
 };

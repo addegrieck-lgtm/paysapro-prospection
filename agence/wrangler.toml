@@ -17,6 +17,10 @@ routes = [
 [assets]
 directory = "./public"
 
+# Tâche quotidienne (05:17 UTC) : envoi à IndexNow des pages publiées ou modifiées depuis la veille (src/server/worker.ts).
+[triggers]
+crons = ["17 5 * * *"]
+
 [vars]
 ENVIRONMENT = "production"
 SITE_HOST = "www.signeetseine.fr"

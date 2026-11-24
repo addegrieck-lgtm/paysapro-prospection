@@ -141,3 +141,10 @@ une déjà déployée, ajoutez-en une nouvelle.
 
 `.github/workflows/agence.yml` exécute à chaque modification du dossier `agence/` : vérification TypeScript, tests, construction,
 contrôle des ressources publiques. Le déploiement reste manuel (aucun secret n’est stocké dans GitHub).
+
+## IndexNow et llms.txt
+
+- `/llms.txt` : résumé de l'agence pour les assistants IA, généré à partir des réglages et du catalogue publiés (rien à maintenir à la main).
+- `/91ec07610537e0b881b54a2ff62d218e.txt` : fichier de clé IndexNow (clé publique par nature, dans `src/domain/indexnow.ts`).
+- À chaque mise en ligne, le workflow envoie toutes les adresses du sitemap à IndexNow (`scripts/indexnow.mjs`, ne bloque jamais le déploiement).
+- Chaque jour à 05:17 UTC, le Worker envoie les pages publiées ou modifiées depuis la veille, y compris les articles programmés (`[triggers]` dans `wrangler.toml`, `scheduled` dans `src/server/worker.ts`). Journal : Cloudflare → Workers → agence-web → Logs.

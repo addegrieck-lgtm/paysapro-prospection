@@ -1,10 +1,12 @@
 import { Hono, type MiddlewareHandler } from 'hono';
 import type { AppEnv } from '../app/context';
-import { publishedLocalPages, publishedPortfolio, publishedPosts, publishedProducts } from '../repo/catalog';
+import { publishedLocalPages, publishedPortfolio, publishedPosts, publishedProducts, publishedServices } from '../repo/catalog';
+import { formatEuros } from '../domain/money';
 import { SERVICE_PAGES } from '../web/content';
 import { LANDING_PAGES } from '../web/landing';
 import { PACKS } from '../web/packs';
 import { escapeHtml } from '../domain/text';
+import { INDEXNOW_KEY } from '../domain/indexnow';
 
 export const seoRoutes = new Hono<AppEnv>();
 
@@ -42,6 +44,58 @@ ${urls.map((u) => `  <url><loc>${escapeHtml(base + u.path)}</loc>${u.lastmod ? `
 `;
   return c.body(xml, 200, { 'Content-Type': 'application/xml; charset=utf-8' });
 });
+
+/** Résumé de l'agence pour les assistants IA (convention llms.txt), généré à partir des réglages et du catalogue publiés. */
+seoRoutes.get('/llms.txt', async (c) => {
+  const s = c.get('settings');
+  const db = c.get('deps').db;
+  const base = (s.siteUrl || new URL(c.req.url).origin).replace(/\/+$/, '');
+  const [services, posts, local] = await Promise.all([publishedServices(db), publishedPosts(db), publishedLocalPages(db)]);
+  const price = (v: (typeof services)[number]) => {
+    if (v.price_mode === 'quote' || v.price_ht === null) return 'sur devis';
+    const amount = `${formatEuros(v.price_ht, true)} HT${v.billing === 'monthly' ? ' par mois' : ''}`;
+    return v.price_mode === 'from' ? `à partir de ${amount}` : amount;
+  };
+  const place = [[s.city, s.department && `(${s.department})`].filter(Boolean).join(' '), s.region].filter(Boolean).join(', ');
+  const areas = [...s.serviceAreasPrimary, ...s.serviceAreasSecondary];
+  const lines = [
+    `# ${s.agencyName}`,
+    '',
+    `> ${s.agencyName} est une agence web et print${place ? ` basée à ${place}` : ''} : création et refonte de sites internet, référencement local, identité visuelle, supports imprimés et vitrophanie pour les artisans, commerçants, indépendants et TPE. Prix de départ affichés, devis gratuit, un interlocuteur unique.`,
+    '',
+    ...(areas.length ? [`Zone d'intervention : ${areas.join(', ')}${s.serviceArea ? `. ${s.serviceArea}` : ''}.`, ''] : []),
+    '## Contact',
+    '',
+    ...[
+      s.contactPhone && `- Téléphone : ${s.contactPhone}`,
+      s.contactEmail && `- E-mail : ${s.contactEmail}`,
+      (s.streetAddress || s.city) && `- Adresse : ${[s.streetAddress, [s.postalCode, s.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}`,
+      s.openingHours && `- Horaires : ${s.openingHours}`,
+      `- Demande de devis : ${base}/devis`,
+    ].filter(Boolean),
+    '',
+    '## Prestations et tarifs',
+    '',
+    ...services.map((v) => `- ${v.name} (${price(v)}) : ${v.summary}`),
+    '',
+    `Tous les prix sont hors taxes ; le détail figure sur [la page Tarifs](${base}/tarifs).`,
+    '',
+    '## Pages principales',
+    '',
+    ...SERVICE_PAGES.map((p) => `- [${p.name}](${base}${p.path}) : ${p.metaDescription}`),
+    ...LANDING_PAGES.map((p) => `- [${p.name}](${base}${p.path}) : ${p.metaDescription}`),
+    `- [Réalisations](${base}/realisations)`,
+    `- [À propos](${base}/a-propos)`,
+    `- [Contact](${base}/contact)`,
+    ...(local.length ? ['', '## Pages locales', '', ...local.map((p) => `- [${p.title}](${base}/agence-web/${p.slug})`)] : []),
+    ...(posts.length ? ['', '## Articles et conseils', '', ...posts.map((p) => `- [${p.title}](${base}/blog/${p.slug}) : ${p.excerpt}`)] : []),
+    '',
+  ];
+  return c.body(lines.join('\n'), 200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+});
+
+/** Fichier de clé IndexNow : prouve aux moteurs que les envois viennent bien de ce site. */
+seoRoutes.get(`/${INDEXNOW_KEY}.txt`, (c) => c.text(INDEXNOW_KEY));
 
 seoRoutes.get('/robots.txt', (c) => {
   const s = c.get('settings');
