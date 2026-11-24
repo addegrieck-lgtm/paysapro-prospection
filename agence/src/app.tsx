@@ -43,6 +43,12 @@ export function createApp(deps: Deps) {
     const fallback = host ? `https://${host}` : url.origin;
     c.set('settings', publicPage && !settings.siteUrl ? { ...settings, siteUrl: fallback } : settings);
     await next();
+    // Une seule version de chaque page dans Google : les variantes à paramètres (/contact?pack=…, /devis?type=…,
+    // estimations d'impression) et l'adresse de secours *.workers.dev restent utilisables mais ne sont pas indexées.
+    if (publicPage && c.req.method === 'GET' && c.res.headers.get('Content-Type')?.startsWith('text/html')) {
+      const secondaryHost = !!host && url.hostname !== host;
+      if ((secondaryHost || url.search) && !c.res.headers.has('X-Robots-Tag')) c.res.headers.set('X-Robots-Tag', 'noindex, follow');
+    }
   });
   app.use('*', securityHeaders);
   app.use('*', sameOrigin);

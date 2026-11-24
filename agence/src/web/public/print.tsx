@@ -1,7 +1,7 @@
 import { raw } from 'hono/html';
 import type { Settings } from '../../domain/settings';
 import type { ProductRow, ServiceRow } from '../../repo/types';
-import { Layout, jsonForScript } from '../layout';
+import { Layout, jsonForScript, ogImage } from '../layout';
 import { CtaBand, FaqList, Notice, SectionHead, faqJsonLd } from '../components';
 import type { FaqRow } from '../../repo/types';
 import { ProductVisual } from '../illustrations';
@@ -9,6 +9,8 @@ import { FAMILY_LABELS, SERVICE_PAGES } from '../content';
 import { ProductCard, PageHero } from './pages';
 import { activeAttrs, attrLabel, parseOptions, type PrintConfig, type PrintOptions, type PublicEstimate } from '../../domain/print';
 import { formatEuros } from '../../domain/money';
+import { renderMarkdown } from '../../domain/text';
+import { PRINT_GUIDES } from '../print-guides';
 
 /** « Impression de flyers », « Impression d’affiches » (élision devant une voyelle). */
 export function printTitle(name: string): string {
@@ -30,6 +32,7 @@ export function CatalogPage({ s, products }: { s: Settings; products: ProductRow
         title: 'Catalogue d’impression professionnelle',
         description: 'Impression de flyers, cartes de visite, dépliants, affiches, brochures, roll-ups et étiquettes : configurez votre produit et obtenez une estimation détaillée.',
         path: '/impression',
+        ogImage: ogImage('print'),
         breadcrumbs: [{ name: 'Impression', path: '/impression' }],
       }}
     >
@@ -275,6 +278,16 @@ export function ProductPage(p: {
           )}
         </div>
       </section>
+      {!p.embedded && PRINT_GUIDES[product.slug] && (
+        <section class="section section-sand">
+          <div class="container">
+            <div class="narrow-left">
+              <SectionHead eyebrow="Conseils" title={PRINT_GUIDES[product.slug]!.title} />
+              <div class="prose landing-prose">{raw(renderMarkdown(PRINT_GUIDES[product.slug]!.body))}</div>
+            </div>
+          </div>
+        </section>
+      )}
       {!p.embedded && (
         <section class="section section-tight">
           <div class="container">
@@ -316,6 +329,7 @@ export function ProductPage(p: {
         title: printTitle(product.name),
         description: clip(`${printTitle(product.name)} : ${lcFirst(product.summary)} Estimation détaillée, BAT avant impression, livraison suivie.`, 158),
         path: `/impression/${product.slug}`,
+        ogImage: ogImage('print'),
         breadcrumbs: [
           { name: 'Impression', path: '/impression' },
           { name: product.name, path: `/impression/${product.slug}` },
@@ -339,6 +353,8 @@ export function ConfiguratorIndex({ s, products }: { s: Settings; products: Prod
         title: 'Configurateur d’impression en ligne',
         description: 'Configurez vos flyers, cartes de visite, affiches, brochures et roll-ups : estimation détaillée de la création, de l’impression et de la livraison.',
         path: '/configurateur',
+        // Outil : même contenu que le catalogue /impression, sans texte propre. Hors de Google, liens suivis.
+        noindexFollow: true,
         breadcrumbs: [{ name: 'Configurateur', path: '/configurateur' }],
       }}
     >

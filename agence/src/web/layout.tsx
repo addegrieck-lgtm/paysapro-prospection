@@ -3,6 +3,7 @@ import type { Child } from 'hono/jsx';
 import { raw } from 'hono/html';
 import type { Settings } from '../domain/settings';
 import { localityLabel, telHref } from './seo';
+import type { VisualKind } from './content';
 
 export interface Crumb {
   name: string;
@@ -14,6 +15,8 @@ export interface PageMeta {
   description: string;
   path: string;
   noindex?: boolean;
+  /** Page utile aux visiteurs mais sans intérêt dans Google (contenu proche d'une autre page, outil) : liens suivis. */
+  noindexFollow?: boolean;
   jsonLd?: object[];
   breadcrumbs?: Crumb[];
   scripts?: string[];
@@ -24,6 +27,27 @@ export interface PageMeta {
 }
 
 const OG_IMAGE = '/assets/img/og-default.png';
+
+/** Images de partage par thème (générées par scripts/og-image.mjs) : l'aperçu sur les réseaux correspond à la page. */
+export type OgTheme = 'sites' | 'print' | 'vitrophanie' | 'identite' | 'local' | 'blog';
+export const ogImage = (theme: OgTheme) => `/assets/img/og-${theme}.png`;
+export function ogImageFor(visual: VisualKind): string | undefined {
+  const theme: Partial<Record<VisualKind, OgTheme>> = {
+    site: 'sites',
+    'site-sante': 'sites',
+    'site-paysage': 'sites',
+    seo: 'sites',
+    maintenance: 'sites',
+    print: 'print',
+    brochure: 'print',
+    cards: 'print',
+    identity: 'identite',
+    social: 'identite',
+    storefront: 'vitrophanie',
+  };
+  const t = theme[visual];
+  return t ? ogImage(t) : undefined;
+}
 
 /** JSON pour <script type="application/ld+json"> : « < » échappé pour empêcher toute sortie de balise. */
 export function jsonForScript(data: unknown): string {
@@ -350,7 +374,13 @@ export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>{fullTitle}</title>
         <meta name="description" content={meta.description} />
-        {meta.noindex ? <meta name="robots" content="noindex, nofollow" /> : <link rel="canonical" href={canonical} />}
+        {meta.noindex ? (
+          <meta name="robots" content="noindex, nofollow" />
+        ) : meta.noindexFollow ? (
+          <meta name="robots" content="noindex, follow" />
+        ) : (
+          <link rel="canonical" href={canonical} />
+        )}
         <meta property="og:type" content={meta.ogType ?? 'website'} />
         <meta property="og:title" content={fullTitle} />
         <meta property="og:description" content={meta.description} />
@@ -360,7 +390,7 @@ export function Layout(props: { s: Settings; meta: PageMeta; children: Child }) 
         <meta property="og:image" content={absoluteUrl(s, meta.ogImage ?? OG_IMAGE)} />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content={`${s.agencyName} — ${s.tagline}`} />
+        <meta property="og:image:alt" content={meta.ogImage ? fullTitle : `${s.agencyName} — ${s.tagline}`} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="theme-color" content="#F6F3EE" />
         {s.searchConsoleToken && <meta name="google-site-verification" content={s.searchConsoleToken} />}
