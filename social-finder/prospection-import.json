@@ -1,0 +1,14 @@
+{
+  "_comment": "En-têtes du fichier « Envoyer vers Prospection ». Partagé par social-finder (export) et par le test tests/social-finder-import.test.ts de Paysapro Prospection (import). Les 8 premiers doivent être reconnus automatiquement par src/domain/mapping.ts ; les colonnes « SF … » sont informatives et ne doivent correspondre à aucun champ.",
+  "mapped": {
+    "Nom entreprise": "name",
+    "Ville": "city",
+    "Departement": "department",
+    "Activite": "activity",
+    "Site web": "website",
+    "Facebook": "facebook",
+    "Instagram": "instagram",
+    "URL source": "sourceUrl"
+  },
+  "informative": ["SF Confiance", "SF Commercial", "SF Priorite", "SF Opportunite", "SF Statut", "SF Decouvert le"]
+}

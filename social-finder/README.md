@@ -5,7 +5,9 @@ Signe & Seine. Il trouve lui-même les entreprises à partir d'une ville et d'un
 calcule **deux scores indépendants** (confiance de l'identification /100 et potentiel commercial /100), prépare des
 messages personnalisés et suit la prospection. L'envoi des messages reste **manuel**.
 
-> Complémentaire de Paysapro Prospection (même dépôt) : pas d'enrichissement e-mail / téléphone ici.
+> Complémentaire de **Paysapro Prospection** (même dépôt) : Social Finder trouve les entreprises sur les réseaux
+> sociaux, Prospection cherche leurs coordonnées. Bouton **« Envoyer vers Prospection »** : voir
+> [docs/PROSPECTION.md](docs/PROSPECTION.md).
 
 ## Installation (Windows)
 
@@ -47,10 +49,12 @@ exclues des statistiques, supprimables en un clic).
 | Diagnostic du site de l'entreprise, rayon géographique | ✅ (Internet requis) | |
 | Messages personnalisés | ✅ modèles intégrés | Ollama (IA locale gratuite), API OpenAI-compatible, Anthropic |
 | Suivi, campagnes, tableau de bord, CSV, sauvegardes, RGPD | ✅ | |
+| Envoi vers Paysapro Prospection (fichier d'import) | ✅ | |
 
 ## Documentation
 
 - [docs/AUDIT-ET-PLAN.md](docs/AUDIT-ET-PLAN.md) — audit du dépôt, choix techniques, compte rendu des phases
+- [docs/PROSPECTION.md](docs/PROSPECTION.md) — envoyer les prospects vers Paysapro Prospection
 - [docs/SCORING.md](docs/SCORING.md) — les deux scores, critère par critère
 - [docs/CONNECTEURS.md](docs/CONNECTEURS.md) — configurer Brave, Google, le relais, Meta, l'IA
 - [docs/CONFORMITE.md](docs/CONFORMITE.md) — RGPD, conditions Meta, ce que le logiciel ne fait pas

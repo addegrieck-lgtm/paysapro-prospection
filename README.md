@@ -67,7 +67,9 @@ Documentation complète : [PROSPECTING.md](PROSPECTING.md).
 
 **Projet distinct dans ce dépôt :** [`social-finder/`](social-finder/README.md) — **S&S Social Finder**, logiciel local
 (Windows, `START.bat`) de découverte de prospects sur Instagram et Facebook pour Signe & Seine, avec double scoring
-(confiance / potentiel commercial) et messages personnalisés à envoyer manuellement.
+(confiance / potentiel commercial) et messages personnalisés à envoyer manuellement. Son bouton
+« Envoyer vers Prospection » produit un fichier que **Import → CSV** (espace Signe & Seine) reconnaît sans réglage,
+pour chercher ensuite les coordonnées des entreprises trouvées sur les réseaux sociaux.
 
 **Projet distinct dans ce dépôt :** [`agence/`](agence/README.md) — site et back-office de l’agence web & communication
 (serveur Hono + SQLite/Cloudflare D1). Aucune donnée ni infrastructure n’est partagée avec Paysapro Prospection.

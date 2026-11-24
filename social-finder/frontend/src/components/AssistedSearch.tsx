@@ -21,8 +21,8 @@ export default function AssistedSearch({ queries, context, onAdded }: {
     if (!profiles.length) return;
     setBusy(true);
     try {
-      const r = await api.post<{ added: number; already_known: number; invalid: string[]; suppressed: number; company_ids: number[] }>('/assisted/profiles', { profiles, ...context });
-      toast(`${r.added} ajoutée(s), ${r.already_known} déjà connue(s)${r.invalid.length ? `, ${r.invalid.length} URL non reconnue(s)` : ''}${r.suppressed ? `, ${r.suppressed} en liste de suppression` : ''}`, 'good');
+      const r = await api.post<{ added: number; merged: number; already_known: number; invalid: string[]; suppressed: number; company_ids: number[] }>('/assisted/profiles', { profiles, ...context });
+      toast(`${r.added} ajoutée(s)${r.merged ? `, ${r.merged} rattachée(s) à une fiche existante` : ''}, ${r.already_known} déjà connue(s)${r.invalid.length ? `, ${r.invalid.length} URL non reconnue(s)` : ''}${r.suppressed ? `, ${r.suppressed} en liste de suppression` : ''}`, 'good');
       setText('');
       onAdded?.(r.company_ids);
     } catch (e) {

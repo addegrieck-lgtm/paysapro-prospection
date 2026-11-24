@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
-import { BarChart3, Gauge, Bell, CalendarClock, Ellipsis, FileText, Filter, Headset, LayoutDashboard, Mail, Settings, Upload, Users } from 'lucide-react';
+import { BarChart3, Gauge, Bell, CalendarClock, Ellipsis, FileText, Filter, Headset, LayoutDashboard, Mail, Radar, Settings, Upload, Users } from 'lucide-react';
 import { Drawer } from '../components/ui/Extras';
 import { useApp, useQuery } from './context';
 import { today } from '../domain/filters';
@@ -21,6 +21,12 @@ export const NAV = [
 ];
 
 const BOTTOM = [NAV[0]!, NAV[1]!, NAV[5]!, NAV[4]!];
+
+/** S&S Social Finder (découverte Instagram / Facebook) : uniquement dans l'espace de l'agence Signe & Seine. */
+const SOCIAL_FINDER_NAV = { to: '/social-finder', label: 'Social Finder', icon: Radar, end: false };
+function navFor(offerId: string) {
+  return offerId === 'agence' ? [...NAV.slice(0, 3), SOCIAL_FINDER_NAV, ...NAV.slice(3)] : NAV;
+}
 
 export function LogoMark({ className = 'h-9 w-9', colors = OFFERS[0]!.logo }: { className?: string; colors?: { bg: string; fg: string } }) {
   return (
@@ -153,7 +159,7 @@ export function Layout() {
         </div>
         <WorkspaceSwitcher />
         <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {navFor(offer.id).map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -205,7 +211,7 @@ export function Layout() {
       </nav>
       <Drawer open={more} onClose={() => setMore(false)} title="Menu">
         <ul className="grid grid-cols-2 gap-2">
-          {NAV.filter((n) => !BOTTOM.includes(n)).map(({ to, label, icon: Icon }) => (
+          {navFor(offer.id).filter((n) => !BOTTOM.includes(n)).map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <NavLink to={to} onClick={() => setMore(false)} className="flex min-h-14 items-center gap-3 rounded-xl border border-line px-3 font-medium hover:border-brand/40">
                 <Icon className="h-5 w-5 text-brand" aria-hidden />

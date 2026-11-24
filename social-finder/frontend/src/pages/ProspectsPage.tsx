@@ -6,6 +6,7 @@ import { useApi, useReferentials } from '../lib/hooks';
 import type { Campaign, CompanySummary } from '../lib/types';
 import { Button, Card, Empty, Input, Label, PageHeader, Select, Spinner, useToast } from '../components/ui';
 import CompanyTable from '../components/CompanyTable';
+import ProspectionExport, { ProspectionIcon } from '../components/ProspectionExport';
 
 export default function ProspectsPage({ best = false }: { best?: boolean }) {
   const [sp, setSp] = useSearchParams();
@@ -22,6 +23,7 @@ export default function ProspectsPage({ best = false }: { best?: boolean }) {
   const path = `/companies${qs({ ...f, preset: undefined, best, ...presetValues, limit: 500 })}`;
   const { data, loading } = useApi<{ total: number; items: CompanySummary[] }>(path, [path]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [toProspection, setToProspection] = useState(false);
   const set = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }); };
   const toggle = (id: number) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const enqueue = async () => {
@@ -38,6 +40,7 @@ export default function ProspectsPage({ best = false }: { best?: boolean }) {
           : 'Toutes les entreprises découvertes, avec leurs deux scores indépendants.'}
         actions={<>
           {selected.size > 0 && <Button variant="primary" onClick={enqueue}><Send className="size-4" />Ajouter {selected.size} à la file</Button>}
+          <Button variant="brass" onClick={() => setToProspection(true)}><ProspectionIcon className="size-4" />Envoyer vers Prospection{selected.size ? ` (${selected.size})` : ''}</Button>
           <a href={exportUrl}><Button><Download className="size-4" />Exporter CSV</Button></a>
         </>} />
       <Card className="mb-4">
@@ -87,6 +90,8 @@ export default function ProspectsPage({ best = false }: { best?: boolean }) {
           </Empty>
         )}
       </Card>
+      <ProspectionExport open={toProspection} onClose={() => setToProspection(false)} ids={[...selected]} campaignId={f.campaign_id}
+        onDone={() => setSelected(new Set())} />
     </>
   );
 }
