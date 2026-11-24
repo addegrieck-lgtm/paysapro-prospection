@@ -17,6 +17,14 @@ export async function prepareDatabase(deps: Pick<Deps, 'db'>): Promise<void> {
   await seedIfEmpty(deps.db);
 }
 
+const hostOf = (u: string) => {
+  try {
+    return new URL(u).hostname;
+  } catch {
+    return '';
+  }
+};
+
 export function createApp(deps: Deps) {
   const app = new Hono<AppEnv>();
 
@@ -41,7 +49,10 @@ export function createApp(deps: Deps) {
     // réellement enregistrée.
     const publicPage = !url.pathname.startsWith('/admin');
     const fallback = host ? `https://${host}` : url.origin;
-    c.set('settings', publicPage && !settings.siteUrl ? { ...settings, siteUrl: fallback } : settings);
+    // Adresse enregistrée sans « www » alors que le domaine principal en a un : on publie la version principale,
+    // pour que canonical, sitemap et données structurées ne pointent jamais vers une redirection.
+    const bareSiteUrl = !!host && !!settings.siteUrl && hostOf(settings.siteUrl) === host.replace(/^www\./, '') && host !== hostOf(settings.siteUrl);
+    c.set('settings', publicPage && (!settings.siteUrl || bareSiteUrl) ? { ...settings, siteUrl: fallback } : settings);
     await next();
     // Une seule version de chaque page dans Google : les variantes à paramètres (/contact?pack=…, /devis?type=…,
     // estimations d'impression) et l'adresse de secours *.workers.dev restent utilisables mais ne sont pas indexées.
