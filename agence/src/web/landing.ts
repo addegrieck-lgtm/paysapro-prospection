@@ -233,7 +233,7 @@ Nous détaillons cette démarche sur la page [référencement local pour artisan
       body: `Nous sommes installés à Gruchet-le-Valasse et nous nous déplaçons pour rencontrer les artisans de Bolbec, Lillebonne, Port-Jérôme-sur-Seine, Fécamp, Yvetot, Le Havre et des communes voisines. Un rendez-vous dans votre atelier ou sur un chantier permet souvent de faire les photos dont votre site a besoin. Pour les artisans du reste de la France, tout se fait à distance, par téléphone et visioconférence.`,
     },
     faq: [
-      ['Combien coûte un site internet d’artisan ?', 'Nos tarifs de départ sont affichés sur la page [tarifs](/tarifs) : le Site Essentiel couvre les besoins de la plupart des artisans (jusqu’à 5 pages). Le devis précise ce qui est inclus avant tout engagement. Le nom de domaine et l’hébergement sont à prévoir à côté, et nous vous indiquons leur coût.'],
+      ['Combien coûte un site internet d’artisan ?', 'Nos tarifs de départ sont affichés sur la page [tarifs](/tarifs) : le Site Essentiel couvre les besoins de la plupart des artisans (jusqu’à 5 pages). Le devis précise ce qui est inclus avant tout engagement. Le nom de domaine et l’hébergement sont à prévoir à côté, et nous vous indiquons leur coût. Le détail des postes de dépense est expliqué dans notre article [combien coûte un site internet pour un artisan](/blog/prix-site-internet-artisan).'],
       ['Je n’ai pas de photos de mes chantiers, est-ce un problème ?', 'Non. Le site peut être mis en ligne avec quelques photos et s’enrichir au fil des chantiers. Nous vous donnons des conseils simples pour photographier votre travail avec un téléphone : lumière, cadrage, avant et après.'],
       ['Puis-je afficher mes certifications et labels ?', 'Oui, à condition qu’ils soient en cours de validité et vérifiables. Nous affichons uniquement les qualifications que vous détenez réellement, avec si possible le lien vers l’organisme.'],
       ['Faut-il un site si j’ai déjà une page Facebook ?', 'Une page Facebook est utile, mais elle ne vous appartient pas et elle est mal référencée sur des recherches comme « électricien + ville ». Le site reste votre vitrine principale ; les réseaux renvoient vers lui.'],
@@ -242,6 +242,8 @@ Nous détaillons cette démarche sur la page [référencement local pour artisan
     ],
     links: [
       ['/packs/artisan-batiment', 'Pack Bien démarrer — artisan du bâtiment'],
+      ['/blog/prix-site-internet-artisan', 'Combien coûte un site internet pour un artisan ?'],
+      ['/blog/site-vitrine-combien-de-pages', 'Site vitrine : combien de pages faut-il ?'],
       ['/creation-site-internet', 'Création de site internet'],
       ['/referencement-local-artisan', 'Référencement local pour artisans'],
       ['/creation-site-internet-paysagiste', 'Site internet pour paysagistes'],
@@ -335,7 +337,7 @@ Pour aller plus loin, consultez notre démarche de [référencement local](/refe
     path: '/referencement-local-artisan',
     name: 'Référencement local pour artisans',
     serviceType: 'Référencement local (SEO local)',
-    metaTitle: 'Référencement local pour artisans et TPE',
+    metaTitle: 'Référencement local d’artisans et TPE en Normandie',
     metaDescription: 'Apparaître sur Google Maps et dans les recherches locales : fiche Google, avis clients, pages locales utiles. Méthode transparente, sans promesse de classement.',
     eyebrow: 'Référencement · Local',
     h1: 'Référencement local',

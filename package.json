@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "osm:update": "node scripts/update-osm.mjs"
+    "osm:update": "node scripts/update-osm.mjs",
+    "osm:local": "node scripts/update-osm-local.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",

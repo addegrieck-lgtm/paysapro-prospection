@@ -1,10 +1,13 @@
 // Liens d'action gratuits : recherche Google manuelle, appel, e-mail via la messagerie de l'utilisateur.
 import type { Prospect } from './types';
 import { normPhone } from './normalize';
+import { searchTerm } from './offers';
 
-/** Recherche Google construite dynamiquement : « nom + ville + paysagiste » (aucun scraping). */
-export function googleSearchUrl(p: Pick<Prospect, 'name' | 'tradeName' | 'city'>): string {
-  const q = [p.tradeName ?? p.name, p.city, 'paysagiste'].filter(Boolean).join(' ');
+type Searchable = Pick<Prospect, 'name' | 'tradeName' | 'city'> & Partial<Pick<Prospect, 'nafCode' | 'workspaceId'>>;
+
+/** Recherche Google construite dynamiquement : « nom + ville + métier » (aucun scraping). */
+export function googleSearchUrl(p: Searchable): string {
+  const q = [p.tradeName ?? p.name, p.city, searchTerm(p)].filter(Boolean).join(' ');
   return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 }
 
@@ -34,10 +37,10 @@ export interface WebSearchLink {
  * « Rechercher sur le web » : recherches construites automatiquement, ouvertes par l'utilisateur.
  * Aide à la recherche uniquement — aucune page n'est lue ni aspirée par l'application.
  */
-export function webSearchLinks(p: Pick<Prospect, 'name' | 'tradeName' | 'city' | 'phone' | 'siret' | 'siren'>): WebSearchLink[] {
+export function webSearchLinks(p: Searchable & Pick<Prospect, 'phone' | 'siret' | 'siren'>): WebSearchLink[] {
   const name = p.tradeName ?? p.name;
   const g = (q: string) => `https://www.google.com/search?q=${encodeURIComponent(q)}`;
-  const links: WebSearchLink[] = [{ label: `${name} + ville`, url: g([name, p.city, 'paysagiste'].filter(Boolean).join(' ')), hint: 'Site, fiche Google, avis' }];
+  const links: WebSearchLink[] = [{ label: `${name} + ville`, url: g([name, p.city, searchTerm(p)].filter(Boolean).join(' ')), hint: 'Site, fiche Google, avis' }];
   const phone = normPhone(p.phone);
   if (phone) links.push({ label: `${name} + téléphone`, url: g(`"${phone.replace(/(\d{2})(?=\d)/g, '$1 ')}" ${name}`), hint: 'Vérifier le numéro, trouver le site' });
   if (p.siret ?? p.siren) links.push({ label: `${name} + SIRET`, url: g(`${p.siret ?? p.siren} ${name}`), hint: 'Mentions légales du site, annuaires' });

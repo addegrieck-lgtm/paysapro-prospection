@@ -209,6 +209,6 @@ describe('Fournisseurs optionnels', () => {
 
   it('Google Places est désactivé par défaut', async () => {
     expect(googlePlacesProvider.enabled).toBe(false);
-    await expect(googlePlacesProvider.search()).rejects.toThrow();
+    await expect(googlePlacesProvider.search({ name: 'X', tradeName: null, city: 'Rouen', postalCode: '76000' })).rejects.toThrow();
   });
 });

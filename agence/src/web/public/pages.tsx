@@ -1,7 +1,7 @@
 import { raw } from 'hono/html';
 import type { Settings } from '../../domain/settings';
 import type { FaqRow, LocalPageRow, PortfolioRow, PostRow, ProductRow, ServiceRow } from '../../repo/types';
-import { Layout, absoluteUrl } from '../layout';
+import { Layout, absoluteUrl, ogImage, ogImageFor } from '../layout';
 import { areaServed, businessJsonLd, localityLabel, providerRef, telHref } from '../seo';
 import { CATEGORY_LABELS, SERVICE_PAGES, type ServicePageDef, type VisualKind } from '../content';
 import { LANDING_PAGES } from '../landing';
@@ -82,6 +82,7 @@ export function ServicePage(p: { s: Settings; def: ServicePageDef; services: Ser
         title: def.metaTitle,
         description: def.metaDescription,
         path: def.path,
+        ogImage: ogImageFor(def.visual),
         breadcrumbs: [{ name: def.name, path: def.path }],
         jsonLd: [
           {
@@ -253,7 +254,7 @@ export function PricingPage(p: { s: Settings; services: ServiceRow[] }) {
         breadcrumbs: [{ name: 'Tarifs', path: '/tarifs' }],
       }}
     >
-      <PageHero eyebrow="Tarifs" h1="Des prix clairs," h1em="sans astérisque caché." intro="Prix de départ indicatifs, hors taxes. Pour chaque prestation : ce qui est inclus, le délai, le nombre de révisions, les options et ce qui reste à prévoir." />
+      <PageHero eyebrow="Tarifs" h1="Tarifs site internet, logo et print :" h1em="des prix clairs, sans astérisque." intro="Prix de départ indicatifs, hors taxes. Pour chaque prestation : ce qui est inclus, le délai, le nombre de révisions, les options et ce qui reste à prévoir." />
       <section class="section section-tight">
         <div class="container">
           <Notice>
@@ -261,6 +262,10 @@ export function PricingPage(p: { s: Settings; services: ServiceRow[] }) {
             <a href="/configurateur">configurateur d’impression</a>. Les sites n’incluent pas le nom de domaine ni l’hébergement.
             {s.vatMode === 'franchise' ? ' TVA non applicable, art. 293 B du CGI.' : ` Prix TTC calculés avec une TVA de ${String(s.vatRate).replace('.', ',')} %.`}
           </Notice>
+          <p class="small muted mt-lg">
+            Vous êtes artisan ? Le détail des postes de dépense est expliqué dans notre article{' '}
+            <a href="/blog/prix-site-internet-artisan">combien coûte un site internet pour un artisan</a>.
+          </p>
         </div>
       </section>
       {groups.map(([cat, list]) => (
@@ -359,13 +364,15 @@ export function PortfolioPage(p: { s: Settings; items: PortfolioRow[]; caseStudi
           ? 'Études de cas détaillées : problématique, démarche et livrables. Projets de démonstration clairement identifiés.'
           : 'Sites internet, identités visuelles, flyers, cartes de visite et brochures : découvrez notre travail à travers des projets de démonstration.',
         path: cs ? '/etudes-de-cas' : '/realisations',
+        // Tant qu'aucune étude de cas ne porte sur un vrai client, la page reprend /realisations : hors de Google.
+        noindexFollow: cs && p.items.every((i) => i.is_concept),
         breadcrumbs: [{ name: cs ? 'Études de cas' : 'Réalisations', path: cs ? '/etudes-de-cas' : '/realisations' }],
       }}
     >
       <PageHero
         eyebrow={cs ? 'Études de cas' : 'Réalisations'}
-        h1={cs ? 'Du problème à la solution,' : 'Notre travail,'}
-        h1em={cs ? 'étape par étape.' : 'en images.'}
+        h1={cs ? 'Études de cas :' : 'Réalisations : sites internet, logos et print,'}
+        h1em={cs ? 'du problème à la solution.' : 'notre travail en images.'}
         intro={
           cs
             ? 'Chaque étude détaille la problématique, la démarche et les livrables. Aucun résultat chiffré n’est revendiqué pour les projets de démonstration.'
@@ -468,6 +475,8 @@ export function PortfolioDetail(p: { s: Settings; item: PortfolioRow; others: Po
         title: `${item.title} : ${item.category.toLowerCase()}${item.is_concept ? ' (concept)' : ''}`,
         description: metaDescription(item.summary.length >= 110 ? item.summary : `${item.summary} ${item.is_concept ? 'Projet de démonstration' : 'Réalisation'} ${s.agencyName}, agence web et print en Pays de Caux.`),
         path: `/${p.base}/${item.slug}`,
+        // Entreprise fictive : la page reste consultable, mais n'est pas proposée à Google (contenu de démonstration).
+        noindexFollow: !!item.is_concept,
         breadcrumbs: [
           { name: label, path: `/${p.base}` },
           { name: item.title, path: `/${p.base}/${item.slug}` },
@@ -797,10 +806,11 @@ export function BlogList({ s, posts }: { s: Settings; posts: PostRow[] }) {
         title: 'Blog : conseils web, print et visibilité',
         description: 'Conseils pratiques et sans jargon pour artisans, commerçants et TPE : sites internet, supports imprimés, identité visuelle et visibilité locale.',
         path: '/blog',
+        ogImage: ogImage('blog'),
         breadcrumbs: [{ name: 'Blog', path: '/blog' }],
       }}
     >
-      <PageHero eyebrow="Blog" h1="Conseils pratiques," h1em="sans jargon." intro="Des articles courts et concrets pour vous aider à mieux communiquer, que vous travailliez avec nous ou non." />
+      <PageHero eyebrow="Blog" h1="Conseils web, print et visibilité locale," h1em="sans jargon." intro="Des articles courts et concrets pour vous aider à mieux communiquer, que vous travailliez avec nous ou non." />
       <section class="section section-tight">
         <div class="container">
           {posts.length === 0 ? (
@@ -836,6 +846,7 @@ export function BlogPost({ s, post, others }: { s: Settings; post: PostRow; othe
         title: post.meta_title || post.title,
         description: post.meta_description || post.excerpt,
         path: `/blog/${post.slug}`,
+        ogImage: ogImage('blog'),
         ogType: 'article',
         breadcrumbs: [
           { name: 'Blog', path: '/blog' },
@@ -897,6 +908,7 @@ export function LocalPage({ s, page }: { s: Settings; page: LocalPageRow }) {
         title: page.title,
         description: page.meta_description || page.intro,
         path: `/agence-web/${page.slug}`,
+        ogImage: ogImage('local'),
         breadcrumbs: [
           { name: 'Zone d’intervention', path: '/zone-intervention' },
           { name: page.city, path: `/agence-web/${page.slug}` },
@@ -952,7 +964,7 @@ export function SimpleMessage({ s, title, text, path, noindex = true, status }: 
 
 export function NotFoundPage({ s, path }: { s: Settings; path: string }) {
   return (
-    <Layout s={s} meta={{ title: 'Page introuvable', description: 'Cette page n’existe pas ou a été déplacée.', path, noindex: true }}>
+    <Layout s={s} meta={{ title: 'Page introuvable', description: 'Cette page n’existe pas ou a été déplacée.', path, noindex: true, bodyClass: 'page-404' }}>
       <section class="page-hero">
         <div class="container narrow">
           <p class="eyebrow">Erreur 404</p>

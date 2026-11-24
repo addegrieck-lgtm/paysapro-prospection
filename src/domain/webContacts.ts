@@ -1,6 +1,7 @@
 // Extraction des e-mails, réseaux sociaux et liens utiles d'une page web (fonctions pures).
 // Seules les valeurs RÉELLEMENT présentes dans la page sont retournées : aucun e-mail n'est construit.
 import { normName, normText, stripAccents } from './normalize';
+import { nafKeyword } from './offers';
 import { htmlContext, plainText, textContext, type ItemContext } from './phone';
 
 const GENERIC_LOCAL = /^(contact|bonjour|hello|info|infos|accueil|direction|commercial|devis|secretariat|administration|admin|sav|service|paysage|jardin|entreprise|office)\b/;
@@ -129,9 +130,15 @@ export function pageMentions(html: string, c: PageCompany): PageIdentity {
   });
   const street = streetOf(c.address);
   const landscape = c.nafCode === '81.30Z' || /paysag|jardin|espaces verts/.test(normText(c.activity));
-  const activityWords = normText(c.activity)
-    .split(' ')
-    .filter((w) => w.length >= 7 && !GENERIC_WORDS.has(w));
+  // Mots de l'activité déclarée (≥ 7 lettres) + métier courant du code NAF (« plombier », « coiffeur », « maçon »)
+  const activityWords = [
+    ...normText(c.activity)
+      .split(' ')
+      .filter((w) => w.length >= 7 && !GENERIC_WORDS.has(w)),
+    ...normText(nafKeyword(c.nafCode))
+      .split(' ')
+      .filter((w) => w.length >= 4 && !GENERIC_WORDS.has(w)),
+  ];
   return {
     siren: !!c.siren && digits.includes(c.siren),
     siret: !!c.siret && digits.includes(c.siret),

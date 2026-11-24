@@ -57,6 +57,6 @@ describe('migration 5 : articles de blog programmés', () => {
     const rows = await db.all<{ slug: string; title: string }>('SELECT slug, title FROM posts');
     expect(rows.find((r) => r.slug === POSTS_V5[0]!.slug)?.title).toBe('Titre modifié');
     expect(rows.some((r) => r.slug === POSTS_V5[1]!.slug)).toBe(true);
-    expect(rows.length).toBe(15);
+    expect(rows.length).toBe(17); // 3 d’origine + 12 (migration 5) + 2 (migration 14)
   });
 });

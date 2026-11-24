@@ -475,6 +475,7 @@ export function toRow(p: Prospect): ProspectRow {
     phoneConfidence: p.phoneConfidence,
     phoneStatus: p.phoneStatus,
     headcountBand: p.headcountBand,
+    weakSite: !!p.website && !!p.websiteQuality?.weak,
     search: normText(
       [p.name, p.tradeName, p.siren, p.siret, p.city, p.postalCode, p.department, p.phone?.replace(/\D/g, ''), p.email, p.contactLastName, p.nafCode]
         .filter(Boolean)

@@ -316,6 +316,38 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
       ['Suivi honnête', 'Des indicateurs mesurés chaque mois, sans promesse de première place.'],
     ],
     serviceSlugs: ['seo-local', 'site-business', 'pack-visibilite'],
+    article: [
+      {
+        eyebrow: 'La démarche',
+        title: 'Ce que comprend un accompagnement en référencement',
+        body: `Le référencement naturel n’est pas une option que l’on « active » : c’est un travail régulier sur quatre fronts, mené dans cet ordre.
+
+1. **Un état des lieux** : comment Google voit votre site aujourd’hui (pages indexées, erreurs, vitesse sur téléphone, recherches sur lesquelles vous apparaissez déjà dans la Search Console), et ce que proposent les concurrents de votre secteur.
+2. **La technique** : titres et descriptions de chaque page, structure des titres, adresses propres, sitemap, données structurées, pages rapides et lisibles sur mobile. Ce sont les fondations : sans elles, le reste porte peu.
+3. **Les contenus** : une page claire par prestation, rédigée avec les mots de vos clients (« rénovation salle de bain », « dépannage chaudière »), des réponses aux questions qu’ils se posent, des photos de vos réalisations. Pas de texte creux écrit pour les robots.
+4. **La présence locale** : fiche Google Business Profile complète, zone desservie, catégories justes, photos, publications, avis clients sollicités honnêtement, et coordonnées identiques sur les annuaires.
+
+Chaque mois, nous relevons les positions, les clics et les demandes de contact venues de Google, et nous vous expliquons ce qui a été fait et ce qui progresse.`,
+      },
+      {
+        eyebrow: 'Près de chez vous',
+        title: 'Référencement local en Seine-Maritime et en Normandie',
+        body: `La plupart de nos clients cherchent à être trouvés **près de chez eux** : un artisan sur « son métier + sa ville », un commerce sur la carte Google, un restaurant sur « restaurant + commune ». C’est le référencement local, et c’est souvent là que les résultats arrivent le plus vite pour une petite entreprise.
+
+Installés à Gruchet-le-Valasse, nous accompagnons les entreprises du Pays de Caux et de la Seine-Maritime : [Bolbec](/agence-web/bolbec), [Lillebonne](/agence-web/lillebonne), [Fécamp](/agence-web/fecamp), [Yvetot](/agence-web/yvetot), [Le Havre](/agence-web/le-havre) et [Saint-Romain-de-Colbosc](/agence-web/saint-romain-de-colbosc). Nous pouvons venir vous voir pour photographier vos réalisations ou faire le point sur votre fiche Google. Pour le reste de la Normandie et de la France, tout se fait à distance.
+
+Vous êtes artisan ? Notre page [référencement local pour artisans et TPE](/referencement-local-artisan) détaille la démarche métier par métier.`,
+      },
+      {
+        eyebrow: 'Pour choisir',
+        title: 'SEO, publicité Google, réseaux sociaux : quelle différence ?',
+        body: `- **Le référencement naturel (SEO)** vous fait apparaître dans les résultats gratuits de Google. Il demande quelques mois, mais ses effets durent tant que le site est entretenu.
+- **La publicité Google (SEA)** affiche une annonce payante dès le premier jour, tant que vous payez chaque clic. Utile pour un lancement ou une offre saisonnière, plus coûteuse dans la durée.
+- **Les réseaux sociaux** entretiennent le lien avec des clients qui vous connaissent déjà ; ils apportent peu de nouveaux clients qui cherchent un service précis.
+
+Pour une TPE locale, nous conseillons presque toujours de commencer par une fiche Google soignée et un site bien construit : c’est le socle sur lequel les autres canaux s’appuient.`,
+      },
+    ],
     details: [
       {
         title: 'Ce que nous ne faisons pas',
@@ -329,6 +361,8 @@ Basés à Gruchet-le-Valasse, nous rencontrons volontiers les professionnels de 
     faq: [
       ['En combien de temps voit-on des résultats ?', 'Le SEO produit des effets progressifs, généralement sur plusieurs mois. Le rapport mensuel vous permet de suivre l’évolution.'],
       ['Faut-il une fiche Google ?', 'Pour une activité locale, une fiche d’établissement à jour est souvent l’un des leviers les plus efficaces.'],
+      ['Pouvez-vous améliorer le référencement d’un site que vous n’avez pas créé ?', 'Oui. Nous commençons par un état des lieux du site existant, puis nous vous indiquons ce qui peut être corrigé sur place et ce qui justifierait une refonte.'],
+      ['Travaillez-vous avec la Search Console ?', 'Oui : c’est l’outil gratuit de Google qui montre les recherches sur lesquelles votre site apparaît, ses positions et ses clics. Nous l’installons à votre nom et nous nous en servons pour décider des priorités.'],
     ],
     faqTopics: [],
     related: ['/creation-site-internet', '/maintenance-site-internet'],

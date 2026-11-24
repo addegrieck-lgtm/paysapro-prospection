@@ -7,6 +7,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Une fois par mois : instantané OpenStreetMap local (commerces et artisans) remis à jour
+  schedule:
+    - cron: '17 4 1 * *'
 
 permissions:
   contents: read
@@ -29,6 +32,12 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # Annuaire OpenStreetMap de la Seine-Maritime (espace Signe & Seine). Serveur saturé : l'application interroge
+      # alors Overpass en direct, la mise en ligne continue.
+      - name: Instantané OpenStreetMap local
+        run: npm run osm:local -- 76
+        continue-on-error: true
+        timeout-minutes: 15
       - run: npm run build
         env:
           # Relais web gratuit (Cloudflare Worker, pas un secret). Une variable de dépôt du même nom le remplace :

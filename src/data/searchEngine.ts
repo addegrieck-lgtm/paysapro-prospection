@@ -1,4 +1,4 @@
-// ProspectingSearchEngine : « Je cherche → Paysapro travaille → mes prospects arrivent dans mon CRM ».
+// ProspectingSearchEngine : « Je cherche → l'outil travaille → mes prospects arrivent dans mon CRM ».
 //
 //   SearchEngine → CompanyDiscoveryProvider (SIRENE / Recherche d'entreprises) → CompanyNormalizer (companyToInput)
 //     → DuplicateDetector (importLines : SIRET > SIREN > nom + adresse > nom + ville + téléphone) → EnrichmentQueue
@@ -17,8 +17,11 @@ import { normText } from '../domain/normalize';
 export type ZoneKind = 'france' | 'region' | 'department' | 'postalCode' | 'city';
 
 export interface SearchRequest {
-  /** « landscaper » = paysagistes (NAF 81.30Z), « naf » = codes choisis, « free » = recherche libre (nom, mots-clés) */
-  activity: { mode: 'landscaper' | 'naf' | 'free'; nafCodes: string[]; q?: string };
+  /**
+   * « landscaper » = paysagistes (NAF 81.30Z), « sector » = secteurs de l'offre (BTP, restauration… : leurs codes NAF),
+   * « naf » = codes choisis, « free » = recherche libre (nom, mots-clés)
+   */
+  activity: { mode: 'landscaper' | 'sector' | 'naf' | 'free'; nafCodes: string[]; q?: string; sectors?: string[] };
   zone: { kind: ZoneKind; value?: string; department?: string };
   activeOnly: boolean;
   relevantOnly: boolean;
@@ -81,7 +84,8 @@ export class ProspectingSearchEngine {
   async run(req: SearchRequest, onProgress?: (p: SearchProgress) => void, signal?: AbortSignal): Promise<SearchOutcome> {
     const nafCodes = req.activity.mode === 'landscaper' ? LANDSCAPER_NAF : req.activity.nafCodes.length ? req.activity.nafCodes : LANDSCAPER_NAF;
     const ids = new Set<string>();
-    const label = `Recherche — ${req.activity.mode === 'free' ? `« ${req.activity.q} »` : nafCodes.join(', ')} — ${zoneLabel(req.zone)}`;
+    const what = req.activity.mode === 'free' ? `« ${req.activity.q} »` : req.activity.mode === 'sector' && req.activity.sectors?.length ? req.activity.sectors.join(', ') : nafCodes.join(', ');
+    const label = `Recherche — ${what} — ${zoneLabel(req.zone)}`;
     const total = {
       source: (req.activity.mode === 'free' ? 'search' : 'sirene') as ImportReport['source'],
       label,

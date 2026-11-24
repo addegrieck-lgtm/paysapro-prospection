@@ -19,12 +19,24 @@ const SAMPLE = {
   note_google: '4,8',
   site: 'jardin-concept.fr',
   activite: 'aménagement paysager',
+  metier: 'paysagiste',
   nom_saas: '',
   signature: '',
 };
 
+const SAMPLE_AGENCE = {
+  ...SAMPLE,
+  entreprise: 'Le Comptoir du Port (exemple)',
+  ville: 'Fécamp',
+  nombre_avis: '6',
+  note_google: '4,6',
+  site: null,
+  activite: 'restauration traditionnelle',
+  metier: 'restaurant',
+};
+
 export function TemplatesPage() {
-  const { api, settings } = useApp();
+  const { api, settings, offer } = useApp();
   const run = useAction();
   const canEdit = useCan('prospecting.edit');
   const { data: templates = [] } = useQuery((a) => a.listTemplates(), []);
@@ -34,7 +46,7 @@ export function TemplatesPage() {
 
   const current = draft ?? templates.find((t) => t.id === selectedId) ?? templates[0] ?? null;
   const edit = (patch: Partial<MessageTemplate>) => current && setDraft({ ...current, ...patch });
-  const vars = { ...SAMPLE, nom_saas: settings.saasName, signature: settings.signature || '(votre signature)' };
+  const vars = { ...(offer.id === 'agence' ? SAMPLE_AGENCE : SAMPLE), nom_saas: settings.saasName, signature: settings.signature || '(votre signature)' };
   const preview = useMemo(() => {
     if (!current) return { subject: '', body: '' };
     const f = (t: string) => (settings.formality === 'tu' ? toInformal(t) : t);

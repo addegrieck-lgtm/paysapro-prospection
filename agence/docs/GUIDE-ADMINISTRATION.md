@@ -15,7 +15,10 @@ Adresse : `https://votre-site/admin`. Tout se pilote depuis le menu de gauche.
 
 *Pilotage → Statistiques du site* : visiteurs, provenance (Google, Facebook, accès direct, autres sites, liens suivis), pages vues,
 pages d’arrivée, appareils, pays, et demandes de devis ou messages selon la provenance de la visite (aussi affichée sur chaque demande).
-Mesure interne sans cookie ni service extérieur (aucun bandeau de consentement), robots et administrateur connecté exclus, conservation 13 mois.
+Mesure interne sans cookie ni service extérieur (aucun bandeau de consentement), conservation 13 mois. Une page vue n’est comptée que
+lorsqu’elle s’affiche réellement dans le navigateur (envoi par le script du site vers `/api/v`) : robots, scanners, aspirateurs, navigateurs
+automatisés, pages préchargées, rechargements à moins de 30 s et administrateur connecté sont exclus. Le bouton *Effacer les anciennes
+statistiques* supprime les pages vues antérieures à aujourd’hui (les demandes de devis et messages sont conservés).
 Pour identifier un canal précis (fiche Google, QR code d’un flyer, signature e-mail), utilisez les liens avec `utm_source` proposés en bas de la page.
 
 ## Cahier des charges client

@@ -10,6 +10,7 @@ import type { MessageTemplate, Prospect, Settings } from '../domain/types';
 import { HEADCOUNT_BANDS, SERVICE_LABEL } from '../domain/referentials';
 import { renderTemplate, toInformal, variablesFor, wordCount } from '../domain/templates';
 import { prospectingAngle } from '../domain/insights';
+import { nafKeyword, offerByWorkspace } from '../domain/offers';
 
 export const AI_SYSTEM_PROMPT = `Tu es un commercial B2B spécialisé dans les logiciels pour paysagistes.
 Tu dois rédiger un message court, naturel et professionnel.
@@ -24,6 +25,18 @@ Préfère « Je développe un outil pensé pour les entreprises de paysagisme qu
 Longueur maximale : 120 mots.
 Réponds uniquement en JSON : {"subject": "...", "body": "..."}.`;
 
+/** Signe & Seine : agence web & communication (prestations, pas un logiciel). */
+export const AI_SYSTEM_PROMPT_AGENCE = `Tu es le commercial d'une agence web et communication locale, installée à Gruchet-le-Valasse (Seine-Maritime).
+L'agence crée des sites internet, des fiches Google, des logos et des supports imprimés pour les artisans, commerçants et restaurateurs.
+Tu dois rédiger un message court, naturel et professionnel, en proposant un premier échange gratuit.
+Ne promets jamais de résultats (classement Google, nombre de clients, chiffre d'affaires).
+Ne prétends jamais connaître un problème du prospect sans preuve : « site_internet: false » signifie seulement qu'aucun site n'a été trouvé.
+N'invente jamais : problème rencontré, chiffre d'affaires, nombre de salariés, client, avis, besoin.
+Utilise uniquement les données fournies.
+Ne sois pas agressif.
+Longueur maximale : 120 mots.
+Réponds uniquement en JSON : {"subject": "...", "body": "..."}.`;
+
 /** Faits CONNUS sur le prospect — un champ inconnu est absent (jamais deviné). */
 export interface ProspectFacts {
   entreprise: string;
@@ -34,6 +47,7 @@ export interface ProspectFacts {
   nombre_avis?: number;
   note_google?: number;
   site_internet?: boolean;
+  metier?: string;
   effectif?: string;
   annee_creation?: string;
   prenom_contact?: string;
@@ -48,6 +62,9 @@ export function buildFacts(p: Prospect): ProspectFacts {
   if (p.googleReviews !== null) f.nombre_avis = p.googleReviews;
   if (p.googleRating !== null) f.note_google = p.googleRating;
   if (p.website) f.site_internet = true;
+  else if (p.contactsCheckedAt && offerByWorkspace(p.workspaceId).id === 'agence') f.site_internet = false;
+  const metier = nafKeyword(p.nafCode);
+  if (metier && offerByWorkspace(p.workspaceId).id === 'agence') f.metier = metier;
   if (p.headcount !== null) f.effectif = `${p.headcount} personnes`;
   else if (p.headcountBand && HEADCOUNT_BANDS[p.headcountBand]) f.effectif = HEADCOUNT_BANDS[p.headcountBand]![0];
   if (p.creationDate) f.annee_creation = p.creationDate.slice(0, 4);
@@ -124,7 +141,7 @@ export class ExternalAIProvider implements MessageProvider {
     if (!this.configured) throw new Error('IA non configurée');
     const angle = prospectingAngle(prospect);
     const payload = {
-      system: AI_SYSTEM_PROMPT,
+      system: offerByWorkspace(prospect.workspaceId).id === 'agence' ? AI_SYSTEM_PROMPT_AGENCE : AI_SYSTEM_PROMPT,
       facts: buildFacts(prospect),
       context: {
         nom_saas: settings.saasName,

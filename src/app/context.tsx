@@ -5,8 +5,10 @@ import { ProspectsApi, defaultSettings } from '../data/repository';
 import { EnrichmentQueue, type QueueProgress } from '../data/enrichmentQueue';
 import { dbCache } from '../data/cache';
 import { RechercheEntreprisesProvider } from '../providers/company/RechercheEntreprisesProvider';
-import { OpenStreetMapProvider } from '../providers/company/OpenStreetMapProvider';
+import { OpenStreetMapProvider, localBusinessQuery } from '../providers/company/OpenStreetMapProvider';
 import { WebsiteProvider } from '../providers/company/WebsiteProvider';
+import { GooglePlacesProvider } from '../providers/company/GooglePlacesProvider';
+import { RelaySearchProvider } from '../providers/search/RelaySearchProvider';
 import { EnrichmentEngine } from '../data/enrichmentEngine';
 import { ENRICHMENT_CONFIG } from '../config';
 import type { CompanyDataProvider } from '../providers/company/CompanyDataProvider';
@@ -14,11 +16,34 @@ import type { Settings } from '../domain/types';
 import { can, type Permission } from '../domain/access';
 import { requestPersistentStorage } from '../pwa';
 import { autoBackup } from '../data/cloudBackup';
+import { OFFERS, PAYSAPRO_WORKSPACE, offerByWorkspace, type Offer } from '../domain/offers';
+import { applyOfferLabels } from '../domain/offerLabels';
 
-/** Espace de travail local (un seul utilisateur). Une version en ligne en créera un par compte. */
-export const LOCAL_WORKSPACE = 'local';
+/** Espace de travail Paysapro (historique, un seul utilisateur). Une version en ligne en créera un par compte. */
+export const LOCAL_WORKSPACE = PAYSAPRO_WORKSPACE;
+
+const WORKSPACE_STORE = 'paysapro.workspace';
+
+/** Instantané OpenStreetMap d'un département, généré à la mise en ligne (npm run osm:local) ; sinon requête en direct. */
+function localSnapshotUrl(departments: string[]): string | null {
+  return departments.length === 1 ? `${import.meta.env?.BASE_URL ?? './'}data/osm-local-${departments[0]}.json` : null;
+}
+
+/** Espace choisi sur cet appareil (Paysapro par défaut). */
+function storedWorkspace(): string {
+  try {
+    const w = localStorage.getItem(WORKSPACE_STORE);
+    return OFFERS.some((o) => o.workspaceId === w) ? w! : LOCAL_WORKSPACE;
+  } catch {
+    return LOCAL_WORKSPACE;
+  }
+}
 
 interface AppContextValue {
+  /** Offre prospectée dans l'espace actif (Paysapro AI ou Signe & Seine) */
+  offer: Offer;
+  /** Change d'espace : prospects, modèles, campagnes et paramètres de l'autre offre */
+  switchWorkspace: (workspaceId: string) => void;
   api: ProspectsApi;
   /** Source officielle gratuite utilisée pour l'enrichissement */
   companyProvider: CompanyDataProvider;
@@ -33,7 +58,20 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children, fallback }: { children: ReactNode; fallback: (error: string | null) => ReactNode }) {
   const [value, setValue] = useState<AppContextValue | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const apiRef = useRef<{ api: ProspectsApi; companyProvider: CompanyDataProvider; queue: EnrichmentQueue; engine: EnrichmentEngine } | null>(null);
+  const [workspaceId, setWorkspaceId] = useState(storedWorkspace);
+  const apiRef = useRef<{ offer: Offer; switchWorkspace: (w: string) => void; api: ProspectsApi; companyProvider: CompanyDataProvider; queue: EnrichmentQueue; engine: EnrichmentEngine } | null>(null);
+
+  const switchWorkspace = useCallback((w: string) => {
+    if (!OFFERS.some((o) => o.workspaceId === w)) return;
+    try {
+      localStorage.setItem(WORKSPACE_STORE, w);
+    } catch {
+      // navigation privée : le choix vaut pour cette session uniquement
+    }
+    apiRef.current = null;
+    setValue(null); // écran de chargement le temps d'ouvrir l'autre espace
+    setWorkspaceId(w);
+  }, []);
 
   const reloadSettings = useCallback(async () => {
     const refs = apiRef.current;
@@ -49,19 +87,29 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
     let timer: ReturnType<typeof setInterval> | undefined;
     (async () => {
       try {
+        const offer = offerByWorkspace(workspaceId);
+        applyOfferLabels(offer); // vocabulaire de l'offre (RDV / devis pour l'agence) avant le premier rendu
         const db = await openProspectingDB();
-        const stored = await db.get('settings', LOCAL_WORKSPACE);
-        const settings = { ...defaultSettings(LOCAL_WORKSPACE), ...stored };
-        const api = new ProspectsApi(db, { workspaceId: LOCAL_WORKSPACE, user: settings.userName || 'Moi', role: settings.role });
+        const stored = await db.get('settings', workspaceId);
+        const settings = { ...defaultSettings(workspaceId), ...stored };
+        const api = new ProspectsApi(db, { workspaceId, user: settings.userName || 'Moi', role: settings.role });
         await api.getSettings(); // contexte de score (départements ciblés)
         const companyProvider = new RechercheEntreprisesProvider({ cache: dbCache(db, 'company_enrichment_cache') });
-        const directory = new OpenStreetMapProvider({ cache: dbCache(db, 'data_cache'), cacheDays: 30 });
+        // Annuaire OpenStreetMap : paysagistes de France (instantané livré) ou commerces et artisans des départements ciblés
+        const departments = settings.targetDepartments.length ? settings.targetDepartments : offer.defaultDepartments;
+        const directory =
+          offer.id === 'agence'
+            ? new OpenStreetMapProvider({ cache: dbCache(db, 'data_cache'), cacheDays: 30, snapshotUrl: localSnapshotUrl(departments), query: localBusinessQuery(departments), cacheKey: `osm:local:${[...departments].sort().join(',')}`, timeoutMs: 120_000 })
+            : new OpenStreetMapProvider({ cache: dbCache(db, 'data_cache'), cacheDays: 30 });
         const website = new WebsiteProvider(ENRICHMENT_CONFIG.webProxyUrl, { cache: dbCache(db, 'company_enrichment_cache'), cacheDays: ENRICHMENT_CONFIG.cacheDays });
-        const engine = new EnrichmentEngine(api, { official: companyProvider, directory, website });
+        // Services facultatifs du relais (clés côté relais) : désactivés d'eux-mêmes si la clé n'y est pas
+        const search = new RelaySearchProvider(ENRICHMENT_CONFIG.webProxyUrl);
+        const places = new GooglePlacesProvider(ENRICHMENT_CONFIG.webProxyUrl, { cache: dbCache(db, 'company_enrichment_cache'), cacheDays: ENRICHMENT_CONFIG.cacheDays });
+        const engine = new EnrichmentEngine(api, { official: companyProvider, directory, website, search, places });
         const queue = new EnrichmentQueue(api, engine);
-        apiRef.current = { api, companyProvider, queue, engine };
+        apiRef.current = { offer, switchWorkspace, api, companyProvider, queue, engine };
         await api.listTemplates(); // modèles intégrés au premier lancement
-        if (!cancelled) setValue({ api, companyProvider, queue, engine, settings, reloadSettings });
+        if (!cancelled) setValue({ offer, switchWorkspace, api, companyProvider, queue, engine, settings, reloadSettings });
         // Une file d'enrichissement interrompue (onglet fermé) reprend automatiquement.
         // Seule l'instance active démarre la file (jamais deux files en parallèle sur les mêmes entreprises).
         if (cancelled) return;
@@ -84,7 +132,7 @@ export function AppProvider({ children, fallback }: { children: ReactNode; fallb
       started?.stop();
       clearInterval(timer);
     };
-  }, [reloadSettings]);
+  }, [reloadSettings, switchWorkspace, workspaceId]);
 
   if (!value) return <>{fallback(error)}</>;
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

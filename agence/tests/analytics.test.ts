@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { adminSession, makeApp, req } from './helpers';
 import { formToken } from '../src/app/security';
 import { classifyOrigin, deviceOf, isBot, isTrackedPath } from '../src/domain/analytics';
+import { parseBeacon } from '../src/services/analytics';
 
 const SECRET = 'test-secret-test-secret-test-secret-123';
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
@@ -43,20 +44,31 @@ describe('provenance des visites', () => {
     expect(isTrackedPath('/tarifs')).toBe(true);
     expect(isTrackedPath('/admin/crm')).toBe(false);
     expect(isTrackedPath('/sitemap.xml')).toBe(false);
+    expect(isBot('Mozilla/5.0 zgrab/0.x')).toBe(true);
+    expect(isBot('Mozilla/5.0 (compatible; AhrefsSiteAudit/6.1; +http://ahrefs.com/robot/)')).toBe(true);
+    expect(parseBeacon('{"p":"/tarifs","q":"?a=1","r":"https://www.google.fr/","s":404}')).toEqual({ path: '/tarifs', query: '?a=1', referrer: 'https://www.google.fr/', status: 404 });
+    expect(parseBeacon('{"p":"//evil.example"}')).toBeNull();
   });
 });
 
 describe('statistiques du site', () => {
-  const visit = (app: Awaited<ReturnType<typeof makeApp>>['app'], path: string, ua: string, referer?: string) =>
-    req(app, path, { headers: { 'user-agent': ua, accept: 'text/html', 'cf-ipcountry': 'FR', ...(referer ? { referer } : {}) } });
+  /** Page vue envoyée par le navigateur (comme src/client/site.ts). */
+  const visit = (app: Awaited<ReturnType<typeof makeApp>>['app'], path: string, ua: string, referer?: string, status = 200) => {
+    const u = new URL(path, 'http://localhost');
+    return req(app, '/api/v', {
+      method: 'POST',
+      body: JSON.stringify({ p: u.pathname, q: u.search, r: referer ?? '', s: status }),
+      headers: { 'user-agent': ua, 'content-type': 'text/plain', 'cf-ipcountry': 'FR' },
+    });
+  };
 
   it('enregistre les visites humaines avec leur provenance, ignore robots et administrateurs', async () => {
     const { app, db } = await makeApp();
-    await visit(app, '/tarifs?utm_source=flyer', IPHONE);
+    expect((await visit(app, '/tarifs?utm_source=flyer', IPHONE)).status).toBe(204);
     await visit(app, '/contact', IPHONE, 'http://localhost/tarifs');
     await visit(app, '/', DESKTOP, 'https://www.google.fr/');
     await visit(app, '/', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)');
-    await visit(app, '/page-qui-n-existe-pas', DESKTOP);
+    await visit(app, '/page-qui-n-existe-pas', DESKTOP, undefined, 404);
     const rows = await db.all<{ path: string; entry: number; medium: string; source: string; device: string; country: string; status: number }>(
       'SELECT path, entry, medium, source, device, country, status FROM page_views ORDER BY id',
     );
@@ -73,7 +85,39 @@ describe('statistiques du site', () => {
 
     const s = await adminSession(app, db);
     await s.get('/admin/statistiques');
+    await req(app, '/api/v', { method: 'POST', body: JSON.stringify({ p: '/tarifs' }), headers: { 'user-agent': DESKTOP, cookie: s.cookie } });
     expect(await db.get<{ n: number }>('SELECT COUNT(*) AS n FROM page_views')).toEqual({ n: 4 });
+  });
+
+  it('ne compte pas les pages simplement servies (robots sans JavaScript), ni les rechargements, ni les envois étrangers', async () => {
+    const { app, db } = await makeApp();
+    // Scanner se faisant passer pour un navigateur : il télécharge les pages mais n'exécute pas le script de mesure.
+    await req(app, '/', { headers: { 'user-agent': DESKTOP, accept: 'text/html' } });
+    await req(app, '/wp-login.php', { headers: { 'user-agent': DESKTOP, accept: 'text/html' } });
+    expect(await db.get('SELECT COUNT(*) AS n FROM page_views')).toEqual({ n: 0 });
+    // Rechargements rapprochés : une seule page vue.
+    await visit(app, '/tarifs', DESKTOP);
+    await visit(app, '/tarifs', DESKTOP);
+    await visit(app, '/tarifs', DESKTOP);
+    expect(await db.get('SELECT COUNT(*) AS n FROM page_views')).toEqual({ n: 1 });
+    // Envoi depuis un autre site, contenu invalide, page technique : refusés.
+    const foreign = await req(app, '/api/v', { method: 'POST', body: JSON.stringify({ p: '/' }), headers: { 'user-agent': DESKTOP, origin: 'https://spam.example' } });
+    expect(foreign.status).toBe(403);
+    await req(app, '/api/v', { method: 'POST', body: 'pas du json', headers: { 'user-agent': DESKTOP } });
+    await req(app, '/api/v', { method: 'POST', body: JSON.stringify({ p: '/admin/crm' }), headers: { 'user-agent': DESKTOP } });
+    await req(app, '/api/v', { method: 'POST', body: JSON.stringify({ p: 'https://ailleurs.example/' }), headers: { 'user-agent': DESKTOP } });
+    expect(await db.get('SELECT COUNT(*) AS n FROM page_views')).toEqual({ n: 1 });
+  });
+
+  it('efface les anciennes statistiques sans toucher aux demandes', async () => {
+    const { app, db } = await makeApp();
+    await db.run(`INSERT INTO page_views (day, created_at, path, visitor) VALUES ('2020-01-01', '2020-01-01T10:00:00Z', '/', 'ancien')`);
+    await visit(app, '/', DESKTOP);
+    const s = await adminSession(app, db);
+    const r = await s.post('/admin/statistiques/effacer');
+    expect(r.status).toBe(303);
+    expect(await db.all('SELECT visitor FROM page_views')).toHaveLength(1);
+    expect(await (await s.get('/admin/statistiques?efface=1')).text()).toContain('la mesure repart de zéro');
   });
 
   it('attribue une demande à la provenance de la visite et l’affiche dans l’administration', async () => {

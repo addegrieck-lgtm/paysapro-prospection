@@ -6,8 +6,12 @@
 // Cloudflare ne stocke que des octets illisibles : sans la phrase secrète, personne — pas même l'hébergeur — ne
 // peut lire vos prospects. Contrepartie : une phrase perdue rend la sauvegarde irrécupérable.
 // Sur l'appareil, seule la clé dérivée est conservée (jamais la phrase elle-même).
+//
+// Une même phrase protège les deux espaces (Paysapro, Signe & Seine) : chaque espace a sa propre adresse sur le
+// relais (identifiant dérivé de celui de la phrase + nom de l'espace), pour qu'une sauvegarde n'écrase jamais l'autre.
 import { ENRICHMENT_CONFIG } from '../config';
 import type { ProspectsApi } from './repository';
+import { OFFERS, PAYSAPRO_WORKSPACE } from '../domain/offers';
 
 const SALT = 'paysapro-prospection/sauvegarde/v1';
 const ITERATIONS = 310_000;
@@ -40,6 +44,20 @@ export async function deriveBackupKey(passphrase: string): Promise<BackupKey> {
   const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(SALT), iterations: ITERATIONS }, material, 512));
   return { key: bits.slice(0, 32), id: hex(bits.slice(32)) };
 }
+
+const DEFAULT_SCOPE = PAYSAPRO_WORKSPACE;
+
+/** Espaces des autres offres (Signe & Seine) : adresse distincte. L'espace Paysapro garde l'adresse historique. */
+const separate = (workspaceId: string) => workspaceId !== PAYSAPRO_WORKSPACE && OFFERS.some((o) => o.workspaceId === workspaceId);
+
+/** Adresse de la sauvegarde d'un espace : celle de la phrase pour l'espace historique, dérivée sinon. */
+export async function scopedBackupKey(k: BackupKey, workspaceId: string = DEFAULT_SCOPE): Promise<BackupKey> {
+  if (!separate(workspaceId)) return k;
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${k.id}:${workspaceId}`));
+  return { key: k.key, id: hex(new Uint8Array(digest)) };
+}
+
+const metaStore = (workspaceId: string) => (separate(workspaceId) ? `${META_STORE}.${workspaceId}` : META_STORE);
 
 async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
   const out = new Response(new Blob([bytes as BlobPart]).stream().pipeThrough(stream));
@@ -130,43 +148,44 @@ export function rememberBackupKey(k: BackupKey | null): void {
     if (k) localStorage.setItem(KEY_STORE, JSON.stringify({ key: hex(k.key), id: k.id }));
     else {
       localStorage.removeItem(KEY_STORE);
-      localStorage.removeItem(META_STORE);
+      for (const o of OFFERS) localStorage.removeItem(metaStore(o.workspaceId));
     }
   } catch {
     // stockage indisponible (navigation privée) : la sauvegarde automatique reste inactive
   }
 }
 
-export function lastBackup(): BackupMeta | null {
+export function lastBackup(workspaceId: string = DEFAULT_SCOPE): BackupMeta | null {
   try {
-    const raw = localStorage.getItem(META_STORE);
+    const raw = localStorage.getItem(metaStore(workspaceId));
     return raw ? (JSON.parse(raw) as BackupMeta) : null;
   } catch {
     return null;
   }
 }
 
-export function rememberBackup(meta: BackupMeta): void {
+export function rememberBackup(meta: BackupMeta, workspaceId: string = DEFAULT_SCOPE): void {
   try {
-    localStorage.setItem(META_STORE, JSON.stringify(meta));
+    localStorage.setItem(metaStore(workspaceId), JSON.stringify(meta));
   } catch {
     // sans incidence : la prochaine ouverture refera une sauvegarde
   }
 }
 
 /** Une sauvegarde automatique est-elle due ? (activée, et dernière sauvegarde de plus de 24 h) */
-export function autoBackupDue(now = Date.now()): boolean {
+export function autoBackupDue(now = Date.now(), workspaceId: string = DEFAULT_SCOPE): boolean {
   if (!storedBackupKey()) return false;
-  const last = lastBackup();
+  const last = lastBackup(workspaceId);
   return !last || now - new Date(last.savedAt).getTime() >= AUTO_INTERVAL_MS;
 }
 
 /** Envoie une sauvegarde complète et mémorise sa date. */
 export async function backupNow(api: ProspectsApi, key: BackupKey, cloud = new CloudBackup()): Promise<BackupMeta> {
+  const workspaceId = api.ctx.workspaceId;
   const data = await api.exportBackup();
-  const r = await cloud.upload(data, key);
+  const r = await cloud.upload(data, await scopedBackupKey(key, workspaceId));
   const meta = { savedAt: r.savedAt, size: r.size, prospects: data.prospects.length };
-  rememberBackup(meta);
+  rememberBackup(meta, workspaceId);
   return meta;
 }
 
@@ -176,7 +195,7 @@ export async function backupNow(api: ProspectsApi, key: BackupKey, cloud = new C
  */
 export async function autoBackup(api: ProspectsApi, cloud = new CloudBackup(), now = Date.now()): Promise<BackupMeta | null> {
   const key = storedBackupKey();
-  if (!key || !cloud.available || !autoBackupDue(now)) return null;
+  if (!key || !cloud.available || !autoBackupDue(now, api.ctx.workspaceId)) return null;
   if ((await api.allRows()).length === 0) return null;
   return backupNow(api, key, cloud);
 }

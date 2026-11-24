@@ -52,6 +52,10 @@ export function sectorOf(naf: string | null | undefined): string {
   if (naf.startsWith('01.') || naf.startsWith('02.')) return 'agriculture';
   if (naf.startsWith('45.')) return 'automobile';
   if (naf.startsWith('41.') || naf.startsWith('42.') || naf.startsWith('43.')) return 'bâtiment';
+  if (naf.startsWith('56.') || naf.startsWith('55.')) return 'restauration';
+  if (naf.startsWith('10.') || naf.startsWith('47.2')) return 'métiers de bouche';
+  if (naf.startsWith('96.0')) return 'beauté';
+  if (naf.startsWith('47.')) return 'commerce';
   return `naf ${naf.slice(0, 2)}`;
 }
 

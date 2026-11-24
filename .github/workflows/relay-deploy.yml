@@ -1,0 +1,49 @@
+# Mise à jour du relais (Cloudflare Worker) et de ses clés — lancement manuel uniquement.
+# GitHub → onglet Actions → « Relais — mise à jour » → Run workflow.
+#
+# Secrets du dépôt (Settings → Secrets and variables → Actions → Secrets) :
+#   CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID : compte Cloudflare qui héberge le relais « paysapro-relais » ;
+#   BRAVE_SEARCH_KEY  (facultatif) : recherche web — https://brave.com/search/api/ ;
+#   GOOGLE_PLACES_KEY (facultatif) : fiches Google — Google Cloud, « Places API (New) ».
+# Les clés sont envoyées au relais comme secrets Cloudflare : elles ne sont jamais dans l'application.
+name: Relais — mise à jour
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relay-deploy
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Déployer le relais
+        run: npx --yes wrangler@4 deploy --config worker/wrangler.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Clés des services facultatifs
+        run: |
+          for name in BRAVE_SEARCH_KEY GOOGLE_PLACES_KEY; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | npx --yes wrangler@4 secret put "$name" --config worker/wrangler.toml
+              echo "$name : envoyée au relais"
+            else
+              echo "$name : non renseignée (service désactivé)"
+            fi
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRAVE_SEARCH_KEY: ${{ secrets.BRAVE_SEARCH_KEY }}
+          GOOGLE_PLACES_KEY: ${{ secrets.GOOGLE_PLACES_KEY }}

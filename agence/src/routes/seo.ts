@@ -8,20 +8,24 @@ import { escapeHtml } from '../domain/text';
 
 export const seoRoutes = new Hono<AppEnv>();
 
-const STATIC_PATHS = ['/', '/tarifs', '/impression', '/configurateur', '/devis', '/realisations', '/etudes-de-cas', '/a-propos', '/contact', '/blog', '/espace-client', '/mentions-legales', '/confidentialite', '/cookies', '/cgv', '/plan-du-site'];
+// Absentes du sitemap (et en « noindex, follow ») : /configurateur, outil sans texte qui reprend le catalogue /impression,
+// et /etudes-de-cas, sous-ensemble de /realisations tant qu'il n'y a pas d'étude de cas réelle.
+const STATIC_PATHS = ['/', '/tarifs', '/impression', '/devis', '/realisations', '/a-propos', '/contact', '/blog', '/espace-client', '/mentions-legales', '/confidentialite', '/cookies', '/cgv', '/plan-du-site'];
 
 /** Toutes les URL publiques indexables (sitemap). */
 export async function publicUrls(db: AppEnv['Variables']['deps']['db']): Promise<{ path: string; lastmod?: string }[]> {
   const [posts, products, items, local] = await Promise.all([publishedPosts(db), publishedProducts(db), publishedPortfolio(db), publishedLocalPages(db)]);
   return [
     ...STATIC_PATHS.map((path) => ({ path })),
+    ...(items.some((p) => p.is_case_study && !p.is_concept) ? [{ path: '/etudes-de-cas' }] : []),
     ...SERVICE_PAGES.map((p) => ({ path: p.path })),
     ...LANDING_PAGES.map((p) => ({ path: p.path })),
     { path: '/devis-vitrophanie-signaletique' },
     { path: '/packs' },
     ...PACKS.map((p) => ({ path: `/packs/${p.slug}` })),
     ...products.map((p) => ({ path: `/impression/${p.slug}`, lastmod: p.updated_at })),
-    ...items.map((p) => ({ path: `/realisations/${p.slug}` })),
+    // Concepts de démonstration (entreprises fictives) : visibles sur le site, mais pas proposés à Google.
+    ...items.filter((p) => !p.is_concept).map((p) => ({ path: `/realisations/${p.slug}` })),
     ...posts.map((p) => ({ path: `/blog/${p.slug}`, lastmod: p.updated_at })),
     ...local.map((p) => ({ path: `/agence-web/${p.slug}`, lastmod: p.updated_at })),
   ];

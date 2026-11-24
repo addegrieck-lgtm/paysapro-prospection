@@ -1,6 +1,9 @@
 import type { Db } from './types';
 import { LOCAL_PAGES_V3, PORTFOLIO_ENRICH_V3, PORTFOLIO_NEW_V3, SERVICES_V3 } from './content-v3';
-import { POSTS_V5 } from './posts-v5';
+import { POSTS_V5, type PostSeed } from './posts-v5';
+import { POSTS_V14 } from './posts-v14';
+import { FECAMP_SITE_ANCHOR, FECAMP_SITE_SECTION, LOCAL_PAGES_V11 } from './local-pages-v11';
+import { LOCAL_SECTIONS_V13, LOCAL_TITLES_V13 } from './local-pages-v13';
 
 /** Littéral SQL échappé (les migrations sont des instructions SQL brutes). */
 const q = (v: string | number) => (typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
@@ -13,6 +16,10 @@ export const blogMetaStatements = (): string[] =>
     ['flyer-points-a-verifier-avant-impression', 'Flyer : 8 points à vérifier avant impression'],
     ['site-vitrine-combien-de-pages', 'Site vitrine : combien de pages faut-il ?'],
   ].map(([slug, t]) => `UPDATE posts SET meta_title = ${q(t!)} WHERE slug = ${q(slug!)} AND meta_title = ''`);
+
+/** Article programmé. INSERT OR IGNORE : un article déjà créé ou modifié dans l'administration n'est jamais écrasé. */
+const insertPost = (p: PostSeed) => `INSERT OR IGNORE INTO posts (slug, title, excerpt, body, category, status, published_at, meta_title, meta_description, created_at, updated_at)
+        VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, p.meta_title ?? '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`;
 
 /** Mise à jour des champs commerciaux d'un concept existant (sans écraser une saisie faite dans l'administration). */
 export const portfolioEnrichStatements = (): string[] =>
@@ -513,10 +520,7 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
     name: 'blog : 12 articles programmés (un par semaine)',
     // Publiés à leur date : un article dont published_at est dans le futur n'apparaît nulle part sur le site.
     // INSERT OR IGNORE : un article déjà créé ou modifié dans l'administration n'est jamais écrasé.
-    statements: POSTS_V5.map(
-      (p) => `INSERT OR IGNORE INTO posts (slug, title, excerpt, body, category, status, published_at, meta_title, meta_description, created_at, updated_at)
-        VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`,
-    ),
+    statements: POSTS_V5.map(insertPost),
   },
   {
     version: 6,
@@ -628,6 +632,57 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       `UPDATE services SET conditions = ${q('Deux formules au choix : sans engagement, résiliable à tout moment avec un mois de préavis ; ou avec engagement d’un an à prix remisé, puis résiliable chaque mois. Tout est précisé au contrat, signé en ligne.')} WHERE slug = 'maintenance' AND conditions = ${q('Durée et préavis précisés au contrat.')}`,
       `UPDATE services SET lead_time = 'Mensuel' WHERE slug = 'maintenance' AND lead_time = ${q('Mensuel, sans engagement au-delà de la durée prévue au contrat')}`,
     ],
+  },
+  {
+    version: 11,
+    name: 'pages locales Fécamp, Yvetot, Saint-Romain-de-Colbosc',
+    // INSERT OR IGNORE : une page déjà créée ou modifiée dans l'administration n'est jamais écrasée.
+    statements: LOCAL_PAGES_V11.map(
+      (l) => `INSERT OR IGNORE INTO local_pages (slug, city, title, intro, body, meta_description, status, created_at, updated_at)
+        VALUES (${[l.slug, l.city, l.title, l.intro, l.body, l.meta_description].map(q).join(', ')}, 'published', ${NOW}, ${NOW})`,
+    ),
+  },
+  {
+    version: 12,
+    name: 'pages villes : titres sur les recherches Search Console (Bolbec, Fécamp, Yvetot)',
+    // Chaque UPDATE ne touche qu'une page encore dans son état d'origine : une modification faite dans l'administration est conservée.
+    statements: [
+      `UPDATE local_pages SET title = ${q('Agence web, création de site et référencement à Bolbec')}, meta_description = ${q('Agence web voisine de Bolbec : création de site internet, référencement Google, logos, flyers et vitrophanie pour commerces et artisans.')}, updated_at = ${NOW}
+        WHERE slug = 'bolbec' AND title = ${q('Agence web et communication à Bolbec')}`,
+      `UPDATE local_pages SET title = ${q('Création de site internet et agence web à Fécamp')}, meta_description = ${q('Création de site internet, référencement, logo, flyers et vitrophanie à Fécamp : agence web du Pays de Caux, rendez-vous sur place, devis gratuit.')}, updated_at = ${NOW}
+        WHERE slug = 'fecamp' AND title = ${q('Agence web et print à Fécamp')}`,
+      `UPDATE local_pages SET body = replace(body, ${q(FECAMP_SITE_ANCHOR)}, ${q(FECAMP_SITE_SECTION + FECAMP_SITE_ANCHOR)}), updated_at = ${NOW}
+        WHERE slug = 'fecamp' AND instr(body, ${q('## Création de site internet à Fécamp')}) = 0 AND instr(body, ${q(FECAMP_SITE_ANCHOR)}) > 0`,
+      `UPDATE local_pages SET title = ${q('Création de site internet et agence web à Yvetot')}, updated_at = ${NOW}
+        WHERE slug = 'yvetot' AND title = ${q('Agence web et print à Yvetot')}`,
+      // Titres Google ≤ 60 caractères pour les articles programmés, sauf si un titre SEO a déjà été saisi.
+      ...POSTS_V5.filter((p) => p.meta_title).map(
+        (p) => `UPDATE posts SET meta_title = ${q(p.meta_title!)} WHERE slug = ${q(p.slug)} AND meta_title = ''`,
+      ),
+    ],
+  },
+  {
+    version: 13,
+    name: 'pages villes : Bolbec enrichie, Le Havre, Lillebonne et Saint-Romain alignés sur la Search Console',
+    // Bases neuves comme base en ligne : les pages insérées par les migrations 3 et 11 sont mises à jour ici.
+    // Chaque instruction ne touche qu'une valeur encore d'origine (titre, description) ou une page sans la section :
+    // une modification faite dans l'administration est conservée et rejouer la migration ne duplique rien.
+    statements: [
+      ...LOCAL_TITLES_V13.flatMap((t) => [
+        `UPDATE local_pages SET title = ${q(t.title)}, updated_at = ${NOW} WHERE slug = ${q(t.slug)} AND title = ${q(t.oldTitle)}`,
+        `UPDATE local_pages SET meta_description = ${q(t.meta)}, updated_at = ${NOW} WHERE slug = ${q(t.slug)} AND meta_description = ${q(t.oldMeta)}`,
+      ]),
+      ...LOCAL_SECTIONS_V13.map(
+        (x) => `UPDATE local_pages SET body = replace(body, ${q(x.anchor)}, ${q(x.section + x.anchor)}), updated_at = ${NOW}
+          WHERE slug = ${q(x.slug)} AND instr(body, ${q(x.heading)}) = 0 AND instr(body, ${q(x.anchor)}) > 0`,
+      ),
+    ],
+  },
+  {
+    version: 14,
+    name: 'blog : cartes de vœux (26/11) et horaires des fêtes (10/12)',
+    // Publiés à leur date : avant, ils n'apparaissent nulle part sur le site.
+    statements: POSTS_V14.map(insertPost),
   },
 ];
 

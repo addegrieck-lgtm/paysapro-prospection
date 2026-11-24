@@ -13,6 +13,8 @@ const PUBLIC_PATHS = [
   ...SERVICE_PAGES.map((p) => p.path),
 ];
 
+const NOINDEX_FOLLOW = ['/configurateur', '/etudes-de-cas', '/realisations/atelier-chene-et-fil', '/realisations/les-pages-lentes'];
+
 describe('pages publiques', () => {
   it('répondent toutes en 200 avec un titre, une description et une canonique uniques', async () => {
     const { app } = await makeApp();
@@ -29,7 +31,9 @@ describe('pages publiques', () => {
       expect(titles.has(title!), `titre dupliqué : ${title}`).toBe(false);
       titles.add(title!);
       descs.add(desc!);
-      expect(html).toContain('<link rel="canonical"');
+      // Pages volontairement hors de Google (outil, concepts de démonstration) : « noindex, follow », sans canonique.
+      if (NOINDEX_FOLLOW.includes(p)) expect(html, p).toContain('<meta name="robots" content="noindex, follow"');
+      else expect(html, p).toContain('<link rel="canonical"');
       expect((html.match(/<h1[\s>]/g) ?? []).length, `un seul h1 : ${p}`).toBe(1);
       expect(html).toContain('lang="fr"');
     }
@@ -271,7 +275,29 @@ describe('SEO technique et local (phase 2)', () => {
     const html = await (await req(app, '/creation-site-internet')).text();
     expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/creation-site-internet"`);
     expect(html).toContain(`<meta property="og:url" content="${ORIGIN}/creation-site-internet"`);
-    expect(html).toContain(`${ORIGIN}/assets/img/og-default.png`);
+    expect(html).toContain(`${ORIGIN}/assets/img/og-sites.png`);
+    expect(await (await req(app, '/')).text()).toContain(`${ORIGIN}/assets/img/og-default.png`);
+    expect(await (await req(app, '/impression/flyers')).text()).toContain(`${ORIGIN}/assets/img/og-print.png`);
+    expect(await (await req(app, '/agence-web/bolbec')).text()).toContain(`${ORIGIN}/assets/img/og-local.png`);
+  });
+
+  it('variantes à paramètres et domaine secondaire : noindex, follow ; concepts et outil hors du sitemap', async () => {
+    const { app } = await makeApp();
+    expect((await req(app, '/contact?pack=paysagiste')).headers.get('x-robots-tag')).toBe('noindex, follow');
+    expect((await req(app, '/contact')).headers.get('x-robots-tag')).toBeNull();
+    const { app: prod } = await makeApp({ config: { appSecret: 'test-secret-test-secret-test-secret-123', production: false, setupToken: 'x', canonicalHost: 'www.example.fr' } });
+    expect((await prod.request('https://agence.example.workers.dev/tarifs')).headers.get('x-robots-tag')).toBe('noindex, follow');
+    expect((await prod.request('https://www.example.fr/tarifs')).headers.get('x-robots-tag')).toBeNull();
+    const sitemap = await (await req(app, '/sitemap.xml')).text();
+    for (const p of ['/configurateur<', '/etudes-de-cas<', '/realisations/les-pages-lentes<']) expect(sitemap).not.toContain(p);
+  });
+
+  it('chaque fiche d’impression a son propre guide', async () => {
+    const { app } = await makeApp();
+    const a = await (await req(app, '/impression/autocollants')).text();
+    const b = await (await req(app, '/impression/baches-banderoles')).text();
+    expect(a).toContain('Autocollants : quel support pour quel usage');
+    expect(b).toContain('micro-perforée');
   });
 
   it('accueil : ProfessionalService avec localité, géolocalisation, zone desservie et horaires', async () => {
@@ -321,7 +347,8 @@ describe('SEO technique et local (phase 2)', () => {
     expect(r.headers.get('location')).toBe('/realisations/les-pages-lentes');
     const sitemap = await (await req(app, '/sitemap.xml')).text();
     expect(sitemap).not.toContain('/etudes-de-cas/les-pages-lentes');
-    expect(sitemap).toContain('/realisations/les-pages-lentes');
+    // Concept de démonstration : consultable, mais hors du sitemap (noindex, follow).
+    expect(sitemap).not.toContain('/realisations/les-pages-lentes');
   });
 
   it('redirige HTTP vers HTTPS en production', async () => {

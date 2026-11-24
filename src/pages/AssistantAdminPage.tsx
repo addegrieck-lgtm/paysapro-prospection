@@ -356,7 +356,7 @@ export function AssistantAdminPage() {
           await run(async () => {
             await api.saveSalesConfig(undefined);
             await reloadSettings();
-            setC(defaultSalesConfig());
+            setC(defaultSalesConfig(settings.workspaceId));
           }, 'Contenu par défaut rétabli');
         }}
       />

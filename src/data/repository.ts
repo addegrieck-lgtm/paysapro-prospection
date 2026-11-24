@@ -78,7 +78,8 @@ const CONTACT_LABEL: Record<ContactKind, string> = { phone: 'Téléphone', email
 import { matchesFilter, sortRows, today } from '../domain/filters';
 import { computeScore } from '../domain/scoring';
 import { assertCan } from '../domain/access';
-import { builtInTemplates } from '../domain/templates';
+import { builtInTemplatesFor } from '../domain/templates';
+import { offerByWorkspace, offerNafCodes } from '../domain/offers';
 import { STATUS_LABEL, TEMPLATE_CATEGORIES } from '../domain/referentials';
 import { normEmail, normPhone } from '../domain/normalize';
 import { generateMessage, type MessageProvider } from '../providers/ai';
@@ -91,18 +92,19 @@ export interface RepoContext {
 }
 
 export function defaultSettings(workspaceId: string): Settings {
+  const offer = offerByWorkspace(workspaceId);
   return {
     workspaceId,
     userName: 'Moi',
     role: 'owner',
-    saasName: import.meta.env?.VITE_SAAS_NAME || 'Paysapro AI',
+    saasName: offer.id === 'paysapro' ? import.meta.env?.VITE_SAAS_NAME || offer.name : offer.name,
     senderName: '',
     signature: '',
     formality: 'vous',
     adminEmail: '',
     testMode: true,
-    nafCodes: ['81.30Z'],
-    targetDepartments: [],
+    nafCodes: offer.id === 'paysapro' ? ['81.30Z'] : offerNafCodes(offer),
+    targetDepartments: [...offer.defaultDepartments],
     minScore: 0,
     dailyContactLimit: 50,
     timezone: 'Europe/Paris',
@@ -819,7 +821,7 @@ export class ProspectsApi {
     let list = await this.byWorkspace('message_templates');
     if (list.length === 0) {
       const now = this.now();
-      list = builtInTemplates().map((t) => ({ ...t, id: uid(), workspaceId: this.ctx.workspaceId, createdAt: now, updatedAt: now, createdBy: 'system', builtIn: true }));
+      list = builtInTemplatesFor(this.ctx.workspaceId).map((t) => ({ ...t, id: uid(), workspaceId: this.ctx.workspaceId, createdAt: now, updatedAt: now, createdBy: 'system', builtIn: true }));
       const tx = this.db.transaction('message_templates', 'readwrite');
       await Promise.all(list.map((t) => tx.store.put(t)));
       await tx.done;

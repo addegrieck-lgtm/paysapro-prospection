@@ -98,7 +98,7 @@ export function deviceOf(ua: string): Device {
 /** Robots, aperçus de liens et outils automatiques : jamais comptés. */
 export function isBot(ua: string): boolean {
   if (!ua || ua.length < 20) return true;
-  return /bot|crawl|spider|slurp|scrap|fetch|preview|facebookexternalhit|embedly|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|monitor|curl|wget|python|java\/|go-http|okhttp|axios|node-fetch|httpclient|libwww|playwright|puppeteer|phantom|selenium/i.test(ua);
+  return /bot|crawl|spider|slurp|scrap|fetch|preview|facebookexternalhit|embedly|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|monitor|curl|wget|python|java\/|go-http|okhttp|axios|node-fetch|httpclient|libwww|playwright|puppeteer|phantom|selenium|scan|zgrab|censys|nikto|sqlmap|nuclei|httpx|masscan|ahrefs|semrush|dataforseo|bytespider|gptbot|ccbot|claude-web|petalsearch/i.test(ua);
 }
 
 /** Pages mesurées : pages publiques uniquement (ni administration, ni espace client, ni API, ni fichiers techniques). */
