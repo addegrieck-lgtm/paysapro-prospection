@@ -99,3 +99,11 @@ maintenance) avec checklists SEO et sécurité. *Demander la validation de la re
 - **Produits imprimés** : options du configurateur, une valeur par ligne.
 - **Réalisations, blog, FAQ, pages locales, redirections** : menu *Contenus*. Les pages locales exigent au moins 300 mots
   d’informations réellement propres au lieu.
+
+## Supprimer des demandes, messages, contacts ou devis
+
+- **Demandes de devis** : bouton *Supprimer cette demande* sur la fiche, ou cases à cocher + *Supprimer la sélection* dans la liste. Les pièces jointes sont effacées ; le contact et un devis déjà préparé sont conservés.
+- **Messages** (historique d'un contact, dont les messages du formulaire de contact) : lien *Supprimer* sous chaque message.
+- **Contact** : *Supprimer ce contact* (avec ses demandes et son historique), impossible s'il a des devis, commandes, projets, abonnements ou factures.
+- **Devis** : brouillons et devis non conclus (refusés, expirés, annulés) supprimables, sauf s'ils sont rattachés à une commande, un projet ou une facture. Les factures émises ne se suppriment jamais (obligation légale) : on fait un avoir.
+- Chaque suppression est notée dans le journal d'audit.

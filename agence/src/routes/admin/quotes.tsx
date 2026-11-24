@@ -307,7 +307,12 @@ quoteRoutes.get('/devis/:id', async (c) => {
                 </div>
               </>
             )}
-            {q.status === 'envoye' && (
+            {!editable && DELETABLE_QUOTE_STATUSES.includes(q.status) && (
+              <div class="page-actions">
+                <ActionButton action={`/admin/devis/${q.id}/supprimer`} csrf={csrf} label="Supprimer ce devis" cls="btn-danger" confirm="Supprimer définitivement ce devis non conclu ?" />
+              </div>
+            )}
+                        {q.status === 'envoye' && (
               <>
                 <p class="small">Lien client sécurisé :</p>
                 <div class="copy-row">
@@ -446,8 +451,19 @@ quoteRoutes.post('/devis/:id/annuler', async (c) => {
   return c.redirect(`/admin/devis/${idParam(c)}?ok=status`, 303);
 });
 
+/** Devis supprimables : brouillons et devis non conclus (refusés, expirés, annulés) sans commande, projet ni facture rattachés. */
+export const DELETABLE_QUOTE_STATUSES = ['brouillon', 'refuse', 'expire', 'annule'];
+
 quoteRoutes.post('/devis/:id/supprimer', async (c) => {
-  await c.get('deps').db.run("DELETE FROM quotes WHERE id = ? AND status = 'brouillon'", [idParam(c)]);
+  const id = idParam(c);
+  const { db } = c.get('deps');
+  const linked = await db.get<{ n: number }>(
+    `SELECT (SELECT COUNT(*) FROM print_orders WHERE quote_id = ?) + (SELECT COUNT(*) FROM web_projects WHERE quote_id = ?) + (SELECT COUNT(*) FROM invoices WHERE quote_id = ?) AS n`,
+    [id, id, id],
+  );
+  if (linked?.n) return c.redirect(`/admin/devis/${id}?erreur=devis-lie`, 303);
+  const done = await db.run(`DELETE FROM quotes WHERE id = ? AND status IN (${DELETABLE_QUOTE_STATUSES.map(() => '?').join(',')})`, [id, ...DELETABLE_QUOTE_STATUSES]);
+  if (done.changes) await audit(db, c.get('user')!.id, 'suppression-devis', 'devis', id);
   return c.redirect('/admin/devis?ok=deleted', 303);
 });
 

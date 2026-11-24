@@ -3,6 +3,13 @@ import type { Ctx } from '../../app/context';
 import { AdminLayout } from '../../web/admin/ui';
 import { parseEuros } from '../../domain/money';
 
+const ERRORS: Record<string, string> = {
+  lignes: 'Une ou plusieurs lignes sont incomplètes ou invalides : rien n’a été enregistré.',
+  lie: 'Suppression impossible : ce contact a des devis, commandes, projets, abonnements ou factures (obligations de conservation). Supprimez d’abord les devis non conclus.',
+  'devis-lie': 'Suppression impossible : ce devis est rattaché à une commande, un projet ou une facture.',
+  aucun: 'Aucun élément sélectionné.',
+};
+
 /** Rendu d'une page d'administration avec le gabarit commun. */
 export function page(c: Ctx, title: string, children: Child, opts: { actions?: Child; error?: string; status?: 200 | 400 | 404 | 409 | 422; wide?: boolean } = {}) {
   return c.html(
@@ -13,7 +20,7 @@ export function page(c: Ctx, title: string, children: Child, opts: { actions?: C
       title={title}
       path={new URL(c.req.url).pathname}
       flash={c.req.query('ok')}
-      error={opts.error ?? (c.req.query('erreur') === 'lignes' ? 'Une ou plusieurs lignes sont incomplètes ou invalides : rien n’a été enregistré.' : undefined)}
+      error={opts.error ?? ERRORS[c.req.query('erreur') ?? '']}
       actions={opts.actions}
       wide={opts.wide}
     >

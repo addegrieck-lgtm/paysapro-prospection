@@ -241,6 +241,9 @@ crmRoutes.get('/crm/:id', async (c) => {
                   {formatDateTime(e.created_at)} · {labelOf(EVENT_KINDS, e.kind)} · {e.author}
                 </time>
                 {e.body}
+                <div class="timeline-actions">
+                  <ActionButton action={`/admin/crm/${id}/evenement/${e.id}/supprimer`} csrf={csrf} label="Supprimer" cls="btn-outline btn-link-danger" confirm="Supprimer définitivement ce message de l’historique ?" />
+                </div>
               </li>
             ))}
           </ul>
@@ -360,6 +363,16 @@ crmRoutes.post('/crm/:id/evenement', async (c) => {
   return c.redirect(`/admin/crm/${id}?ok=saved`, 303);
 });
 
+crmRoutes.post('/crm/:id/evenement/:eid/supprimer', async (c) => {
+  const id = idParam(c);
+  const eid = Number(c.req.param('eid'));
+  if (Number.isInteger(eid) && eid > 0) {
+    await c.get('deps').db.run('DELETE FROM contact_events WHERE id = ? AND contact_id = ?', [eid, id]);
+    await audit(c.get('deps').db, c.get('user')!.id, 'suppression-message', 'contact', id);
+  }
+  return c.redirect(`/admin/crm/${id}?ok=deleted`, 303);
+});
+
 crmRoutes.post('/crm/:id/supprimer', async (c) => {
   const id = idParam(c);
   const { db } = c.get('deps');
@@ -368,7 +381,7 @@ crmRoutes.post('/crm/:id/supprimer', async (c) => {
        + (SELECT COUNT(*) FROM web_projects WHERE contact_id = ?) + (SELECT COUNT(*) FROM subscriptions WHERE contact_id = ?) AS n`,
     [id, id, id, id, id],
   );
-  if (linked?.n) return c.redirect(`/admin/crm/${id}`, 303);
+  if (linked?.n) return c.redirect(`/admin/crm/${id}?erreur=lie`, 303);
   const files = await db.all<{ key: string }>("SELECT key FROM files WHERE owner_kind = 'request' AND owner_id IN (SELECT id FROM quote_requests WHERE contact_id = ?)", [id]);
   for (const f of files) await c.get('deps').storage.delete(f.key);
   await db.batch([
@@ -402,10 +415,15 @@ crmRoutes.get('/demandes', async (c) => {
       {rows.length === 0 ? (
         <Empty>Aucune demande. Elles arrivent ici depuis le formulaire de devis du site.</Empty>
       ) : (
+        <form method="post" action="/admin/demandes/supprimer" data-confirm="Supprimer définitivement les demandes cochées et leurs pièces jointes ? Les contacts sont conservés.">
+        <Csrf token={c.get('csrf')} />
         <div class="table-wrap">
           <table class="data">
             <thead>
               <tr>
+                <th>
+                  <span class="sr-only">Sélection</span>
+                </th>
                 <th>N°</th>
                 <th>Reçue le</th>
                 <th>Contact</th>
@@ -419,6 +437,9 @@ crmRoutes.get('/demandes', async (c) => {
                 const est = r.estimate ? (JSON.parse(r.estimate) as PublicEstimate) : null;
                 return (
                   <tr>
+                    <td>
+                      <input type="checkbox" name="ids" value={String(r.id)} aria-label={`Sélectionner la demande n° ${r.id}`} />
+                    </td>
                     <td>
                       <a href={`/admin/demandes/${r.id}`}>{r.id}</a>
                     </td>
@@ -438,6 +459,10 @@ crmRoutes.get('/demandes', async (c) => {
             </tbody>
           </table>
         </div>
+        <div class="page-actions" style="margin-top:.75rem">
+          <button type="submit" class="btn btn-danger btn-sm">Supprimer la sélection</button>
+        </div>
+        </form>
       )}
       <Pager page={p} hasMore={rows.length > PAGE_SIZE} base={`/admin/demandes${status ? `?statut=${status}` : ''}`} />
     </>,
@@ -590,10 +615,42 @@ crmRoutes.get('/demandes/:id', async (c) => {
               <button class="btn btn-outline btn-sm">Mettre à jour</button>
             </div>
           </form>
+          <div class="page-actions" style="margin-top:1rem">
+            <ActionButton action={`/admin/demandes/${r.id}/supprimer`} csrf={csrf} label="Supprimer cette demande" cls="btn-danger" confirm="Supprimer définitivement cette demande et ses pièces jointes ? Le contact est conservé." />
+          </div>
         </div>
       </div>
     </div>,
   );
+});
+
+/** Suppression définitive de demandes (et de leurs pièces jointes). Les devis préparés à partir d'elles sont conservés. */
+async function deleteRequests(c: Ctx, ids: number[]): Promise<void> {
+  const { db, storage } = c.get('deps');
+  for (const id of ids) {
+    const files = await db.all<{ key: string }>("SELECT key FROM files WHERE owner_kind = 'request' AND owner_id = ?", [id]);
+    for (const f of files) await storage.delete(f.key);
+    await db.batch([
+      { sql: "DELETE FROM files WHERE owner_kind = 'request' AND owner_id = ?", params: [id] },
+      { sql: "DELETE FROM conversions WHERE kind = 'devis' AND ref_id = ?", params: [id] },
+      { sql: 'UPDATE quotes SET request_id = NULL WHERE request_id = ?', params: [id] },
+      { sql: 'DELETE FROM quote_requests WHERE id = ?', params: [id] },
+    ]);
+    await audit(db, c.get('user')!.id, 'suppression-demande', 'demande', id);
+  }
+}
+
+crmRoutes.post('/demandes/supprimer', async (c) => {
+  const f = await readForm(c);
+  const ids = [...new Set(f.all('ids').map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 200);
+  if (!ids.length) return c.redirect('/admin/demandes?erreur=aucun', 303);
+  await deleteRequests(c, ids);
+  return c.redirect('/admin/demandes?ok=deleted', 303);
+});
+
+crmRoutes.post('/demandes/:id/supprimer', async (c) => {
+  await deleteRequests(c, [idParam(c)]);
+  return c.redirect('/admin/demandes?ok=deleted', 303);
 });
 
 crmRoutes.post('/demandes/:id/statut', async (c) => {
