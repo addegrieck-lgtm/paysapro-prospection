@@ -684,6 +684,13 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
     // Publiés à leur date : avant, ils n'apparaissent nulle part sur le site.
     statements: POSTS_V14.map(insertPost),
   },
+  {
+    version: 15,
+    name: 'statistiques : effacement des pages vues de l’ancienne mesure (robots inclus)',
+    // La mesure exclut désormais centres de données, appareils de l'exploitant et pages jamais regardées : les anciennes pages vues,
+    // impossibles à trier après coup, sont effacées. Demandes de devis et messages (et leur provenance) ne sont pas touchés.
+    statements: ['DELETE FROM page_views'],
+  },
 ];
 
 /** Applique les migrations manquantes, dans l'ordre. Idempotent. */

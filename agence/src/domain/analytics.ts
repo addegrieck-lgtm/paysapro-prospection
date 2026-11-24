@@ -101,6 +101,14 @@ export function isBot(ua: string): boolean {
   return /bot|crawl|spider|slurp|scrap|fetch|preview|facebookexternalhit|embedly|headless|lighthouse|pagespeed|gtmetrix|pingdom|uptime|monitor|curl|wget|python|java\/|go-http|okhttp|axios|node-fetch|httpclient|libwww|playwright|puppeteer|phantom|selenium|scan|zgrab|censys|nikto|sqlmap|nuclei|httpx|masscan|ahrefs|semrush|dataforseo|bytespider|gptbot|ccbot|claude-web|petalsearch/i.test(ua);
 }
 
+/**
+ * Réseau d'hébergement (nom de l'opérateur fourni par Cloudflare) : un « visiteur » qui navigue depuis un centre de données
+ * est un programme (robot d'IA, outil d'audit, navigateur automatisé), pas un client. Les box et réseaux mobiles ne sont pas visés.
+ */
+export function isHostingNetwork(asOrganization: string): boolean {
+  return /amazon|aws|google cloud|google llc|microsoft|azure|ovh|hetzner|digitalocean|linode|akamai|alibaba|tencent|huawei cloud|oracle|scaleway|online s\.a\.s|contabo|leaseweb|vultr|choopa|m247|datacamp|cdn77|ionos|1&1|hostinger|gcore|g-core|fastly|cloudflare|zscaler|kamatera|hostroyale|psychz|quadranet|colocrossing|servers\.com|hosting|data ?cent(er|re)|cloud|vps|server/i.test(asOrganization);
+}
+
 /** Pages mesurées : pages publiques uniquement (ni administration, ni espace client, ni API, ni fichiers techniques). */
 export function isTrackedPath(path: string): boolean {
   return !/^\/(admin|client|api|assets)(\/|$)/.test(path) && !/\.(xml|txt|ico|svg|png|jpe?g|webp|js|css|map|json|woff2?)$/i.test(path);

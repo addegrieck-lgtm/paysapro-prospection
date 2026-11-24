@@ -56,14 +56,27 @@ function sendPageView() {
   });
   nav.sendBeacon('/api/v', new Blob([body], { type: 'text/plain' }));
 }
-if (document.visibilityState === 'visible') sendPageView();
-else {
-  const onVisible = () => {
-    if (document.visibilityState !== 'visible') return;
-    document.removeEventListener('visibilitychange', onVisible);
+// Comptée seulement quand quelqu'un regarde vraiment la page : premier geste (défilement, souris, toucher, clavier) ou
+// 4 secondes de lecture à l'écran. Les robots qui affichent la page sans la regarder (moteurs, IA, outils d'audit) ne sont pas comptés.
+{
+  const GESTURES = ['scroll', 'pointerdown', 'pointermove', 'touchstart', 'keydown'];
+  let sent = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const send = () => {
+    if (sent) return;
+    sent = true;
+    clearTimeout(timer);
+    GESTURES.forEach((e) => removeEventListener(e, send));
+    document.removeEventListener('visibilitychange', onVisibility);
     sendPageView();
   };
-  document.addEventListener('visibilitychange', onVisible);
+  const onVisibility = () => {
+    clearTimeout(timer);
+    timer = document.visibilityState === 'visible' ? setTimeout(send, 4000) : undefined;
+  };
+  GESTURES.forEach((e) => addEventListener(e, send, { passive: true }));
+  document.addEventListener('visibilitychange', onVisibility);
+  onVisibility();
 }
 
 // ─── Consentement (uniquement si Google Analytics est configuré) ───

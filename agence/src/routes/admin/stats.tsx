@@ -415,9 +415,10 @@ statsRoutes.get('/statistiques', async (c) => {
           </li>
         </ul>
         <p class="small muted">
-          Mesure interne, sans cookie et sans service extérieur : aucun bandeau de consentement n’est nécessaire. Une page vue n’est comptée que lorsqu’elle
-          s’affiche réellement dans le navigateur d’un visiteur : les robots (moteurs, scanners, aspirateurs, outils d’audit), les navigateurs automatisés, les
-          pages préchargées, les rechargements rapprochés et vos propres visites sont exclus. Les visiteurs sont comptés une fois par jour (empreinte anonyme
+          Mesure interne, sans cookie visiteur et sans service extérieur : aucun bandeau de consentement n’est nécessaire. Une page vue n’est comptée que
+          lorsqu’une personne la regarde réellement (premier geste à l’écran ou 4 secondes de lecture) : les robots (moteurs, IA, scanners, aspirateurs, outils
+          d’audit), le trafic des centres de données, les navigateurs automatisés, les pages préchargées, les rechargements rapprochés et vos propres visites
+          (tout appareil utilisé pour l’administration, même déconnecté) sont exclus. Les visiteurs sont comptés une fois par jour (empreinte anonyme
           renouvelée chaque jour), les données sont conservées 13 mois. Les mots-clés tapés dans Google ne sont jamais transmis aux sites : consultez-les dans
           Google Search Console.
         </p>

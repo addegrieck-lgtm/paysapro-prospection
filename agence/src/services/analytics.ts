@@ -3,7 +3,7 @@ import type { Ctx } from '../app/context';
 import { cookieName } from '../app/security';
 import { hmacHex } from '../lib/crypto';
 import { todayParis } from '../domain/dates';
-import { ANALYTICS_RETENTION_DAYS, classifyOrigin, deviceOf, isBot, isTrackedPath } from '../domain/analytics';
+import { ANALYTICS_RETENTION_DAYS, classifyOrigin, deviceOf, isBot, isHostingNetwork, isTrackedPath } from '../domain/analytics';
 
 /**
  * Mesure d'audience interne, sans cookie : chaque page publique affichée dans le navigateur d'un visiteur humain est
@@ -25,6 +25,10 @@ async function background(c: Ctx, task: Promise<unknown>): Promise<void> {
   }
 }
 
+/** Cookie posé sur les appareils de l'exploitant (à chaque page d'administration) : leurs visites du site ne sont pas comptées. */
+export const OWNER_COOKIE = 'ss_exploitant';
+export const OWNER_COOKIE_DAYS = 400;
+
 const MAX_BODY = 2_000;
 /** Plafond de pages vues par visiteur et par jour : au-delà, il s'agit d'un automate (aspirateur de site). */
 const MAX_VIEWS_PER_DAY = 150;
@@ -41,9 +45,12 @@ export const collectPageView = async (c: Ctx) => {
   const done = () => c.body(null, 204);
   const ua = c.req.header('user-agent') ?? '';
   if (isBot(ua) || /prefetch|prerender/i.test(c.req.header('sec-purpose') ?? c.req.header('purpose') ?? '')) return done();
-  // Vos propres visites (administrateur connecté) ne sont pas comptées.
+  // Vos propres visites ne sont pas comptées : administrateur connecté, ou appareil déjà utilisé pour l'administration.
   const deps = c.get('deps');
-  if (getCookie(c, cookieName(deps.config.production))) return done();
+  if (getCookie(c, cookieName(deps.config.production)) || getCookie(c, OWNER_COOKIE)) return done();
+  // Trafic venant d'un centre de données (robots, outils d'audit, navigateurs automatisés) : non compté.
+  const network = (c.req.raw as Request & { cf?: { asOrganization?: string } }).cf?.asOrganization ?? '';
+  if (network && isHostingNetwork(network)) return done();
 
   const text = await c.req.text().catch(() => '');
   if (!text || text.length > MAX_BODY) return done();

@@ -15,9 +15,11 @@ Adresse : `https://votre-site/admin`. Tout se pilote depuis le menu de gauche.
 
 *Pilotage → Statistiques du site* : visiteurs, provenance (Google, Facebook, accès direct, autres sites, liens suivis), pages vues,
 pages d’arrivée, appareils, pays, et demandes de devis ou messages selon la provenance de la visite (aussi affichée sur chaque demande).
-Mesure interne sans cookie ni service extérieur (aucun bandeau de consentement), conservation 13 mois. Une page vue n’est comptée que
-lorsqu’elle s’affiche réellement dans le navigateur (envoi par le script du site vers `/api/v`) : robots, scanners, aspirateurs, navigateurs
-automatisés, pages préchargées, rechargements à moins de 30 s et administrateur connecté sont exclus. Le bouton *Effacer les anciennes
+Mesure interne sans cookie visiteur ni service extérieur (aucun bandeau de consentement), conservation 13 mois. Une page vue n’est comptée que
+lorsqu’une personne la regarde réellement : le script du site l’envoie vers `/api/v` au premier geste (défilement, souris, toucher, clavier) ou
+après 4 s de lecture. Sont exclus : robots, scanners, aspirateurs, navigateurs automatisés, trafic des centres de données (opérateur réseau fourni
+par Cloudflare), pages préchargées, rechargements à moins de 30 s, et vos propres visites : tout appareil ayant ouvert l’administration reçoit le
+cookie `ss_exploitant` (400 jours) et n’est plus compté, même déconnecté. Les pages vues de l’ancienne mesure ont été effacées le 24/11/2026. Le bouton *Effacer les anciennes
 statistiques* supprime les pages vues antérieures à aujourd’hui (les demandes de devis et messages sont conservés).
 Pour identifier un canal précis (fiche Google, QR code d’un flyer, signature e-mail), utilisez les liens avec `utm_source` proposés en bas de la page.
 
