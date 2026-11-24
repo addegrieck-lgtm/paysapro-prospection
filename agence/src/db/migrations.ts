@@ -1,6 +1,7 @@
 import type { Db } from './types';
 import { LOCAL_PAGES_V3, PORTFOLIO_ENRICH_V3, PORTFOLIO_NEW_V3, SERVICES_V3 } from './content-v3';
-import { POSTS_V5 } from './posts-v5';
+import { POSTS_V5, type PostSeed } from './posts-v5';
+import { POSTS_V14 } from './posts-v14';
 import { FECAMP_SITE_ANCHOR, FECAMP_SITE_SECTION, LOCAL_PAGES_V11 } from './local-pages-v11';
 import { LOCAL_SECTIONS_V13, LOCAL_TITLES_V13 } from './local-pages-v13';
 
@@ -15,6 +16,10 @@ export const blogMetaStatements = (): string[] =>
     ['flyer-points-a-verifier-avant-impression', 'Flyer : 8 points à vérifier avant impression'],
     ['site-vitrine-combien-de-pages', 'Site vitrine : combien de pages faut-il ?'],
   ].map(([slug, t]) => `UPDATE posts SET meta_title = ${q(t!)} WHERE slug = ${q(slug!)} AND meta_title = ''`);
+
+/** Article programmé. INSERT OR IGNORE : un article déjà créé ou modifié dans l'administration n'est jamais écrasé. */
+const insertPost = (p: PostSeed) => `INSERT OR IGNORE INTO posts (slug, title, excerpt, body, category, status, published_at, meta_title, meta_description, created_at, updated_at)
+        VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, p.meta_title ?? '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`;
 
 /** Mise à jour des champs commerciaux d'un concept existant (sans écraser une saisie faite dans l'administration). */
 export const portfolioEnrichStatements = (): string[] =>
@@ -515,10 +520,7 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
     name: 'blog : 12 articles programmés (un par semaine)',
     // Publiés à leur date : un article dont published_at est dans le futur n'apparaît nulle part sur le site.
     // INSERT OR IGNORE : un article déjà créé ou modifié dans l'administration n'est jamais écrasé.
-    statements: POSTS_V5.map(
-      (p) => `INSERT OR IGNORE INTO posts (slug, title, excerpt, body, category, status, published_at, meta_title, meta_description, created_at, updated_at)
-        VALUES (${[p.slug, p.title, p.excerpt, p.body, p.category, 'published', p.published_at, p.meta_title ?? '', p.meta_description].map(q).join(', ')}, ${NOW}, ${NOW})`,
-    ),
+    statements: POSTS_V5.map(insertPost),
   },
   {
     version: 6,
@@ -675,6 +677,12 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
           WHERE slug = ${q(x.slug)} AND instr(body, ${q(x.heading)}) = 0 AND instr(body, ${q(x.anchor)}) > 0`,
       ),
     ],
+  },
+  {
+    version: 14,
+    name: 'blog : cartes de vœux (26/11) et horaires des fêtes (10/12)',
+    // Publiés à leur date : avant, ils n'apparaissent nulle part sur le site.
+    statements: POSTS_V14.map(insertPost),
   },
 ];
 
