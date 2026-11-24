@@ -88,6 +88,22 @@ const PHOTOS = [
   ['06-devis-contact', { kicker: 'Parlons de votre projet', title: 'Un devis <em>clair et gratuit.</em>', text: 'Un échange simple pour comprendre votre besoin, puis une proposition chiffrée sans surprise.', art: ART.contact }],
 ];
 
+// Publications de la fiche (Nouveautés) qui relaient un article du blog : `node scripts/gbp-images.mjs --publications`
+// ne génère que celles-ci, dans marketing/google-business/publications/.
+const POSTS = [
+  ['2026-11-26-carte-de-voeux', { kicker: 'Conseils · Cartes de vœux', title: 'Vos vœux, <em>à votre image.</em>', text: 'Papier ou e-mail, quoi écrire, quand l’envoyer : notre guide pour les artisans et TPE.', art: `
+    <div style="position:absolute;top:30px;left:0;width:270px;height:380px;background:#fff;border-radius:6px;transform:rotate(-7deg);${shadow};padding:34px 30px;display:flex;flex-direction:column;gap:16px">
+      ${bar('60%', INK, 16)}${bar('100%')}${bar('92%')}${bar('80%')}<div style="margin-top:auto;font-family:Josefin;font-size:34px;color:${ACCENT};transform:rotate(-4deg)">Merci !</div></div>
+    <div style="position:absolute;top:120px;left:160px;width:300px;height:424px;background:${SEINE};border-radius:6px;transform:rotate(5deg);${shadow};padding:40px 34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center">
+      ${cliffs('#fff', ACCENT, 120)}<div style="font-family:Josefin;font-weight:600;font-size:46px;line-height:1.05;color:#fff">Meilleurs<br>vœux</div><div style="font-family:Josefin;font-weight:500;font-size:64px;color:#f0a57c">2027</div></div>` }],
+  ['2026-12-10-horaires-des-fetes', { kicker: 'Conseils · Fêtes de fin d’année', title: 'Vos horaires des fêtes, <em>partout à jour.</em>', text: 'Fiche Google, site, vitrine, répondeur : la liste pour qu’aucun client ne trouve porte close.', art: `
+    <div style="position:absolute;top:40px;left:20px;width:430px;background:#fff;border-radius:22px;${shadow};padding:40px 44px;display:flex;flex-direction:column;gap:18px">
+      <div style="font-family:Josefin;font-weight:600;font-size:36px;color:${INK}">Horaires des fêtes</div><div style="height:3px;background:${ACCENT};width:90px"></div>
+      ${[['Jeu. 24 déc.', 'jusqu’à 16 h'], ['Ven. 25 déc.', 'Fermé'], ['Jeu. 31 déc.', 'jusqu’à 16 h'], ['Ven. 1er janv.', 'Fermé']].map(([d, h]) => `<div style="display:flex;justify-content:space-between;font-family:Inter;font-size:26px;color:${INK}"><span>${d}</span><b style="color:${h === 'Fermé' ? ACCENT : SEINE}">${h}</b></div>`).join('')}
+      <div style="font-family:Inter;font-size:18px;color:#67625a;margin-top:6px">Exemple à adapter à votre commerce</div></div>
+    <div style="position:absolute;top:470px;left:250px;width:160px;height:160px;border-radius:50%;background:${SEINE};${shadow};display:grid;place-items:center;font-family:Inter;font-weight:700;font-size:22px;color:#fff;text-align:center;line-height:1.15">Google<br>Site<br>Vitrine</div>` }],
+];
+
 const logo = `<style>${css}.l{width:720px;height:720px;background:${SEINE};display:grid;place-items:center}</style><div class="l">${cliffs('#fff', ACCENT, 430)}</div>`;
 
 const cover = `<style>${css}
@@ -115,9 +131,14 @@ const shoot = async (html, width, height, file, scale = 1) => {
   await page.screenshot({ path: path.join(out, file), type, ...(type === 'jpeg' ? { quality: 90 } : {}) });
   await page.close();
 };
-await shoot(logo, 720, 720, 'logo-720x720.png');
-await shoot(cover, 1024, 576, 'couverture-2048x1152.jpg', 2);
-for (const [file, data] of PHOTOS) await shoot(card(data), 1200, 900, `${file}.jpg`);
+if (process.argv.includes('--publications')) {
+  mkdirSync(path.join(out, 'publications'), { recursive: true });
+  for (const [file, data] of POSTS) await shoot(card(data), 1200, 900, `publications/${file}.jpg`);
+} else {
+  await shoot(logo, 720, 720, 'logo-720x720.png');
+  await shoot(cover, 1024, 576, 'couverture-2048x1152.jpg', 2);
+  for (const [file, data] of PHOTOS) await shoot(card(data), 1200, 900, `${file}.jpg`);
+}
 await browser.close();
 rmSync(tmp, { recursive: true, force: true });
 console.log(`Visuels générés dans ${path.relative(process.cwd(), out) || '.'}`);
