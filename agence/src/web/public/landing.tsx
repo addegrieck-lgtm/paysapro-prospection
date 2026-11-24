@@ -1,7 +1,7 @@
 import { raw } from 'hono/html';
 import type { Settings } from '../../domain/settings';
 import type { FaqRow, LocalPageRow } from '../../repo/types';
-import { Layout, absoluteUrl } from '../layout';
+import { Layout, absoluteUrl, ogImage, ogImageFor } from '../layout';
 import { areaServed, providerRef } from '../seo';
 import type { LandingDef, LandingSection } from '../landing';
 import { CtaBand, FaqList, MapEmbed, Notice, SectionHead, SpamGuard, faqJsonLd } from '../components';
@@ -64,6 +64,7 @@ export function LandingPage({ s, def, localPages }: { s: Settings; def: LandingD
         title: def.metaTitle,
         description: def.metaDescription,
         path: def.path,
+        ogImage: def.path === '/zone-intervention' ? ogImage('local') : ogImageFor(def.visual),
         breadcrumbs: [{ name: def.name, path: def.path }],
         jsonLd: [
           {
@@ -196,6 +197,7 @@ export function SignageQuotePage({ s, token, values = {}, errors = [] }: { s: Se
         title: 'Devis vitrophanie, enseigne et signalétique',
         description: 'Demandez un devis gratuit pour votre vitrophanie, enseigne, panneau de chantier, bâche ou marquage de véhicule : joignez des photos, réponse sous 48 h ouvrées.',
         path: '/devis-vitrophanie-signaletique',
+        ogImage: ogImage('vitrophanie'),
         breadcrumbs: [
           { name: 'Vitrophanie & signalétique', path: '/vitrophanie-signaletique' },
           { name: 'Devis', path: '/devis-vitrophanie-signaletique' },

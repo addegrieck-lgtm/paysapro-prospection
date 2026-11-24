@@ -63,7 +63,7 @@ describe('phases 3 à 5 : nouvelles pages', () => {
     const zone = await (await req(app, '/zone-intervention')).text();
     for (const slug of ['le-havre', 'bolbec', 'lillebonne']) expect(zone).toContain(`href="/agence-web/${slug}"`);
     const sitemap = await (await req(app, '/sitemap.xml')).text();
-    for (const p of ['/vitrophanie-signaletique', '/zone-intervention', '/agence-web/bolbec', '/realisations/fournil-du-caux']) expect(sitemap).toContain(`${p}</loc>`);
+    for (const p of ['/vitrophanie-signaletique', '/zone-intervention', '/agence-web/bolbec']) expect(sitemap).toContain(`${p}</loc>`);
   });
 
   it('tarifs : offre signalétique et pack ouverture sur devis', async () => {

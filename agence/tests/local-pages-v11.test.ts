@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeApp, req } from './helpers';
 import { migrate } from '../src/db/migrations';
 import { LOCAL_PAGES_V11 } from '../src/db/local-pages-v11';
+import { LOCAL_TITLES_V13 } from '../src/db/local-pages-v13';
 import { LOCAL_PAGES_V3 } from '../src/db/content-v3';
 import { DEFAULT_SETTINGS } from '../src/domain/settings';
 import { wordCount } from '../src/domain/text';
@@ -40,7 +41,8 @@ describe('migration 11 : pages Fécamp, Yvetot, Saint-Romain-de-Colbosc', () => 
       expect(r.status, p.slug).toBe(200);
       const html = await r.text();
       expect((html.match(/<h1[\s>]/g) ?? []).length, p.slug).toBe(1);
-      expect(html).toContain(`<title>${p.title}`);
+      // Titres mis à jour ensuite par la migration 13 (Saint-Romain-de-Colbosc).
+      expect(html).toContain(`<title>${LOCAL_TITLES_V13.find((t) => t.slug === p.slug)?.title ?? p.title}`);
       expect(zone, p.slug).toContain(`href="/agence-web/${p.slug}"`);
       expect(sitemap, p.slug).toContain(`/agence-web/${p.slug}</loc>`);
       for (const m of p.body.matchAll(/\]\((\/[^)#]*)/g)) links.add(m[1]!);

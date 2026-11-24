@@ -1,4 +1,4 @@
-// Génère l'image de partage (1200×630) et le logo carré (512×512) à partir des polices du site.
+// Génère les images de partage (1200×630, une par thème) et le logo carré (512×512) à partir des polices du site.
 // Usage : node scripts/og-image.mjs  (à relancer si le nom ou la couleur de l'agence changent)
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
@@ -30,7 +30,17 @@ h1 em{color:${ACCENT};font-style:normal;font-weight:500}p{font-size:28px;color:#
 .coast{position:absolute;left:0;right:0;bottom:0;opacity:.16}</style>
 <div class="c"><svg class="coast" viewBox="0 0 1200 140" preserveAspectRatio="none" width="1200" height="90"><path fill="${SEINE}" d="M700 140V60Q800 44 930 52L1060 62Q1110 70 1122 96V140H1090Q1090 104 1062 104Q1034 104 1034 140Z"/><path fill="${SEINE}" d="M1150 140L1162 80L1174 140Z"/></svg>
 <div class="top">${cliffs(SEINE, ACCENT, 104)}<span>${wordmark('#0f2f38')}</span></div>
-<h1>Une image à la hauteur de <em>votre savoir-faire.</em></h1><p>${LINE}</p></div>`;
+<h1>__H1__</h1><p>${LINE}</p></div>`;
+// Une image par thème (src/web/layout.tsx, OG_IMAGES) : l'aperçu partagé correspond à la page.
+const VARIANTS = [
+  ['og-default', 'Une image à la hauteur de <em>votre savoir-faire.</em>'],
+  ['og-sites', 'Création de site internet <em>& référencement.</em>'],
+  ['og-print', 'Flyers, cartes, affiches : <em>création & impression.</em>'],
+  ['og-vitrophanie', 'Vitrophanie, enseignes <em>& signalétique.</em>'],
+  ['og-identite', 'Logo, identité visuelle <em>& réseaux sociaux.</em>'],
+  ['og-local', 'Votre agence web <em>près de chez vous.</em>'],
+  ['og-blog', 'Conseils web, print <em>& visibilité locale.</em>'],
+];
 const logo = `<style>${css}.l{width:512px;height:512px;border-radius:112px;background:${SEINE};display:grid;place-items:center}</style><div class="l">${cliffs('#fff', ACCENT, 380)}</div>`;
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
@@ -42,9 +52,11 @@ const show = async (html) => {
   writeFileSync(path.join(tmp, 'p.html'), `<!doctype html><meta charset="utf-8">${html}`);
   await page.goto(`file://${tmp}/p.html`);
 };
-await show(og);
-await page.evaluate(() => document.fonts.ready);
-await page.screenshot({ path: `${root}/public/assets/img/og-default.png` });
+for (const [file, h1] of VARIANTS) {
+  await show(og.replace('__H1__', h1));
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: `${root}/public/assets/img/${file}.png` });
+}
 await page.setViewportSize({ width: 512, height: 512 });
 await show(logo);
 await page.evaluate(() => document.fonts.ready);

@@ -2,6 +2,7 @@ import type { Db } from './types';
 import { LOCAL_PAGES_V3, PORTFOLIO_ENRICH_V3, PORTFOLIO_NEW_V3, SERVICES_V3 } from './content-v3';
 import { POSTS_V5 } from './posts-v5';
 import { FECAMP_SITE_ANCHOR, FECAMP_SITE_SECTION, LOCAL_PAGES_V11 } from './local-pages-v11';
+import { LOCAL_SECTIONS_V13, LOCAL_TITLES_V13 } from './local-pages-v13';
 
 /** Littéral SQL échappé (les migrations sont des instructions SQL brutes). */
 const q = (v: string | number) => (typeof v === 'number' ? String(v) : `'${v.replace(/'/g, "''")}'`);
@@ -655,6 +656,23 @@ export const MIGRATIONS: { version: number; name: string; statements: string[] }
       // Titres Google ≤ 60 caractères pour les articles programmés, sauf si un titre SEO a déjà été saisi.
       ...POSTS_V5.filter((p) => p.meta_title).map(
         (p) => `UPDATE posts SET meta_title = ${q(p.meta_title!)} WHERE slug = ${q(p.slug)} AND meta_title = ''`,
+      ),
+    ],
+  },
+  {
+    version: 13,
+    name: 'pages villes : Bolbec enrichie, Le Havre, Lillebonne et Saint-Romain alignés sur la Search Console',
+    // Bases neuves comme base en ligne : les pages insérées par les migrations 3 et 11 sont mises à jour ici.
+    // Chaque instruction ne touche qu'une valeur encore d'origine (titre, description) ou une page sans la section :
+    // une modification faite dans l'administration est conservée et rejouer la migration ne duplique rien.
+    statements: [
+      ...LOCAL_TITLES_V13.flatMap((t) => [
+        `UPDATE local_pages SET title = ${q(t.title)}, updated_at = ${NOW} WHERE slug = ${q(t.slug)} AND title = ${q(t.oldTitle)}`,
+        `UPDATE local_pages SET meta_description = ${q(t.meta)}, updated_at = ${NOW} WHERE slug = ${q(t.slug)} AND meta_description = ${q(t.oldMeta)}`,
+      ]),
+      ...LOCAL_SECTIONS_V13.map(
+        (x) => `UPDATE local_pages SET body = replace(body, ${q(x.anchor)}, ${q(x.section + x.anchor)}), updated_at = ${NOW}
+          WHERE slug = ${q(x.slug)} AND instr(body, ${q(x.heading)}) = 0 AND instr(body, ${q(x.anchor)}) > 0`,
       ),
     ],
   },
